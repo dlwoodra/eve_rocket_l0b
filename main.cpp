@@ -33,13 +33,11 @@
 //okTDeviceInfo  m_devInfo;
 
 // Function declarations
-//bool isValidFilename(const std::char* filename);
+bool isValidFilename(const std::string& filename);
 
 
 // Function returns false if filename is empty
 bool isValidFilename(const std::string& filename) {
-/*bool isValidFilename(const char* filename) { */
-/*  return std::strlen(filename) > 0; */
     return !filename.empty();
 }
 
@@ -76,11 +74,11 @@ int main(int argc, char* argv[]) {
   }
 
   // Output the parsed information
-  std::cout << "Filename: " << (isValidFilename(filename) ? "None" : filename) << "\n";
-  std::cout << "SkipESP: " << (skipESP ? "ON" : "OFF") << "\n";
-  std::cout << "SkipMP: " << (skipMP ? "ON" : "OFF") << "\n";
+  std::cout << "filename: " << (isValidFilename(filename) ? "None" : filename) << "\n";
+  std::cout << "skipESP: " << (skipESP ? "ON" : "OFF") << "\n";
+  std::cout << "skipMP: " << (skipMP ? "ON" : "OFF") << "\n";
 
-  useFile = isValidFilename( filename );
+  std::cout << "variable useFile: " << (useFile) << std::endl;
   
   auto start = std::chrono::system_clock::now();
   // Some computation here
@@ -88,9 +86,9 @@ int main(int argc, char* argv[]) {
   auto end = std::chrono::system_clock::now();
  
   std::chrono::duration<double> elapsed_seconds = end-start;
+  // to convert the clock time to something like 
   std::time_t end_time = std::chrono::system_clock::to_time_t(end);
-  // std::cout <<  "finished at" << std:ctime(&end_time)
-  //           << std::endl;
+  std::cout <<  "finished at" << std::ctime(&end_time) << std::endl;
     
   std::cout << "elapsed time: " << elapsed_seconds.count() << " sec"
 	    << std::endl;
