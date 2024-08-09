@@ -75,9 +75,9 @@ int main(int argc, char* argv[]) {
   }
 
   // Output the parsed information
-  std::cout << "filename: " << (isValidFilename(filename) ? filename : "None") << "\n";
+  std::cout << "filename: " << (isValidFilename(filename) ? filename : "None") << std::endl;
   std::cout << "skipESP: " << (skipESP ? "ON" : "OFF") << std::endl;
-  std::cout << "skipMP: " << (skipMP ? "ON" : "OFF") << "\n";
+  std::cout << "skipMP: " << (skipMP ? "ON" : "OFF") << std::endl;
 
   std::cout << "variable useFile: " << (useFile) << std::endl;
   
