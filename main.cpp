@@ -64,18 +64,19 @@ int main(int argc, char* argv[]) {
     if (isValidFilename(arg) && arg[0] != '-') {
       filename = arg;
       useFile = true;
+      std::cout << "isValidFileName result: " << isValidFilename(filename) << std::endl;
     } else if (arg == "--skipESP" || arg == "-skipESP") {
       skipESP = true;
     } else if (arg == "--skipMP" || arg == "-skipMP") {
       skipMP = true;
     } else {
-      std::cerr << "Unknown option: " << arg << "\n";
+      std::cerr << "Unknown option: " << arg << std::endl;
     }
   }
 
   // Output the parsed information
-  std::cout << "filename: " << (isValidFilename(filename) ? "None" : filename) << "\n";
-  std::cout << "skipESP: " << (skipESP ? "ON" : "OFF") << "\n";
+  std::cout << "filename: " << (isValidFilename(filename) ? filename : "None") << "\n";
+  std::cout << "skipESP: " << (skipESP ? "ON" : "OFF") << std::endl;
   std::cout << "skipMP: " << (skipMP ? "ON" : "OFF") << "\n";
 
   std::cout << "variable useFile: " << (useFile) << std::endl;
