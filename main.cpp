@@ -11,6 +11,9 @@
 #include <cstring> //for strlen
 #include <chrono>
 #include <ctime>
+#include "fileutils.hpp"
+#include "CCSDSReader.hpp"
+
 
 /* include opal kelly fronpanel */
 //#include "okFrontPanelDLL.h"
@@ -32,34 +35,24 @@
 //okCFrontPanel *dev;
 //okTDeviceInfo  m_devInfo;
 
-// Function declarations
-bool isValidFilename(const std::string& filename);
 
-
-// Function returns false if filename is empty
-bool isValidFilename(const std::string& filename) {
-    return !filename.empty();
-}
 
 // main follows unix standard where returning 0 is good
 // accept a filename argument and switches start with "-" or "--"
 int main(int argc, char* argv[]) {
 
   // Filename initialized as an empty string
-  /* const char* filename = ""; */
   std::string filename = "";
   bool useFile = false;
   
   // Boolean switches initialized to false
   bool skipESP = false;
   bool skipMP = false;
-
   
   // Parse arguments
   for (int i = 1; i < argc; ++i) {
     std::string arg = argv[i];
-    //const char* arg = argv[i];
-
+ 
     // If the filename hasn't been set yet and the argument doesn't start with a dash, treat it as the filename
     if (isValidFilename(arg) && arg[0] != '-') {
       filename = arg;
@@ -87,7 +80,7 @@ int main(int argc, char* argv[]) {
   auto end = std::chrono::system_clock::now();
  
   std::chrono::duration<double> elapsed_seconds = end-start;
-  // to convert the clock time to something like 
+  // to convert the clock time to something like Day Mon dd hh:mm:ss yyyy
   std::time_t end_time = std::chrono::system_clock::to_time_t(end);
   std::cout <<  "finished at" << std::ctime(&end_time) << std::endl;
     
