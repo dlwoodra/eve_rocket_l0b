@@ -7,6 +7,7 @@
 *  Usage: 
 */
 #include <iostream>
+#include <iomanip>
 #include <string>
 #include <cstring> //for strlen
 #include <chrono>
@@ -74,18 +75,59 @@ int main(int argc, char* argv[]) {
 
   std::cout << "variable useFile: " << (useFile) << std::endl;
   
-  auto start = std::chrono::system_clock::now();
-  // Some computation here
+  if (isValidFilename(filename)) {
+  
+    CCSDSReader pktReader(filename);
 
-  auto end = std::chrono::system_clock::now();
- 
-  std::chrono::duration<double> elapsed_seconds = end-start;
+    if(!pktReader.open()) {
+      std::cerr << "Failed to open file." << std::endl;
+      return 1;
+    }
+
+    std::vector<uint8_t> packet;
+    while (pktReader.readNextPacket(packet)) {
+      // start timing
+      auto start = std::chrono::system_clock::now();
+      // get the packet header
+      //std::vector<uint8_t> header;
+      std::vector<uint8_t> header(packet.begin(), packet.begin() + PACKET_HEADER_SIZE);
+      
+      uint16_t apid = pktReader.getAPID(header);
+      
+      uint16_t sourceSequenceCounter = pktReader.getSourceSequenceCounter(header);
+      
+      std::vector<uint8_t> payload(packet.begin() + PACKET_HEADER_SIZE, packet.end());
+
+      double timeStamp = pktReader.getPacketTimeStamp(payload);
+
+      //std::cout << "Read a packet of size: " <<packet.size() << " bytes." << std::endl;
+      std::cout << "APID: " << apid << " SSC: " 
+        << sourceSequenceCounter << " timestamp:" 
+        << timeStamp << std::endl;
+
+      // debug - display hex values from start of packet
+      for (int32_t i = 0; i < 25; ++i) {
+        std::cout << std::hex <<std::setw(2) << std::setfill('0') << static_cast<int>(packet[i]) << " ";
+      }
+      std::cout << std::endl;
+
+      // process the packet based on APID and time
+
+      // get timing result for packet read and processing
+      auto end = std::chrono::system_clock::now(); 
+      std::chrono::duration<double> elapsed_seconds = end-start;
+      std::cout << "elapsed time: " << elapsed_seconds.count() << " sec" << std::endl;
+
+    }
+    pktReader.close();
+    return 0;
+  }
+
+
   // to convert the clock time to something like Day Mon dd hh:mm:ss yyyy
+  auto end = std::chrono::system_clock::now(); 
   std::time_t end_time = std::chrono::system_clock::to_time_t(end);
   std::cout <<  "finished at" << std::ctime(&end_time) << std::endl;
     
-  std::cout << "elapsed time: " << elapsed_seconds.count() << " sec"
-	    << std::endl;
-
-  return 0;
+  //return 0;
 }

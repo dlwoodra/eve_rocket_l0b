@@ -24,8 +24,11 @@ public:
     bool open();       // Open the binary file
     void close();      // Close the binary file
     bool readNextPacket(std::vector<uint8_t>& packet); // Read the next CCSDS packet
-    //uint16_t sourceSequenceCounter = 0;
+
     uint16_t getSourceSequenceCounter(const std::vector<uint8_t>& header);
+    uint16_t getAPID(const std::vector<uint8_t>& header);
+
+    double getPacketTimeStamp(const std::vector<uint8_t>& payload);
 
 private:
     std::ifstream file;
@@ -33,6 +36,7 @@ private:
 
     bool findSyncMarker();     // Locate the sync marker in the binary file
     bool readPacketHeader(std::vector<uint8_t>& header); // Read CCSDS packet header
+    bool readPacketData(std::vector<uint8_t>& payload); // Read CCSDS packet header
     uint16_t getPacketLength(const std::vector<uint8_t>& header); // Calculate packet length
 
     template<typename T>
