@@ -35,7 +35,7 @@ bool CCSDSReader::findSyncMarker() {
   // read one byte at a time shifting 8 bits each iteration - endian-safe
   while (buffer != SYNC_MARKER) {
     if (file.read(reinterpret_cast<char*>(&onebyte), sizeof(onebyte))) {
-      buffer = (buffer <<8) | onebyte;    
+      buffer = (static_cast<uint32_t>(buffer) << 8) | static_cast<uint32_t>(onebyte);    
       /* std::cout << "buffer value is " << std::hex << buffer << std::endl; */
     } else { 
       return false; // eof

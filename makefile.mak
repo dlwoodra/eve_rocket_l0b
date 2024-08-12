@@ -15,8 +15,8 @@ DEBUG_FLAGS = -O0 -g3 -funroll-loops -Wall -c
 #
 # List the C source files that need to be compiled
 #
-SRCS = CCSDSReader.cpp fileutils.cpp main.cpp 
-TEST_SRCS = CCSDSReader.cpp fileutils.cpp test_main.cpp 
+SRCS = CCSDSReader.cpp RecordFileWriter.cpp fileutils.cpp main.cpp 
+TEST_SRCS = CCSDSReader.cpp RecordFileWriter.cpp fileutils.cpp test_main.cpp 
 
 #
 # Create a list of object files from the source files
