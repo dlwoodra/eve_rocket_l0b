@@ -8,7 +8,7 @@
 #include "fileutils.hpp"
 
 TEST_CASE("Open valid file") {
-  CCSDSReader pktreader("packetizer_out.bin");
+  CCSDSReader pktreader("packetizer_out2.bin");
   REQUIRE(pktreader.open() == true);
   pktreader.close();
 }
@@ -20,7 +20,7 @@ TEST_CASE("Open non-existent file") {
 
 TEST_CASE("Find sync marker") {
   // Assume a file "sync_marker_test.bin" contains the SYNC_MARKER in the middle.
-  CCSDSReader pktreader("packetizer_out.bin");
+  CCSDSReader pktreader("packetizer_out2.bin");
   REQUIRE(pktreader.open() == true);
     
   // Attempt to read the first packet, which includes finding the sync marker
@@ -36,7 +36,7 @@ TEST_CASE("Read a full packet") {
   const int expected_packet_size = 1768; // fixed packet lengths
 
   // Create a test file with a known sync marker and packet
-  CCSDSReader pktreader("packetizer_out.bin");
+  CCSDSReader pktreader("packetizer_out2.bin");
   REQUIRE(pktreader.open() == true);
 
   std::vector<uint8_t> packet;
