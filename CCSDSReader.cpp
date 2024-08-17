@@ -3,6 +3,8 @@
 #include <iostream>
 #include <iomanip>
 
+#define ONE_OVER_65536 (1.0 / 65536.0)
+
 // initialize to use filename
 CCSDSReader::CCSDSReader(const std::string& filename) : filename(filename) {}
 
@@ -128,7 +130,7 @@ uint16_t CCSDSReader::getPacketLength(const std::vector<uint8_t>& header) {
 // get the APID from the header
 uint16_t CCSDSReader::getAPID(const std::vector<uint8_t>& header) {
   // Least significant 11-bits of first 2 header bytes
-  uint16_t apid = ((static_cast<uint16_t>(header[0]) * 0x07) << 8) | static_cast<uint16_t>(header[1]); 
+  uint16_t apid = ((static_cast<uint16_t>(header[0]) & 0x07) << 8) | static_cast<uint16_t>(header[1]); 
   return apid;
 }
 
@@ -153,10 +155,23 @@ double CCSDSReader::getPacketTimeStamp(const std::vector<uint8_t>& payload) {
     static_cast<uint32_t>(payload[offset+3]);
   subseconds = (static_cast<uint16_t>(payload[offset+4]) << 8) | 
     static_cast<uint16_t>(payload[offset+5]);
+  // byte 6 and 7 are unused in the rocket fpga, only MSB 16-bits contain subseconds
+  // byte 6 and 7 are allocated but unused
   timestamp = static_cast<double>(seconds) + 
-    (static_cast<double>(subseconds)/65536.0);
+    (static_cast<double>(subseconds) * ONE_OVER_65536); //multiplcation is faster than division
+  //(static_cast<double>(subseconds)/65536.0);
 
   return timestamp;
+}
+
+uint16_t CCSDSReader::getMode(const std::vector<uint8_t>& payload) {
+
+  uint16_t mode;
+  uint32_t offset = 8; // skip 8 bytes from timestamp 
+
+  mode = (static_cast<uint16_t>(payload[offset]<< 8)) | static_cast<uint16_t>(payload[offset+1]);
+
+  return mode;
 }
 
 template<typename T>

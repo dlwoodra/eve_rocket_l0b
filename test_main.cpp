@@ -8,7 +8,8 @@
 #include "fileutils.hpp"
 
 TEST_CASE("Open valid file") {
-  CCSDSReader pktreader("packetizer_out2.bin");
+  //CCSDSReader pktreader("packetizer_out2.bin");
+  CCSDSReader pktreader("packetizer_out_2024_08_13.bin");
   REQUIRE(pktreader.open() == true);
   pktreader.close();
 }
@@ -44,6 +45,9 @@ TEST_CASE("Read a full packet") {
 
   // Verify the packet content (length, header, etc.)
   REQUIRE(packet.size() == expected_packet_size);
+  uint16_t apid = pktreader.getAPID(packet);
+  REQUIRE(apid >= MEGSA_APID); // 601
+  REQUIRE(apid <= ESP_APID); // 605
   uint16_t sourceSequenceCounter = pktreader.getSourceSequenceCounter(packet);
   REQUIRE(sourceSequenceCounter >= 0);
   REQUIRE(sourceSequenceCounter < 16384);

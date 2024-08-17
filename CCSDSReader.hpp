@@ -27,6 +27,7 @@ public:
 
     uint16_t getSourceSequenceCounter(const std::vector<uint8_t>& header);
     uint16_t getAPID(const std::vector<uint8_t>& header);
+    uint16_t getMode(const std::vector<uint8_t>& header);
 
     double getPacketTimeStamp(const std::vector<uint8_t>& payload);
 
