@@ -87,14 +87,14 @@ void processPackets(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& r
 
         std::vector<uint8_t> header(packet.begin(), packet.begin() + PACKET_HEADER_SIZE);
         uint16_t apid = pktReader.getAPID(header);
-
         uint16_t sourceSequenceCounter = pktReader.getSourceSequenceCounter(header);
+        uint16_t packetLength = pktReader.getPacketLength(header);
 
         std::vector<uint8_t> payload(packet.begin() + PACKET_HEADER_SIZE, packet.end());
         double timeStamp = pktReader.getPacketTimeStamp(payload);
         uint16_t mode = pktReader.getMode(payload);
-
-        std::cout << "APID: " << apid << " SSC: " << sourceSequenceCounter << " timestamp: " << timeStamp << " mode:" << mode << std::endl;
+ 
+        std::cout << "APID: " << apid << " SSC: " << sourceSequenceCounter << " pktLen:" << packetLength << " timestamp: " << timeStamp << " mode:" << mode << std::endl;
 
         // Write packet data to a FITS file if applicable
         if (fitsFileWriter) {
@@ -106,7 +106,7 @@ void processPackets(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& r
 
         auto end = std::chrono::system_clock::now();
         std::chrono::duration<double> elapsed_seconds = end - start;
-        std::cout << "Elapsed time: " << elapsed_seconds.count() << " sec" << std::endl;
+        //std::cout << "Elapsed time: " << elapsed_seconds.count() << " sec" << std::endl;
     }
 }
 
