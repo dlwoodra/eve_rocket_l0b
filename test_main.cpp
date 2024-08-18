@@ -1,11 +1,25 @@
 #define CATCH_CONFIG_MAIN // tell catch to include a main()
 #include "catch.hpp" 
-//#include <cassert>
 
 //#include "spdlog/spdlog.h" // fancy logging needs a main
 
 #include "CCSDSReader.hpp"
 #include "fileutils.hpp"
+#include "RecordFileWriter.hpp"
+
+// Helper class for file cleanup
+class TestingFileCleanup {
+public:
+    explicit TestingFileCleanup(const std::string& filename) : filename(filename) {}
+    ~TestingFileCleanup() {
+        std::cout << "Deleting test file " << filename.c_str() << std::endl;
+        std::remove(filename.c_str());
+    }
+private:
+    std::string filename;
+};
+
+// CCSDSReader tests
 
 TEST_CASE("Open valid file") {
   //CCSDSReader pktreader("packetizer_out2.bin");
@@ -89,6 +103,84 @@ TEST_CASE("File without sync marker") {
   std::vector<uint8_t> packet;
   REQUIRE(pktreader.readNextPacket(packet) == false); // No sync marker found
   pktreader.close();
+}
+
+
+// Tests for RecordFileWriter
+
+// Test case for checking the creation of the RecordFileWriter object and file opening
+TEST_CASE("RecordFileWriter creates a file and opens it") {
+    RecordFileWriter writer;
+    
+    REQUIRE(writer.writeSyncAndPacketToRecordFile({0x01, 0x02, 0x03, 0x04}));
+    writer.close();
+}
+
+// Test case for checking if data is written to the record file
+TEST_CASE("RecordFileWriter writes sync marker and packet data") {
+    RecordFileWriter writer;
+
+    writer.generateFilename();
+
+    std::vector<uint8_t> testPacket = {0xAA, 0xBB, 0xCC, 0xDD};
+    REQUIRE(writer.writeSyncAndPacketToRecordFile(testPacket));
+
+    writer.close();
+
+    // Validate that the file was created and contains expected data
+    std::ifstream inputFile(writer.getRecordFilename(), std::ios::binary);
+    REQUIRE(inputFile.is_open());
+
+    // Read the sync marker
+    uint32_t syncMarker;
+    inputFile.read(reinterpret_cast<char*>(&syncMarker), sizeof(syncMarker));
+    REQUIRE(syncMarker == SYNC_MARKER);
+
+    // Read the packet data
+    std::vector<uint8_t> readPacket(testPacket.size());
+    inputFile.read(reinterpret_cast<char*>(readPacket.data()), readPacket.size());
+
+    REQUIRE(readPacket == testPacket);
+
+    // verify that the read pointer has read 8 bytes from the file
+    // 4 bytes for the sync marker and 4 for the dummy 4-byte testPacket
+    //std::cout << "tellg = " << inputFile.tellg() << std::endl;
+    REQUIRE(inputFile.tellg() == 8); // Check file size is after byte 8
+
+}
+
+// Test case for closing the file
+TEST_CASE("RecordFileWriter closes the file properly") {
+    RecordFileWriter writer;
+    std::string filename = writer.getRecordFilename();
+
+    writer.close();
+
+    REQUIRE_FALSE(writer.writeSyncAndPacketToRecordFile({0x01, 0x02, 0x03, 0x04}));
+
+    //std::remove(filename.c_str()); // Delete the file
+}
+
+TEST_CASE("RecordFileWriter opens and writes to the record file") {
+    RecordFileWriter writer;
+    std::string filename = writer.getRecordFilename();
+
+    REQUIRE(!filename.empty());
+
+    std::vector<uint8_t> packet = {0x01, 0x02, 0x03, 0x04};
+    REQUIRE(writer.writeSyncAndPacketToRecordFile(packet));
+
+    //// Ensure the file exists and is non-empty
+    //std::ifstream infile(filename, std::ios::binary | std::ios::ate);
+    //REQUIRE(infile.is_open());
+    //REQUIRE(infile.tellg() > 0); // Check file size is greater than 0
+
+    //Destructor deals with file cleanup
+    TestingFileCleanup cleanup(filename);
+
+    //// Cleanup: Delete the temporary file
+    //infile.close(); // Close the file before deleting
+    //std::remove(filename.c_str()); // Delete the file
 }
 
 /*
