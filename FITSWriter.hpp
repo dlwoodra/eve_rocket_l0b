@@ -11,7 +11,7 @@
 #include <stdexcept>
 #include <iostream>
 
-#include "/home/dlwoodra/rocket/eve_rocket_l0b/cfitsio/include/include/fitsio.h"
+#include "/usr/local/include/fitsio.h"
 
 // Custom deleter for fitsfile* to be used with std::unique_ptr
 struct FITSFileDeleter {

@@ -81,6 +81,7 @@ void processPackets(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& r
                 std::cerr << "ERROR: Failed to write packet to record file." << std::endl;
                 return;
             }
+            std::cout << "Opened recordFilename " << recordWriter->getRecordFilename() << std::endl;
         }
 
         auto start = std::chrono::system_clock::now();

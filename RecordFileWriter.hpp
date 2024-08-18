@@ -15,6 +15,9 @@
 
 class RecordFileWriter {
 public:
+
+    std::string recordFilename;
+
     // Constructor that generates the filename based on the current date and time
     RecordFileWriter();
 
@@ -24,15 +27,18 @@ public:
     // Method to write the sync marker and packet data to the file
     bool writeSyncAndPacketToRecordFile(const std::vector<uint8_t>& packet);
 
+    std::string getRecordFilename() const;
+
     // Close the file if it's open
     void close();
+
+    // Generate a filename based on the current date and time
+    std::string generateFilename();
 
 private:
     std::string outputFile;
     std::ofstream recordFile;
 
-    // Generate a filename based on the current date and time
-    std::string generateFilename();
 };
 
 #endif // RECORD_FILE_WRITER_HPP

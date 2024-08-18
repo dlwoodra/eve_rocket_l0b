@@ -1,6 +1,5 @@
 #include "FITSWriter.hpp"
 
-
 // Constructor
 FITSWriter::FITSWriter() {}
 

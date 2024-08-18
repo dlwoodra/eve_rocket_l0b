@@ -7,6 +7,7 @@ RecordFileWriter::RecordFileWriter()
         std::cerr << "ERROR: Failed to open output file: " << outputFile << std::endl;
         exit(1); // fatal, exit
     }
+
     std::cout << "Record file opened: " << outputFile << std::endl;
 }
 
@@ -46,5 +47,10 @@ std::string RecordFileWriter::generateFilename() {
 
     std::ostringstream oss;
     oss << std::put_time(&buf, "record_%Y_%j_%H_%M_%S") << ".rtlm";
+
     return oss.str();
+}
+
+std::string RecordFileWriter::getRecordFilename() const {
+    return outputFile;
 }
