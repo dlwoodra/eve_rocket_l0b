@@ -10,7 +10,8 @@ INCLUDE_PATH = -I/usr/local/include
 #FAST_FLAGS = -I${eve_code_include} -O3 -funroll-loops -Wall -c -fmessage-length=0
 #DEBUG_FLAGS = -I${eve_code_include} -O0 -g3 -funroll-loops -Wall -c -fmessage-length=0
 FAST_FLAGS = -O3 -funroll-loops -Wall -c
-DEBUG_FLAGS = -O0 -g -funroll-loops -Wall -c
+TEST_FLAGS = -Wall -c
+DEBUG_FLAGS = -g -funroll-loops -Wall -c
 
 #LFLAGS = -leve_utils -llogutilities 
 #LINKED_LIBS = -L${eve_code_lib}
@@ -23,8 +24,8 @@ LINKED_LIBS = -L/usr/local/lib -Wl,-rpath=/usr/local/lib
 #
 # List the C source files that need to be compiled
 #
-SRCS = CCSDSReader.cpp RecordFileWriter.cpp fileutils.cpp FITSWriter.cpp PacketProcessor.cpp main.cpp 
-TEST_SRCS = CCSDSReader.cpp RecordFileWriter.cpp fileutils.cpp FITSWriter.cpp PacketProcessor.cpp test_main.cpp 
+SRCS = CCSDSReader.cpp RecordFileWriter.cpp fileutils.cpp FITSWriter.cpp PacketProcessor.cpp TimeInfo.cpp main.cpp 
+TEST_SRCS = CCSDSReader.cpp RecordFileWriter.cpp fileutils.cpp FITSWriter.cpp PacketProcessor.cpp TimeInfo.cpp test_main.cpp 
 
 #
 # Create a list of object files from the source files
@@ -36,12 +37,12 @@ ROOT := .
 
 cleanall: clean removebinaries all
 
-all: test_ql ql ql_debug
+all: ql_test ql ql_debug
 
 # for running tests
-test_ql:
+ql_test:
 	rm -f *.o
-	${gpp} -std=c++11 ${INCLUDE_PATH} ${FAST_FLAGS} ${TEST_SRCS}
+	${gpp} -std=c++11 ${INCLUDE_PATH} ${TEST_FLAGS} ${TEST_SRCS}
 	${gpp} ${LINKED_LIBS} -o $@ ${TEST_OBJS} ${LFLAGS}
 	rm -f *.o
 
@@ -63,6 +64,6 @@ clean:
 	rm -f *.o
 
 removebinaries:
-	rm -f ql test_ql ql_debug
+	rm -f ql ql_test ql_debug
 
 .PHONY: all clean

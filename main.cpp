@@ -75,13 +75,18 @@ void parseCommandLineArgs(int argc, char* argv[], std::string& filename, bool& s
 
 void processPackets(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& recordWriter, std::unique_ptr<FITSWriter>& fitsFileWriter, bool skipRecord) {
     std::vector<uint8_t> packet;
+
+    int counter=0;
     while (pktReader.readNextPacket(packet)) {
+
+        std::cout<< "processPackets counter " << counter++ << std::endl;
+
         if (!skipRecord && recordWriter) {
             if (!recordWriter->writeSyncAndPacketToRecordFile(packet)) {
-                std::cerr << "ERROR: Failed to write packet to record file." << std::endl;
+                std::cerr << "ERROR: processPackets failed to write packet to record file." << std::endl;
                 return;
             }
-            std::cout << "Opened recordFilename " << recordWriter->getRecordFilename() << std::endl;
+            //std::cout << "processPackets wrote to recordFilename " << recordWriter->getRecordFilename() << std::endl;
         }
 
         auto start = std::chrono::system_clock::now();
@@ -98,12 +103,12 @@ void processPackets(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& r
         std::cout << "APID: " << apid << " SSC: " << sourceSequenceCounter << " pktLen:" << packetLength << " timestamp: " << timeStamp << " mode:" << mode << std::endl;
 
         // Write packet data to a FITS file if applicable
-        if (fitsFileWriter) {
-          if (!fitsFileWriter->writePacketToFITS(packet, apid, timeStamp)) {
-            std::cerr << "ERROR: Failed to write packet to FITS file." << std::endl;
-            return;
-          }
-        }
+        //if (fitsFileWriter) {
+        //  if (!fitsFileWriter->writePacketToFITS(packet, apid, timeStamp)) {
+        //    std::cerr << "ERROR: Failed to write packet to FITS file." << std::endl;
+        //    return;
+        //  }
+        //}
 
         auto end = std::chrono::system_clock::now();
         std::chrono::duration<double> elapsed_seconds = end - start;

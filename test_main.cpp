@@ -6,6 +6,7 @@
 #include "CCSDSReader.hpp"
 #include "fileutils.hpp"
 #include "RecordFileWriter.hpp"
+#include "TimeInfo.hpp"
 
 // Helper class for file cleanup
 class TestingFileCleanup {
@@ -23,7 +24,7 @@ private:
 
 TEST_CASE("Open valid file") {
   //CCSDSReader pktreader("packetizer_out2.bin");
-  CCSDSReader pktreader("packetizer_out_2024_08_13.bin");
+  CCSDSReader pktreader("packetizer_out_2024_08_20.bin");
   REQUIRE(pktreader.open() == true);
   pktreader.close();
 }
@@ -120,7 +121,7 @@ TEST_CASE("RecordFileWriter creates a file and opens it") {
 TEST_CASE("RecordFileWriter writes sync marker and packet data") {
     RecordFileWriter writer;
 
-    writer.generateFilename();
+    writer.generateRecordFilename();
 
     std::vector<uint8_t> testPacket = {0xAA, 0xBB, 0xCC, 0xDD};
     REQUIRE(writer.writeSyncAndPacketToRecordFile(testPacket));
@@ -156,9 +157,10 @@ TEST_CASE("RecordFileWriter closes the file properly") {
 
     writer.close();
 
-    REQUIRE_FALSE(writer.writeSyncAndPacketToRecordFile({0x01, 0x02, 0x03, 0x04}));
+    // this should fail since the file is closed
+    bool writeResult = writer.writeSyncAndPacketToRecordFile({0x01, 0x02, 0x03, 0x04});
+    REQUIRE_FALSE(writeResult);
 
-    //std::remove(filename.c_str()); // Delete the file
 }
 
 TEST_CASE("RecordFileWriter opens and writes to the record file") {
@@ -181,6 +183,23 @@ TEST_CASE("RecordFileWriter opens and writes to the record file") {
     //// Cleanup: Delete the temporary file
     //infile.close(); // Close the file before deleting
     //std::remove(filename.c_str()); // Delete the file
+}
+
+TEST_CASE("TimeInfo converts properly") {
+    TimeInfo currentTime;
+
+    std::cout << "Year: " << currentTime.getYear() << "\n";
+    std::cout << "Day of Year: " << currentTime.getDayOfYear() << "\n";
+    std::cout << "Month: " << currentTime.getMonth() << "\n";
+    std::cout << "Day of Month: " << currentTime.getDayOfMonth() << "\n";
+    std::cout << "Hour: " << currentTime.getHour() << "\n";
+    std::cout << "Minute: " << currentTime.getMinute() << "\n";
+    std::cout << "Second: " << currentTime.getSecond() << "\n";
+    std::cout << "Microseconds since Epoch: " << currentTime.getMicrosecondsSinceEpoch() << "\n";
+    std::cout << "UTC Subseconds: " << currentTime.getUTCSubseconds() << "\n";
+    std::cout << "TAI Seconds: " << currentTime.getTAISeconds() << "\n";
+    std::cout << "TAI Subseconds: " << currentTime.getTAISubseconds() << "\n";
+
 }
 
 /*

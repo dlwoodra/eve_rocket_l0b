@@ -60,8 +60,12 @@ bool CCSDSReader::readNextPacket(std::vector<uint8_t>& packet) {
   }
 
   uint16_t packetLength = getPacketLength(header);
-  if (packetLength != STANDARD_PACKET_LENGTH) {
+  if ((packetLength != STANDARD_MEGSAB_PACKET_LENGTH) && \
+  (packetLength != STANDARD_ESP_PACKET_LENGTH) && \
+  (packetLength != STANDARD_HK_PACKET_LENGTH) && \
+  (packetLength != STANDARD_MEGSP_PACKET_LENGTH)) {
     std::cout << "ERROR: CCSDSREADER::readNextPacket has unexpected packetLength " << packetLength << std::endl;
+    std::cout << " CCSDSREADER::readNextPacket APID with unexpected packetLength " << getAPID(header) << std::endl;
     return false;
   }
 
@@ -113,7 +117,7 @@ bool CCSDSReader::readPacketHeader(std::vector<uint8_t>& header) {
 }
 // helper method to read the packet data
 bool CCSDSReader::readPacketData(std::vector<uint8_t>& packet) {
-  if (file.read(reinterpret_cast<char*>(packet.data()), STANDARD_PACKET_LENGTH)) {
+  if (file.read(reinterpret_cast<char*>(packet.data()), getPacketLength(packet))) {
     return true; //read success
   } else {
     return false; // read failed (eof or error)
