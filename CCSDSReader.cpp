@@ -1,7 +1,4 @@
 #include "CCSDSReader.hpp"
-#include <cstring>
-#include <iostream>
-#include <iomanip>
 
 #define ONE_OVER_65536 (1.0 / 65536.0)
 
@@ -33,12 +30,16 @@ bool CCSDSReader::findSyncMarker() {
 
   uint32_t buffer = 0;
   uint8_t onebyte = 0;
+  int bytecounter = 0;
 
   // read one byte at a time shifting 8 bits each iteration - endian-safe
   while (buffer != SYNC_MARKER) {
     if (file.read(reinterpret_cast<char*>(&onebyte), sizeof(onebyte))) {
       buffer = (static_cast<uint32_t>(buffer) << 8) | static_cast<uint32_t>(onebyte);    
       /* std::cout << "buffer value is " << std::hex << buffer << std::endl; */
+      if (bytecounter++ > 4) {
+        std::cout << "ERROR findSyncMarker read more than 4 bytes" << std::endl;
+      }
     } else { 
       return false; // eof
     }
@@ -88,20 +89,20 @@ bool CCSDSReader::readNextPacket(std::vector<uint8_t>& packet) {
   }
 
   // Debugging output: print payload in hex
-  //std::cout << "Payload: ";
-  //for (size_t i = PACKET_HEADER_SIZE; i < packet.size(); ++i) {
-  //  std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(packet[i]) << " ";
-  //}
-  //std::cout << std::endl;
+  std::cout << "Payload: ";
+  for (size_t i = PACKET_HEADER_SIZE; i < packet.size(); ++i) {
+    std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(packet[i]) << " ";
+  }
+  std::cout << std::endl;
 
 
-  //std::vector<uint8_t> payload(packetLength);
-  //std::memcpy(packet.data(), payload.data(), packetLength); // Copy primary header to packet
+  std::vector<uint8_t> payload(packetLength);
+  std::memcpy(packet.data(), payload.data(), packetLength); // Copy primary header to packet
 
   //Extract APID and sourceSequenceCounter
-  //uint16_t apid = getAPID(header);
-  //uint16_t sourceSequenceCounter = getSourceSequenceCounter(header);
-  //double timestamp = getPacketTimeStamp(payload); // from secondary header
+  uint16_t apid = getAPID(header);
+  uint16_t sourceSequenceCounter = getSourceSequenceCounter(header);
+  double timestamp = getPacketTimeStamp(payload); // from secondary header
 
   return true;
 }
