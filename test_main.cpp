@@ -7,6 +7,8 @@
 #include "fileutils.hpp"
 #include "RecordFileWriter.hpp"
 #include "TimeInfo.hpp"
+#include "InputSource.hpp"
+#include "FileInputSource.hpp"
 
 // Helper class for file cleanup
 class TestingFileCleanup {
@@ -24,86 +26,96 @@ private:
 
 TEST_CASE("Open valid file") {
   //CCSDSReader pktreader("packetizer_out2.bin");
-  CCSDSReader pktreader("packetizer_out_2024_08_20.bin");
-  REQUIRE(pktreader.open() == true);
-  pktreader.close();
+  FileInputSource fileSource("packetizer_out_2024_08_20.bin");
+  CCSDSReader fileReader(&fileSource);
+  REQUIRE(fileReader.open() == true);
+  fileReader.close();
 }
 
 TEST_CASE("Open non-existent file") {
-  CCSDSReader pktreader("non_existent_file.bin");
-  REQUIRE(pktreader.open() == false);
+  FileInputSource fileSource("non_existent_file.bin");
+  CCSDSReader fileReader(&fileSource);
+  REQUIRE(fileReader.open() == false);
 }
 
 TEST_CASE("Find sync marker") {
   // Assume a file "sync_marker_test.bin" contains the SYNC_MARKER in the middle.
-  CCSDSReader pktreader("packetizer_out2.bin");
-  REQUIRE(pktreader.open() == true);
+  FileInputSource fileSource("packetizer_out2.bin");
+  CCSDSReader fileReader(&fileSource);
+  REQUIRE(fileReader.open() == true);
     
   // Attempt to read the first packet, which includes finding the sync marker
   std::vector<uint8_t> packet;
-  bool packetRead = pktreader.readNextPacket(packet);
+  bool packetRead = fileReader.readNextPacket(packet);
   INFO("Packet read status: " << packetRead);
   REQUIRE(packetRead == true);
 
-  pktreader.close();
+  fileReader.close();
 }
 
 TEST_CASE("Read a full packet") {
   const int expected_packet_size = 1768; // fixed packet lengths
 
   // Create a test file with a known sync marker and packet
-  CCSDSReader pktreader("packetizer_out2.bin");
-  REQUIRE(pktreader.open() == true);
+  FileInputSource fileSource("packetizer_out2.bin");
+  CCSDSReader fileReader(&fileSource);
+  REQUIRE(fileReader.open() == true);
 
   std::vector<uint8_t> packet;
-  REQUIRE(pktreader.readNextPacket(packet) == true);
+  REQUIRE(fileReader.readNextPacket(packet) == true);
 
   // Verify the packet content (length, header, etc.)
   REQUIRE(packet.size() == expected_packet_size);
-  uint16_t apid = pktreader.getAPID(packet);
+  uint16_t apid = fileReader.getAPID(packet);
   REQUIRE(apid >= MEGSA_APID); // 601
   REQUIRE(apid <= ESP_APID); // 605
-  uint16_t sourceSequenceCounter = pktreader.getSourceSequenceCounter(packet);
+  uint16_t sourceSequenceCounter = fileReader.getSourceSequenceCounter(packet);
   REQUIRE(sourceSequenceCounter >= 0);
   REQUIRE(sourceSequenceCounter < 16384);
   // Additional content checks can be performed here
-  pktreader.close();
+  fileReader.close();
 }
 
 TEST_CASE("Empty file") {
-  CCSDSReader pktreader("empty_file.bin");
-  REQUIRE(pktreader.open() == true);
+  FileInputSource fileSource("empty_file.bin");
+  CCSDSReader fileReader(&fileSource);
+  REQUIRE(fileReader.open() == true);
 
   std::vector<uint8_t> packet;
-  REQUIRE(pktreader.readNextPacket(packet) == false); // No packet should be read
-  pktreader.close();
+  REQUIRE(fileReader.readNextPacket(packet) == false); // No packet should be read
+  fileReader.close();
 }
 
 TEST_CASE("Corrupted packet header") {
-  CCSDSReader pktreader("corrupted_header.bin");
-  REQUIRE(pktreader.open() == true);
+  FileInputSource fileSource("corrupted_header.bin");
+  CCSDSReader fileReader(&fileSource);
+  REQUIRE(fileReader.open() == true);
 
   std::vector<uint8_t> packet;
-  REQUIRE(pktreader.readNextPacket(packet) == false); // The packet should fail to read
-  pktreader.close();
+  REQUIRE(fileReader.readNextPacket(packet) == false); // The packet should fail to read
+  fileReader.close();
 }
 
 TEST_CASE("EOF before end of packet") {
-  CCSDSReader pktreader("incomplete_packet.bin");
-  REQUIRE(pktreader.open() == true);
+  FileInputSource fileSource("incomplete_packet.bin");
+  CCSDSReader fileReader(&fileSource);
+  REQUIRE(fileReader.open() == true);
 
   std::vector<uint8_t> packet;
-  REQUIRE(pktreader.readNextPacket(packet) == false); // Packet should fail to read
-  pktreader.close();
+  REQUIRE(fileReader.readNextPacket(packet) == false); // Packet should fail to read
+  fileReader.close();
 }
 
 TEST_CASE("File without sync marker") {
-  CCSDSReader pktreader("no_sync_marker.bin");
-  REQUIRE(pktreader.open() == true);
+  FileInputSource fileSource("no_sync_marker.bin");
+  //CCSDSReader pktReader(filename);
+  CCSDSReader fileReader(&fileSource);
+  //CCSDSReader pktReader("no_sync_marker.bin");
+  REQUIRE(fileReader.open() == true);
 
   std::vector<uint8_t> packet;
-  REQUIRE(pktreader.readNextPacket(packet) == false); // No sync marker found
-  pktreader.close();
+  REQUIRE(fileReader.readNextPacket(packet) == false); // No sync marker found
+  fileReader.close();
 }
 
 

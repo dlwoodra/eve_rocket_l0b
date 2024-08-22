@@ -12,7 +12,6 @@ RecordFileWriter::RecordFileWriter()
     }
 
     TimeInfo currentTime;
-    //int lastMinute = currentTime.getMinute();
     recordFileMinute = currentTime.getMinute();
 
     std::cout << "Record file opened: " << outputFile << std::endl;
@@ -35,14 +34,14 @@ bool RecordFileWriter::writeSyncAndPacketToRecordFile(const std::vector<uint8_t>
 
     // Check if we need to rotate the file
     if ( checkAndRotateFile() == true ) {
-        std::cout << "Info: writeSyncAndPacketToRecordFile received good status from checkAndRotateFile" << std::endl;
+        //std::cout << "Info: writeSyncAndPacketToRecordFile received good status from checkAndRotateFile" << std::endl;
     } else {
         std::cout << "Info: writeSyncAndPacketToRecordFile received BAD status from checkAndRotateFile" << std::endl;
     }
 
     // Write sync marker to the file
     recordFile.write(reinterpret_cast<char*>(&syncMarker), sizeof(syncMarker));
-    std::cout << "writeSyncAndPacketToRecordFile wrote syncMarker" << std::endl;
+    //std::cout << "writeSyncAndPacketToRecordFile wrote syncMarker" << std::endl;
 
     // Write packet data to the file
     recordFile.write(reinterpret_cast<char*>(const_cast<uint8_t*>(packet.data())), packet.size());
@@ -88,8 +87,6 @@ bool RecordFileWriter::checkAndRotateFile() {
     //std::cout << "checkAndRotateFile currentMinute:" << currentMinute << std::endl; 
     //std::cout << "checkAndRotateFile recordFileMinute:" << recordFileMinute << std::endl;
 
-    //return true; // testing bypassing rotation
-
     if ((recordFileMinute == -1) || (recordFileMinute != currentMinute)) {
         // The minute has changed, close the current file and open a new one
         if (lastMinute != -1) { close(); } // Close the old file
@@ -103,7 +100,7 @@ bool RecordFileWriter::checkAndRotateFile() {
 
         std::cout << "Record file rotated: " << outputFile << std::endl;
         recordFileMinute = currentMinute;
-    } // otherwise the minute has not changed, keep writing to it
+    } // otherwise the minute has not changed, keep writing to the same recordFile
 
     return true;
 }

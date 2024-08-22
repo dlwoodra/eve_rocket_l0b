@@ -10,6 +10,11 @@ target XEM7310-a75
 #include "fileutils.hpp"
 #include "FITSWriter.hpp"
 #include "RecordFileWriter.hpp"
+#include "InputSource.hpp"
+#include "FileInputSource.hpp"
+//#include "USBInputSource.hpp"
+
+//#include "okFrontPanelDLL.h"
 
 #include <chrono>
 #include <cstdint>
@@ -18,7 +23,6 @@ target XEM7310-a75
 #include <vector>
 
 void parseCommandLineArgs(int argc, char* argv[], std::string& filename, bool& skipESP, bool& skipMP, bool& skipRecord);
-//void processPackets(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& recordWriter, bool skipRecord);
 void processPackets(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& recordWriter, std::unique_ptr<FITSWriter>& fitsFileWriter, bool skipRecord);
 void print_help();
 
@@ -38,13 +42,30 @@ int main(int argc, char* argv[]) {
     }
 
     if (isValidFilename(filename)) {
-        CCSDSReader pktReader(filename);
-        if (!pktReader.open()) {
+        // read packets from the file provided in the argument list
+        FileInputSource fileSource(filename);
+        CCSDSReader fileReader(&fileSource);
+
+        if (fileReader.open()) {
+            std::vector<uint8_t> packet;
+            while (fileReader.readNextPacket(packet)) {
+                processPackets(fileReader, recordWriter, fitsFileWriter, skipRecord);
+            }
+        }
+        fileReader.close();
+
+        if (!fileReader.open()) {
             std::cerr << "Failed to open file." << std::endl;
             return EXIT_FAILURE;
         }
-        processPackets(pktReader, recordWriter, fitsFileWriter, skipRecord);
-        pktReader.close();
+        processPackets(fileReader, recordWriter, fitsFileWriter, skipRecord);
+        fileReader.close();
+    } else {
+        // read packets from USB
+        //CCSDSReader pktReader();
+        //processPackets(pktReader, recordWriter, fitsFileWriter, 0); // always record from USB
+        //pktReader.close();
+
     }
 
     auto end = std::chrono::system_clock::now();
@@ -94,6 +115,7 @@ void processPackets(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& r
         std::vector<uint8_t> header(packet.begin(), packet.begin() + PACKET_HEADER_SIZE);
         uint16_t apid = pktReader.getAPID(header);
         uint16_t sourceSequenceCounter = pktReader.getSourceSequenceCounter(header);
+        //uint16_t packetLength = pktReader.getPacketLength(header);
         uint16_t packetLength = pktReader.getPacketLength(header);
 
         std::vector<uint8_t> payload(packet.begin() + PACKET_HEADER_SIZE, packet.end());

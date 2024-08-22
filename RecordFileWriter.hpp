@@ -33,16 +33,13 @@ public:
     // Generate a filename based on the current date and time
     std::string generateRecordFilename();
 
-    ////std::chrono::system_clock::time_point getCurrentMinute();
-    //long getCurrentMinute();
-
     // Check if the current minute has rolled over and open a new file if it has
     bool checkAndRotateFile();
 
 private:
     std::string outputFile;
     std::ofstream recordFile;
-    //std::chrono::system_clock::time_point lastMinute, currentMinute; // Store the last minute boundary time
+
     int lastMinute;
 
 };
