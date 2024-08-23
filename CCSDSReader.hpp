@@ -14,6 +14,7 @@
 
 // Constants
 const uint32_t SYNC_MARKER = 0x1ACFFC1D; // Example sync marker, typical for CCSDS frames
+const uint32_t BSWAP_SYNC_MARKER = 0x1DFCCF1A;
 const size_t PACKET_HEADER_SIZE = 6;     // CCSDS packet primary header size in bytes
 const uint16_t STANDARD_MEGSAB_PACKET_LENGTH = 1761; // value from packet (one less than size)
 const uint16_t STANDARD_MEGSP_PACKET_LENGTH = 25; // apid 604

@@ -10,6 +10,17 @@
 #include "InputSource.hpp"
 #include "FileInputSource.hpp"
 
+
+// Helper function to get current year using std::chrono for testing TimeInfo
+int getCurrentYear() {
+    auto now = std::chrono::system_clock::now();
+    std::time_t now_c = std::chrono::system_clock::to_time_t(now);
+    std::tm now_tm;
+    gmtime_r(&now_c, &now_tm);
+    return now_tm.tm_year + 1900;
+}
+
+
 // Helper class for file cleanup
 class TestingFileCleanup {
 public:
@@ -214,29 +225,93 @@ TEST_CASE("TimeInfo converts properly") {
 
 }
 
-/*
+// Test suite for the TimeInfo class
+TEST_CASE("TimeInfo class functionality", "[TimeInfo]") {
+    TimeInfo timeInfo;
 
-int test_main( int argc, char* argv[] ) {
+    SECTION("UpdateNow should update time components") {
+        timeInfo.updateNow();
+        REQUIRE(timeInfo.getYear() == getCurrentYear());
+    }
 
-  Catch::Session session; // only one instance
+    SECTION("Check Year") {
+        REQUIRE(timeInfo.getYear() == getCurrentYear());
+    }
 
-  // writing to session.configData() here sets defaults
-  // this is the preferred way to set them
+    SECTION("Check Day of Year is within valid range") {
+        REQUIRE(timeInfo.getDayOfYear() >= 1);
+        REQUIRE(timeInfo.getDayOfYear() <= 366);  // Account for leap years
+    }
 
-  int returnCode = session.applyCommandLine( argc, argv );
-  if( returnCode != 0 ) // Indicates a command line error
-        return returnCode;
+    SECTION("Check Month is within valid range") {
+        REQUIRE(timeInfo.getMonth() >= 1);
+        REQUIRE(timeInfo.getMonth() <= 12);
+    }
 
-  // writing to session.configData() or session.Config() here
-  // overrides command line args
-  // only do this if you know you need to
+    SECTION("Check Day of Month is within valid range") {
+        REQUIRE(timeInfo.getDayOfMonth() >= 1);
+        REQUIRE(timeInfo.getDayOfMonth() <= 31);
+    }
 
-  int numFailed = session.run();
+    SECTION("Check Hour is within valid range") {
+        REQUIRE(timeInfo.getHour() >= 0);
+        REQUIRE(timeInfo.getHour() <= 23);
+    }
 
-  // numFailed is clamped to 255 as some unices only use the lower 8 bits.
-  // This clamping has already been applied, so just return it here
-  // You can also do any post run clean-up here
-  return numFailed;
+    SECTION("Check Minute is within valid range") {
+        REQUIRE(timeInfo.getMinute() >= 0);
+        REQUIRE(timeInfo.getMinute() <= 59);
+    }
+
+    SECTION("Check Second is within valid range") {
+        REQUIRE(timeInfo.getSecond() >= 0);
+        REQUIRE(timeInfo.getSecond() <= 60);  // Account for leap seconds
+    }
+
+    SECTION("Check Microseconds Since Epoch") {
+        double microseconds = timeInfo.getMicrosecondsSinceEpoch();
+        REQUIRE(microseconds > 0);
+    }
+
+    SECTION("Check UTC Subseconds") {
+        double subseconds = timeInfo.getUTCSubseconds();
+        REQUIRE(subseconds >= 0.0);
+        REQUIRE(subseconds < 1.0);
+    }
+
+    SECTION("Check TAI Seconds") {
+        double taiSeconds = timeInfo.getTAISeconds();
+        double expectedTAI = (timeInfo.getMicrosecondsSinceEpoch() / MICROSECONDS_PER_SECOND) +
+                              TAI_LEAP_SECONDS + TAI_EPOCH_OFFSET_TO_UNIX;
+        REQUIRE(taiSeconds == Approx(expectedTAI));
+    }
+
+    SECTION("Check TAI Subseconds") {
+        double taiSubseconds = timeInfo.getTAISubseconds();
+        REQUIRE(taiSubseconds == Approx(timeInfo.getUTCSubseconds()));
+    }
 }
 
-*/
+// Test suite for the isValidFilename function
+TEST_CASE("isValidFilename function tests", "[isValidFilename]") {
+
+    SECTION("Returns false for empty string") {
+        REQUIRE(isValidFilename("") == false);
+    }
+
+    SECTION("Returns true for non-empty string") {
+        REQUIRE(isValidFilename("example.txt") == true);
+        REQUIRE(isValidFilename("filename_with_underscores") == true);
+        REQUIRE(isValidFilename("1234567890") == true);
+        REQUIRE(isValidFilename(".hiddenfile") == true);
+        REQUIRE(isValidFilename("file with spaces.txt") == true);
+    }
+
+    SECTION("Returns true for single character string") {
+        REQUIRE(isValidFilename("a") == true);
+    }
+
+    SECTION("Returns true for special characters in filename") {
+        REQUIRE(isValidFilename("file-name_with.mixed-characters_123") == true);
+    }
+}

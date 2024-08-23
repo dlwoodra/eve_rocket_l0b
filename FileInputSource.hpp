@@ -24,9 +24,9 @@ public:
     if (isOpen()) {
         fileStream.read(reinterpret_cast<char*>(buffer), size);
         return fileStream.gcount() == static_cast<std::streamsize>(size);
-    }
-    return false;
-}    
+        }
+        return false;
+    }    
 
     bool isOpen() const override {
         return fileStream.is_open();

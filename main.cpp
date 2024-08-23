@@ -12,7 +12,7 @@ target XEM7310-a75
 #include "RecordFileWriter.hpp"
 #include "InputSource.hpp"
 #include "FileInputSource.hpp"
-//#include "USBInputSource.hpp"
+#include "USBInputSource.hpp"
 
 //#include "okFrontPanelDLL.h"
 
@@ -47,10 +47,7 @@ int main(int argc, char* argv[]) {
         CCSDSReader fileReader(&fileSource);
 
         if (fileReader.open()) {
-            std::vector<uint8_t> packet;
-            while (fileReader.readNextPacket(packet)) {
-                processPackets(fileReader, recordWriter, fitsFileWriter, skipRecord);
-            }
+            processPackets(fileReader, recordWriter, fitsFileWriter, skipRecord);
         }
         fileReader.close();
 
@@ -58,13 +55,16 @@ int main(int argc, char* argv[]) {
             std::cerr << "Failed to open file." << std::endl;
             return EXIT_FAILURE;
         }
-        processPackets(fileReader, recordWriter, fitsFileWriter, skipRecord);
-        fileReader.close();
+
     } else {
         // read packets from USB
-        //CCSDSReader pktReader();
-        //processPackets(pktReader, recordWriter, fitsFileWriter, 0); // always record from USB
-        //pktReader.close();
+
+        // THIS IS JUST A STUB
+        std::string serialNumber = "12345678"; //Need to replace!!!
+        USBInputSource usbSource(serialNumber);
+        CCSDSReader usbReader(&usbSource);
+        processPackets(usbReader, recordWriter, fitsFileWriter, 0); // always record from USB
+        usbReader.close();
 
     }
 

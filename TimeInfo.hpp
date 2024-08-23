@@ -44,7 +44,6 @@ private:
     int year, dayOfYear, month, dayOfMonth, hour, minute, second;
     double microsecondsSinceEpoch, utcSubseconds;
 
-    //static constexpr double TAI_OFFSET = 37.0;
     static const int64_t taiEpochOffset;
 
     void updateTimeComponents();
