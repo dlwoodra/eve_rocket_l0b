@@ -26,7 +26,7 @@ RecordFileWriter::~RecordFileWriter() {
 // Method to write the sync marker and packet data to the file
 bool RecordFileWriter::writeSyncAndPacketToRecordFile(const std::vector<uint8_t>& packet) {
     //static uint32_t syncMarker = SYNC_MARKER;
-    static uint32_t syncMarker = BSWAP_SYNC_MARKER;
+    //static uint32_t syncMarker = BSWAP_SYNC_MARKER;
 
     if (!recordFile.is_open()) {
         std::cerr << "ERROR: File is not open for writing." << std::endl;
@@ -42,7 +42,15 @@ bool RecordFileWriter::writeSyncAndPacketToRecordFile(const std::vector<uint8_t>
 
     // Write sync marker to the file
     //recordFile.write(reinterpret_cast<char*>(&syncMarker), sizeof(syncMarker));
-    recordFile.write(reinterpret_cast<char*>(&syncMarker), sizeof(syncMarker));
+    //recordFile.write(reinterpret_cast<char*>(&syncMarker), sizeof(syncMarker));
+ 
+    // Guarantee endian-independence one byte at a time
+    uint8_t syncMarkerBytes[4];
+    syncMarkerBytes[0] = (SYNC_MARKER >>24) & 0xff;
+    syncMarkerBytes[1] = (SYNC_MARKER >>16) & 0xff;
+    syncMarkerBytes[2] = (SYNC_MARKER >>8) & 0xff;
+    syncMarkerBytes[3] = (SYNC_MARKER) & 0xff;
+    recordFile.write(reinterpret_cast<char*>(syncMarkerBytes), sizeof(syncMarkerBytes));
     //std::cout << "writeSyncAndPacketToRecordFile wrote syncMarker" << std::endl;
 
     // Write packet data to the file

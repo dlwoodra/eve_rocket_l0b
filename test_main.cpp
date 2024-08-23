@@ -10,6 +10,10 @@
 #include "InputSource.hpp"
 #include "FileInputSource.hpp"
 
+//#define byteswap_32(x) \
+//    ((((x) & 0xff000000) >> 24) | (((x) & 0x00ff0000) >>  8) |		      \
+//    (((x) & 0x0000ff00) <<  8) | (((x) & 0x000000ff) << 24))
+
 
 // Helper function to get current year using std::chrono for testing TimeInfo
 int getCurrentYear() {
@@ -157,8 +161,16 @@ TEST_CASE("RecordFileWriter writes sync marker and packet data") {
 
     // Read the sync marker
     uint32_t syncMarker;
-    inputFile.read(reinterpret_cast<char*>(&syncMarker), sizeof(syncMarker));
-    REQUIRE(syncMarker == SYNC_MARKER);
+    uint8_t syncMarkerBytes[4];
+    inputFile.read(reinterpret_cast<char*>(&syncMarkerBytes[0]), sizeof(syncMarkerBytes[0]));
+    inputFile.read(reinterpret_cast<char*>(&syncMarkerBytes[1]), sizeof(syncMarkerBytes[1]));
+    inputFile.read(reinterpret_cast<char*>(&syncMarkerBytes[2]), sizeof(syncMarkerBytes[2]));
+    inputFile.read(reinterpret_cast<char*>(&syncMarkerBytes[3]), sizeof(syncMarkerBytes[3]));
+    syncMarker = ( uint32_t (syncMarkerBytes[0] << 24) ) | \
+      ( uint32_t (syncMarkerBytes[1] << 16) ) | \
+      ( uint32_t (syncMarkerBytes[2] << 8 ) | \
+      ( uint32_t (syncMarkerBytes[3]) ) );
+    REQUIRE((syncMarker) == SYNC_MARKER);
 
     // Read the packet data
     std::vector<uint8_t> readPacket(testPacket.size());
