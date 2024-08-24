@@ -10,10 +10,7 @@
 #include "InputSource.hpp"
 #include "FileInputSource.hpp"
 
-//#define byteswap_32(x) \
-//    ((((x) & 0xff000000) >> 24) | (((x) & 0x00ff0000) >>  8) |		      \
-//    (((x) & 0x0000ff00) <<  8) | (((x) & 0x000000ff) << 24))
-
+//#define byteswap_32(x) ((((x) & 0xff000000) >> 24) | (((x) & 0x00ff0000) >>  8) | (((x) & 0x0000ff00) <<  8) | (((x) & 0x000000ff) << 24))
 
 // Helper function to get current year using std::chrono for testing TimeInfo
 int getCurrentYear() {

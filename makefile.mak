@@ -15,7 +15,7 @@ DEBUG_FLAGS = -g -funroll-loops -Wall -c
 
 #LFLAGS = -leve_utils -llogutilities 
 #LINKED_LIBS = -L${eve_code_lib}
-LFLAGS = -lcfitsio -lm #to link statically add -static but the cfitsio needs curl, zcompress, maybe more 
+LFLAGS = -lcfitsio -lm -lokFrontPanel #to link statically add -static but the cfitsio needs curl, zcompress, maybe more 
 #LINKED_LIBS = -L/home/dlwoodra/rocket/eve_rocket_l0b/cfitsio/lib/lib -Wl,-rpath=/home/dlwoodra/rocket/eve_rocket_l0b/cfitsio/lib/lib
 LINKED_LIBS = -L/usr/local/lib -Wl,-rpath=/usr/local/lib -L/home/dlwoodra/rocket/eve_rocket_l0b
 # the -Wl,-rpath= tells the linker to look in /usr/local/lib before /usr/lib
@@ -24,8 +24,8 @@ LINKED_LIBS = -L/usr/local/lib -Wl,-rpath=/usr/local/lib -L/home/dlwoodra/rocket
 #
 # List the C source files that need to be compiled
 #
-SRCS = RecordFileWriter.cpp fileutils.cpp FITSWriter.cpp PacketProcessor.cpp TimeInfo.cpp main.cpp 
-TEST_SRCS = RecordFileWriter.cpp fileutils.cpp FITSWriter.cpp PacketProcessor.cpp TimeInfo.cpp test_main.cpp 
+SRCS = RecordFileWriter.cpp USBInputSource.cpp fileutils.cpp FITSWriter.cpp PacketProcessor.cpp TimeInfo.cpp main.cpp 
+TEST_SRCS = RecordFileWriter.cpp USBInputSource.cpp fileutils.cpp FITSWriter.cpp PacketProcessor.cpp TimeInfo.cpp test_main.cpp 
 
 #
 # Create a list of object files from the source files

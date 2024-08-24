@@ -115,7 +115,7 @@ void processPackets(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& r
         std::vector<uint8_t> header(packet.begin(), packet.begin() + PACKET_HEADER_SIZE);
         uint16_t apid = pktReader.getAPID(header);
         uint16_t sourceSequenceCounter = pktReader.getSourceSequenceCounter(header);
-        //uint16_t packetLength = pktReader.getPacketLength(header);
+
         uint16_t packetLength = pktReader.getPacketLength(header);
 
         std::vector<uint8_t> payload(packet.begin() + PACKET_HEADER_SIZE, packet.end());
