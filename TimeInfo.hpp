@@ -27,6 +27,9 @@ class TimeInfo {
 public:
     TimeInfo();
     void updateNow();
+
+    //void updateTimeComponents();
+
     int getYear();
     int getDayOfYear();
     int getMonth();
@@ -39,6 +42,8 @@ public:
     double getTAISeconds();
     double getTAISubseconds() const;
 
+    long calculateTimeDifferenceInMilliseconds(const TimeInfo& other) const;
+
 private:
     std::chrono::system_clock::time_point now;
     int year, dayOfYear, month, dayOfMonth, hour, minute, second;
@@ -50,4 +55,5 @@ private:
     static int64_t calculateTAIOffset();
 };
 
-#endif
+
+#endif //TIME_INFO_HPP
