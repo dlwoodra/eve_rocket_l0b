@@ -6,31 +6,16 @@
 
 class FileInputSource : public InputSource {
 public:
-    FileInputSource(const std::string& filename) : filename(filename) {}
-    ~FileInputSource() { close(); }
+    FileInputSource(const std::string& filename);
+    ~FileInputSource();
 
-    bool open() override {
-        fileStream.open(filename, std::ios::binary);
-        return fileStream.is_open();
-    }
+    bool open() override;
 
-    void close() override {
-        if (fileStream.is_open()) {
-            fileStream.close();
-        }
-    }
+    void close() override;
 
-    bool read(uint8_t* buffer, size_t size) override {
-    if (isOpen()) {
-        fileStream.read(reinterpret_cast<char*>(buffer), size);
-        return fileStream.gcount() == static_cast<std::streamsize>(size);
-        }
-        return false;
-    }    
+    bool read(uint8_t* buffer, size_t size) override;
 
-    bool isOpen() const override {
-        return fileStream.is_open();
-    }
+    bool isOpen() const override;
 
 private:
     std::ifstream fileStream;

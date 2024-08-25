@@ -3,7 +3,7 @@
 #define ONE_OVER_65536 (1.0 / 65536.0)
 
 // initialize to use filename
-CCSDSReader::CCSDSReader(const std::string& filename) : filename(filename) {}
+CCSDSReader::CCSDSReader(InputSource* source) : source(source) {}
 
 // close the file if it is open
 CCSDSReader::~CCSDSReader() {
@@ -12,16 +12,19 @@ CCSDSReader::~CCSDSReader() {
 
 // open file in binary mode, true if successful
 bool CCSDSReader::open() {
-  file.open(filename, std::ios::binary);
+  //file.open(filename, std::ios::binary);
   //std::cout << "ERROR: CCSDSREADER::open status is " << file.is_open() << std::endl;
-  return file.is_open();
+  //return file.is_open();
+  return source->open();
 }
 
 // close the file if it is open
 void CCSDSReader::close() {
-  if (file.is_open()) {
+  //if (file.is_open()) {
+  if (source->isOpen()) {
     //std::cout << "ERROR: CCSDSREADER::close is closing" << std::endl;
-    file.close();
+    //file.close();
+    source->close();
   }
 }
 
@@ -34,8 +37,8 @@ bool CCSDSReader::findSyncMarker() {
 
   // read one byte at a time shifting 8 bits each iteration - endian-safe
   while (buffer != SYNC_MARKER) {
-    if (file.read(reinterpret_cast<char*>(&onebyte), sizeof(onebyte))) {
-      buffer = (static_cast<uint32_t>(buffer) << 8) | static_cast<uint32_t>(onebyte);    
+    if (source->read((&onebyte), sizeof(onebyte))) {
+      buffer = (static_cast<uint32_t>(buffer) << 8) | static_cast<uint32_t>(onebyte);
       /* std::cout << "buffer value is " << std::hex << buffer << std::endl; */
       if (bytecounter++ > 4) {
         std::cout << "ERROR findSyncMarker read more than 4 bytes" << std::endl;
@@ -70,6 +73,7 @@ bool CCSDSReader::readNextPacket(std::vector<uint8_t>& packet) {
     return false;
   }
 
+  // Allocate space for the packet
   packet.resize(PACKET_HEADER_SIZE + packetLength + 1) ; // Allocate space for the packet
   
   // Copy primary header to packet
@@ -83,47 +87,38 @@ bool CCSDSReader::readNextPacket(std::vector<uint8_t>& packet) {
   //std::cout << std::endl;
 
   // Read the packet data
-  if (!file.read(reinterpret_cast<char*>(packet.data() + PACKET_HEADER_SIZE), packetLength + 1)) {
+  //if (!source->read(reinterpret_cast<char*>(packet.data() + PACKET_HEADER_SIZE), packetLength + 1)) {
+  if (!source->read((packet.data() + PACKET_HEADER_SIZE), packetLength + 1)) {
     std::cout << "ERROR: CCSDSREADER::readNextPacket failed to read data " << std::endl;
     return false; // Failed to read the packet data
   }
 
   // Debugging output: print payload in hex
-  std::cout << "Payload: ";
-  for (size_t i = PACKET_HEADER_SIZE; i < packet.size(); ++i) {
-    std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(packet[i]) << " ";
-  }
-  std::cout << std::endl;
-
-
-  std::vector<uint8_t> payload(packetLength);
-  std::memcpy(packet.data(), payload.data(), packetLength); // Copy primary header to packet
-
-  //Extract APID and sourceSequenceCounter
-  uint16_t apid = getAPID(header);
-  uint16_t sourceSequenceCounter = getSourceSequenceCounter(header);
-  double timestamp = getPacketTimeStamp(payload); // from secondary header
+  //std::cout << "Payload: ";
+  //for (size_t i = PACKET_HEADER_SIZE; i < packet.size(); ++i) {
+  //  std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(packet[i]) << " ";
+  //}
+  //std::cout << std::endl;
 
   return true;
 }
 
-// helper method to read the primary packet header
+// helper method to read the 6-byte CCSDS primary packet header
 bool CCSDSReader::readPacketHeader(std::vector<uint8_t>& header) {
-  if (file.read(reinterpret_cast<char*>(header.data()), PACKET_HEADER_SIZE)) {
-  // the use of reinterpret_cast is necessary
+  if (source->read((header.data()), PACKET_HEADER_SIZE)) {
     return true; //read success
   } else {
     return false; // read failed (eof or error)
   }
 }
 // helper method to read the packet data
-bool CCSDSReader::readPacketData(std::vector<uint8_t>& packet) {
-  if (file.read(reinterpret_cast<char*>(packet.data()), getPacketLength(packet))) {
-    return true; //read success
-  } else {
-    return false; // read failed (eof or error)
-  }
-}
+//bool CCSDSReader::readPacketData(std::vector<uint8_t>& packet) {
+//  if (source->read((packet.data()), getPacketLength(packet))) {
+//    return true; //read success
+//  } else {
+//    return false; // read failed (eof or error)
+//  }
+//}
 
 // helper method to get the packet length from the primary header
 uint16_t CCSDSReader::getPacketLength(const std::vector<uint8_t>& header) {
@@ -164,7 +159,6 @@ double CCSDSReader::getPacketTimeStamp(const std::vector<uint8_t>& payload) {
   // byte 6 and 7 are allocated but unused
   timestamp = static_cast<double>(seconds) + 
     (static_cast<double>(subseconds) * ONE_OVER_65536); //multiplcation is faster than division
-  //(static_cast<double>(subseconds)/65536.0);
 
   return timestamp;
 }
@@ -182,6 +176,7 @@ uint16_t CCSDSReader::getMode(const std::vector<uint8_t>& payload) {
 template<typename T>
 T CCSDSReader::readValue() {
   T value;
-  file.read(reinterpret_cast<char*>(&value), sizeof(T));
+  //source->read(reinterpret_cast<char*>(&value), sizeof(T));
+  source->read((&value), sizeof(T));
   return value;
 }

@@ -5,12 +5,17 @@
 
 #include "CCSDSReader.hpp"
 #include "fileutils.hpp"
+#include "FileInputSource.hpp"
+#include "InputSource.hpp"
 #include "RecordFileWriter.hpp"
 #include "TimeInfo.hpp"
-#include "InputSource.hpp"
-#include "FileInputSource.hpp"
+#include "USBInputSource.hpp"
+
+#define NORMAL_FILE "packetizer_out_2024_08_20.bin"
 
 //#define byteswap_32(x) ((((x) & 0xff000000) >> 24) | (((x) & 0x00ff0000) >>  8) | (((x) & 0x0000ff00) <<  8) | (((x) & 0x000000ff) << 24))
+
+std::string normalFile = NORMAL_FILE;
 
 // Helper function to get current year using std::chrono for testing TimeInfo
 int getCurrentYear() {
@@ -38,7 +43,8 @@ private:
 
 TEST_CASE("Open valid file") {
   //CCSDSReader pktreader("packetizer_out2.bin");
-  FileInputSource fileSource("packetizer_out_2024_08_20.bin");
+  //FileInputSource fileSource("packetizer_out_2024_08_20.bin");
+  FileInputSource fileSource( NORMAL_FILE );
   CCSDSReader fileReader(&fileSource);
   REQUIRE(fileReader.open() == true);
   fileReader.close();
@@ -52,7 +58,7 @@ TEST_CASE("Open non-existent file") {
 
 TEST_CASE("Find sync marker") {
   // Assume a file "sync_marker_test.bin" contains the SYNC_MARKER in the middle.
-  FileInputSource fileSource("packetizer_out2.bin");
+  FileInputSource fileSource( NORMAL_FILE );
   CCSDSReader fileReader(&fileSource);
   REQUIRE(fileReader.open() == true);
     
@@ -69,7 +75,7 @@ TEST_CASE("Read a full packet") {
   const int expected_packet_size = 1768; // fixed packet lengths
 
   // Create a test file with a known sync marker and packet
-  FileInputSource fileSource("packetizer_out2.bin");
+  FileInputSource fileSource( NORMAL_FILE );
   CCSDSReader fileReader(&fileSource);
   REQUIRE(fileReader.open() == true);
 
@@ -78,12 +84,19 @@ TEST_CASE("Read a full packet") {
 
   // Verify the packet content (length, header, etc.)
   REQUIRE(packet.size() == expected_packet_size);
-  uint16_t apid = fileReader.getAPID(packet);
+  // get the header
+  std::vector<uint8_t> header(packet.begin(), packet.begin() + PACKET_HEADER_SIZE);
+  uint16_t apid = fileReader.getAPID(header); //use header not packet 
+
   REQUIRE(apid >= MEGSA_APID); // 601
   REQUIRE(apid <= ESP_APID); // 605
   uint16_t sourceSequenceCounter = fileReader.getSourceSequenceCounter(packet);
   REQUIRE(sourceSequenceCounter >= 0);
   REQUIRE(sourceSequenceCounter < 16384);
+
+  uint16_t packetLength = fileReader.getPacketLength(header);
+  // check packetLength
+
   // Additional content checks can be performed here
   fileReader.close();
 }
