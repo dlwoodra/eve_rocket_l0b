@@ -96,6 +96,9 @@ TEST_CASE("Read a full packet") {
 
   uint16_t packetLength = fileReader.getPacketLength(header);
   // check packetLength
+  REQUIRE(((packetLength == STANDARD_MEGSAB_PACKET_LENGTH) || \
+    (packetLength == STANDARD_HK_PACKET_LENGTH) || \
+    (packetLength == STANDARD_ESP_PACKET_LENGTH)));
 
   // Additional content checks can be performed here
   fileReader.close();

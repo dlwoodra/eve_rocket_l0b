@@ -111,35 +111,6 @@ bool CCSDSReader::readPacketHeader(std::vector<uint8_t>& header) {
     return false; // read failed (eof or error)
   }
 }
-// helper method to read the packet data
-//bool CCSDSReader::readPacketData(std::vector<uint8_t>& packet) {
-//  if (source->read((packet.data()), getPacketLength(packet))) {
-//    return true; //read success
-//  } else {
-//    return false; // read failed (eof or error)
-//  }
-//}
-
-// helper method to get the packet length from the primary header
-uint16_t CCSDSReader::getPacketLength(const std::vector<uint8_t>& header) {
-  //CCSDS primary header contains the length excluding primary header
-  uint16_t packetLength = (header[4] << 8) | header[5];
-  return packetLength;
-}
-
-// get the APID from the header
-uint16_t CCSDSReader::getAPID(const std::vector<uint8_t>& header) {
-  // Least significant 11-bits of first 2 header bytes
-  uint16_t apid = ((static_cast<uint16_t>(header[0]) & 0x07) << 8) | static_cast<uint16_t>(header[1]); 
-  return apid;
-}
-
-// helper method to get the source sequence counter from the primary header
-uint16_t CCSDSReader::getSourceSequenceCounter(const std::vector<uint8_t>& header) {
-  //CCSDS primary header contains the 14-bits of the source sequence counter
-  uint16_t sourceSequenceCounter = ((static_cast<uint16_t>(header[2]) & 0x3F) << 8) | static_cast<uint16_t>(header[3]);
-  return sourceSequenceCounter;
-}
 
 double CCSDSReader::getPacketTimeStamp(const std::vector<uint8_t>& payload) {
 
@@ -161,16 +132,6 @@ double CCSDSReader::getPacketTimeStamp(const std::vector<uint8_t>& payload) {
     (static_cast<double>(subseconds) * ONE_OVER_65536); //multiplcation is faster than division
 
   return timestamp;
-}
-
-uint16_t CCSDSReader::getMode(const std::vector<uint8_t>& payload) {
-
-  uint16_t mode;
-  uint32_t offset = 8; // skip 8 bytes from timestamp 
-
-  mode = (static_cast<uint16_t>(payload[offset]<< 8)) | static_cast<uint16_t>(payload[offset+1]);
-
-  return mode;
 }
 
 template<typename T>
