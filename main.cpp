@@ -9,7 +9,7 @@ target XEM7310-a75
 #include "CCSDSReader.hpp"
 #include "eve_megs_twoscomp.h"
 #include "eve_megs_pixel_parity.h"
-#include "eve_structures.h"
+//#include "eve_structures.h"
 #include "fileutils.hpp"
 #include "FITSWriter.hpp"
 #include "RecordFileWriter.hpp"
