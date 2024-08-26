@@ -88,8 +88,8 @@ private:
     // helper method to read the 6-byte CCSDS primary packet header
     bool readPacketHeader(std::vector<uint8_t>& header); 
 
-    template<typename T>
-    T readValue(); // Helper function to read a value of type T from the file
+    //template<typename T>
+    //T readValue(); // Helper function to read a value of type T from the file
 };
 
 #endif // CCSDS_READER_HPP
