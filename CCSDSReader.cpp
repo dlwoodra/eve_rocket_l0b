@@ -126,7 +126,7 @@ double CCSDSReader::getPacketTimeStamp(const std::vector<uint8_t>& payload) {
     static_cast<uint32_t>(payload[offset+3]);
   subseconds = (static_cast<uint16_t>(payload[offset+4]) << 8) | 
     static_cast<uint16_t>(payload[offset+5]);
-  // byte 6 and 7 are allocated, but unused in the rocket fpga\
+  // byte 6 and 7 are allocated, but unused in the rocket fpga
   // only MSB 16-bits (offset+4 and 5) contain subseconds
   timestamp = static_cast<double>(seconds) + 
     (static_cast<double>(subseconds) * ONE_OVER_65536); //multiplcation is faster than division
