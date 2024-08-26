@@ -7,6 +7,9 @@ target XEM7310-a75
 */
 
 #include "CCSDSReader.hpp"
+#include "eve_megs_twoscomp.h"
+#include "eve_megs_pixel_parity.h"
+#include "eve_structures.h"
 #include "fileutils.hpp"
 #include "FITSWriter.hpp"
 #include "RecordFileWriter.hpp"
@@ -24,6 +27,10 @@ target XEM7310-a75
 
 void parseCommandLineArgs(int argc, char* argv[], std::string& filename, bool& skipESP, bool& skipMP, bool& skipRecord);
 void processPackets(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& recordWriter, std::unique_ptr<FITSWriter>& fitsFileWriter, bool skipRecord);
+void processMegsAPacket();
+void processMegsBPacket();
+void processMegsPPacket();
+void processESPPacket();
 void print_help();
 
 int main(int argc, char* argv[]) {
@@ -112,30 +119,38 @@ void processPackets(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& r
 
         auto start = std::chrono::system_clock::now();
 
-        std::vector<uint8_t> header(packet.begin(), packet.begin() + PACKET_HEADER_SIZE);
+        std::vector<uint8_t> header(packet.cbegin(), packet.cbegin() + PACKET_HEADER_SIZE);
         uint16_t apid = pktReader.getAPID(header);
         uint16_t sourceSequenceCounter = pktReader.getSourceSequenceCounter(header);
 
         uint16_t packetLength = pktReader.getPacketLength(header);
 
-        std::vector<uint8_t> payload(packet.begin() + PACKET_HEADER_SIZE, packet.end());
+        std::vector<uint8_t> payload(packet.cbegin() + PACKET_HEADER_SIZE, packet.cend());
         double timeStamp = pktReader.getPacketTimeStamp(payload);
         uint16_t mode = pktReader.getMode(payload);
  
         std::cout << "APID: " << apid << " SSC: " << sourceSequenceCounter << " pktLen:" << packetLength << " timestamp: " << timeStamp << " mode:" << mode << std::endl;
 
-        // Write packet data to a FITS file if applicable
-        //if (fitsFileWriter) {
-        //  if (!fitsFileWriter->writePacketToFITS(packet, apid, timeStamp)) {
-        //    std::cerr << "ERROR: Failed to write packet to FITS file." << std::endl;
-        //    return;
-        //  }
-        //}
-
         auto end = std::chrono::system_clock::now();
         std::chrono::duration<double> elapsed_seconds = end - start;
         //std::cout << "Elapsed time: " << elapsed_seconds.count() << " sec" << std::endl;
     }
+}
+
+void processMegsAPacket() {
+    // Write packet data to a FITS file if applicable
+    //if (fitsFileWriter) {
+    //  if (!fitsFileWriter->writePacketToFITS(packet, apid, timeStamp)) {
+    //    std::cerr << "ERROR: Failed to write packet to FITS file." << std::endl;
+    //    return;
+    //  }
+    //}
+}
+void processMegsBPacket() {
+}
+void processMegsPPacket() {
+}
+void processESPPacket() {
 }
 
 void print_help() {
