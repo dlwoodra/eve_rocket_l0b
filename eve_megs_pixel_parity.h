@@ -3,6 +3,7 @@
 /*   created by make_parity_lookup.pro in IDL */
 /*    DLW                  */
 /*    Thu Jul 13 09:31:57 2006 */
+/*    DLW Aug 26, 2024 - added const to make it immutable */
 /* */
 
 #ifndef eve_pixel_parity_defined
@@ -10,7 +11,7 @@
 
 #include <stdint.h>
 
-uint16_t odd_parity_15bit_table[32768] = {
+const uint16_t odd_parity_15bit_table[32768] = {
  1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1,
  0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0,
  0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0,

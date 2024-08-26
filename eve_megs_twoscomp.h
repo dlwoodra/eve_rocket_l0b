@@ -3,6 +3,7 @@
 /*   created by make_twoscomp_lookup.pro in IDL */
 /*    DLW                  */
 /*    Thu Jul 13 10:31:09 2006 */
+/*    DLW Aug 26, 2024 - added const to make it immutable */
 /* */
 
 #ifndef eve_twoscomp_defined
@@ -10,7 +11,7 @@
 
 #include <stdint.h>
 
-uint16_t twoscomp_table[16384] = { 
+const uint16_t twoscomp_table[16384] = { 
   8192,  8193,  8194,  8195,  8196,  8197,  8198,  8199,
   8200,  8201,  8202,  8203,  8204,  8205,  8206,  8207,
   8208,  8209,  8210,  8211,  8212,  8213,  8214,  8215,
