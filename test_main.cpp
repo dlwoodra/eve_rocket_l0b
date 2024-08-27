@@ -340,3 +340,22 @@ TEST_CASE("isValidFilename function tests", "[isValidFilename]") {
         REQUIRE(isValidFilename("file-name_with.mixed-characters_123") == true);
     }
 }
+
+TEST_CASE("USBInputSource Test Suite", "[USBInputSource]") {
+
+    SECTION("getSerialNumber returns expected serial number") {
+        // Create an instance of USBInputSource
+        std::string initialSerialNumber = "12345678";
+        USBInputSource usbSource(initialSerialNumber);
+        //USBInputSource usbSource;
+
+        // Call the selectUSBSerialNumber function
+        std::string serialNumber = usbSource.getSerialNumber();
+
+        // Check if the returned serial number is "12345678"
+        REQUIRE(serialNumber == "12345678");
+    }
+
+    // You can add more SECTIONs here for other tests related to USBInputSource
+
+}

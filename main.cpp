@@ -27,11 +27,13 @@ target XEM7310-a75
 
 void parseCommandLineArgs(int argc, char* argv[], std::string& filename, bool& skipESP, bool& skipMP, bool& skipRecord);
 void processPackets(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& recordWriter, std::unique_ptr<FITSWriter>& fitsFileWriter, bool skipRecord);
+void processPacket(CCSDSReader& pktReader, const std::vector<uint8_t>& packet);
 void processMegsAPacket();
 void processMegsBPacket();
 void processMegsPPacket();
 void processESPPacket();
 void print_help();
+std::string SelectUSBSerialNumber();
 
 int main(int argc, char* argv[]) {
     std::string filename;
@@ -67,10 +69,14 @@ int main(int argc, char* argv[]) {
         // read packets from USB
 
         // THIS IS JUST A STUB
-        std::string serialNumber = "12345678"; //Need to replace!!!
+        std::string serialNumber; 
         USBInputSource usbSource(serialNumber);
+
+        // create a CCSDSReader instance        
         CCSDSReader usbReader(&usbSource);
+        std::cout << "main: Created CCSDSReader usbReader object."  << std::endl;
         processPackets(usbReader, recordWriter, fitsFileWriter, 0); // always record from USB
+        std::cout << "main: Processed packets."  << std::endl;
         usbReader.close();
 
     }
@@ -103,39 +109,77 @@ void parseCommandLineArgs(int argc, char* argv[], std::string& filename, bool& s
 
 void processPackets(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& recordWriter, std::unique_ptr<FITSWriter>& fitsFileWriter, bool skipRecord) {
     std::vector<uint8_t> packet;
+    int counter = 0;
 
-    int counter=0;
     while (pktReader.readNextPacket(packet)) {
+        std::cout << "processPackets counter " << counter++ << std::endl;
 
-        std::cout<< "processPackets counter " << counter++ << std::endl;
-
-        if (!skipRecord && recordWriter) {
-            if (!recordWriter->writeSyncAndPacketToRecordFile(packet)) {
-                std::cerr << "ERROR: processPackets failed to write packet to record file." << std::endl;
-                return;
-            }
-            //std::cout << "processPackets wrote to recordFilename " << recordWriter->getRecordFilename() << std::endl;
+        // Record packet if required
+        if (!skipRecord && recordWriter && !recordWriter->writeSyncAndPacketToRecordFile(packet)) {
+            std::cerr << "ERROR: processPackets failed to write packet to record file." << std::endl;
+            return;
         }
 
-        auto start = std::chrono::system_clock::now();
-
-        std::vector<uint8_t> header(packet.cbegin(), packet.cbegin() + PACKET_HEADER_SIZE);
-        uint16_t apid = pktReader.getAPID(header);
-        uint16_t sourceSequenceCounter = pktReader.getSourceSequenceCounter(header);
-
-        uint16_t packetLength = pktReader.getPacketLength(header);
-
-        std::vector<uint8_t> payload(packet.cbegin() + PACKET_HEADER_SIZE, packet.cend());
-        double timeStamp = pktReader.getPacketTimeStamp(payload);
-        uint16_t mode = pktReader.getMode(payload);
- 
-        std::cout << "APID: " << apid << " SSC: " << sourceSequenceCounter << " pktLen:" << packetLength << " timestamp: " << timeStamp << " mode:" << mode << std::endl;
-
-        auto end = std::chrono::system_clock::now();
-        std::chrono::duration<double> elapsed_seconds = end - start;
-        //std::cout << "Elapsed time: " << elapsed_seconds.count() << " sec" << std::endl;
+        // Process packet
+        processPacket(pktReader, packet);
     }
 }
+
+void processPacket(CCSDSReader& pktReader, const std::vector<uint8_t>& packet) {
+    auto start = std::chrono::system_clock::now();
+
+    auto header = std::vector<uint8_t>(packet.cbegin(), packet.cbegin() + PACKET_HEADER_SIZE);
+    uint16_t apid = pktReader.getAPID(header);
+    uint16_t sourceSequenceCounter = pktReader.getSourceSequenceCounter(header);
+    uint16_t packetLength = pktReader.getPacketLength(header);
+
+    auto payload = std::vector<uint8_t>(packet.cbegin() + PACKET_HEADER_SIZE, packet.cend());
+    double timeStamp = pktReader.getPacketTimeStamp(payload);
+    uint16_t mode = pktReader.getMode(payload);
+
+    std::cout << "APID: " << apid << " SSC: " << sourceSequenceCounter << " pktLen:" << packetLength 
+              << " timestamp: " << timeStamp << " mode:" << mode << std::endl;
+
+    auto end = std::chrono::system_clock::now();
+    std::chrono::duration<double> elapsed_seconds = end - start;
+    std::cout << "Elapsed time: " << elapsed_seconds.count() << " sec" << std::endl;
+}
+
+// void processPackets(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& recordWriter, std::unique_ptr<FITSWriter>& fitsFileWriter, bool skipRecord) {
+//     std::vector<uint8_t> packet;
+
+//     int counter=0;
+//     while (pktReader.readNextPacket(packet)) {
+
+//         std::cout<< "processPackets counter " << counter++ << std::endl;
+
+//         if (!skipRecord && recordWriter) {
+//             if (!recordWriter->writeSyncAndPacketToRecordFile(packet)) {
+//                 std::cerr << "ERROR: processPackets failed to write packet to record file." << std::endl;
+//                 return;
+//             }
+//             //std::cout << "processPackets wrote to recordFilename " << recordWriter->getRecordFilename() << std::endl;
+//         }
+
+//         auto start = std::chrono::system_clock::now();
+
+//         std::vector<uint8_t> header(packet.cbegin(), packet.cbegin() + PACKET_HEADER_SIZE);
+//         uint16_t apid = pktReader.getAPID(header);
+//         uint16_t sourceSequenceCounter = pktReader.getSourceSequenceCounter(header);
+
+//         uint16_t packetLength = pktReader.getPacketLength(header);
+
+//         std::vector<uint8_t> payload(packet.cbegin() + PACKET_HEADER_SIZE, packet.cend());
+//         double timeStamp = pktReader.getPacketTimeStamp(payload);
+//         uint16_t mode = pktReader.getMode(payload);
+ 
+//         std::cout << "APID: " << apid << " SSC: " << sourceSequenceCounter << " pktLen:" << packetLength << " timestamp: " << timeStamp << " mode:" << mode << std::endl;
+
+//         auto end = std::chrono::system_clock::now();
+//         std::chrono::duration<double> elapsed_seconds = end - start;
+//         //std::cout << "Elapsed time: " << elapsed_seconds.count() << " sec" << std::endl;
+//     }
+// }
 
 void processMegsAPacket() {
     // Write packet data to a FITS file if applicable

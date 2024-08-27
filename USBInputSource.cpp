@@ -1,9 +1,9 @@
 #include "USBInputSource.hpp"
-
+#include "RecordFileWriter.hpp"
 
 // constructor implementation
     USBInputSource::USBInputSource(const std::string& serialNumber ) 
-      : serialNumber(serialNumber), 
+      : serialNumber(selectUSBSerialNumber()), 
         pFileCommand(nullptr), 
         pFileTelemetry(nullptr), 
         telemetryOpen(false), 
@@ -13,6 +13,7 @@
         ctrRxBytes(0), 
         commandBytesLeft(0), 
         dev(nullptr) {
+
         std::cout << "USBInputSource initialized with serial number: " << serialNumber << std::endl;
       }
 
@@ -54,6 +55,30 @@ bool USBInputSource::read(uint8_t* buffer, size_t maxSize) {
 
 bool USBInputSource::isOpen() const {
     return continueProcessing;
+}
+
+std::string USBInputSource::selectUSBSerialNumber() {
+
+    // the string serialNumber is has the last 4 digits printed on the barcode sticker
+    // on the Opal Kelly FPGA integration module
+    std::string serialNumber = "12345678"; //replace after probing the HW
+
+    okCFrontPanel dev;
+    int devCount = dev.GetDeviceCount();
+
+    std::cout << "selectUSBSerialNumber: Number of Opal Kelly devices found: " << devCount << std::endl;
+    if ( devCount == 0 ) {
+        std::cout << "ERROR: Fatal - no Opal Kelly devices found - cannot continue" << std::endl;
+        std::cout << " *** CONTINUING FOR DEBUGGING PURPOSES ***" << std::endl;
+    } else {
+        for (int i=0; i < devCount; i++) {
+	        std::cout << "selectUSBSerialNumber: Device[" << i << "] Model : " << dev.GetDeviceListModel(i) << "\n";
+	        std::cout << "selectUSBSerialNumber: Device[" << i << "] Serial : " << dev.GetDeviceListSerial(i) << "\n";
+        }
+        std::cout << "selecting first USBSerial device " << std::endl;
+        serialNumber = dev.GetDeviceListSerial(0); // choosing first one found
+    }
+    return serialNumber;
 }
 
 void USBInputSource::initializeGSE() {
@@ -211,7 +236,7 @@ void USBInputSource::processReceive() {
 void USBInputSource::checkLinkStatus() {
     unsigned short r = readGSERegister(0x02);
     TimeInfo time;
-    int t;
+    int msElapsed = 0;
 
     switch (gseType) {
         case 1:
@@ -232,11 +257,8 @@ void USBInputSource::checkLinkStatus() {
     }
 
     if (telemetryOpen) {
-        //GetSystemTime(&time);
-        t = time.calculateTimeDifferenceInMilliseconds(lastRxTime);
-        //t = (1000 + time.wSecond - lastRxTime.wSecond) % 60;
-        //t = (t * 1000) + time.wMilliseconds - lastRxTime.wMilliseconds;
-        if (t > MAX_DEAD_TIME_MS) {
+        msElapsed = time.calculateTimeDifferenceInMilliseconds(lastRxTime);
+        if (msElapsed > MAX_DEAD_TIME_MS) {
             std::cout << "\nTelemetry closed after " << ctrRxBytes << " bytes received.\n";
             telemetryOpen = false;
             fclose(pFileTelemetry);

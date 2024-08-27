@@ -52,18 +52,25 @@ public:
         //return transferred == size;
     //}
 
+    // this is soe we can test selectUSBSerialNumber
+    std::string getSerialNumber() {
+        return selectUSBSerialNumber();
+    }
 
 private:
     
+    std::string selectUSBSerialNumber();
     void initializeGSE();
     void processTransmit();
     void processReceive();
-    void checkForGSECommand();
+    //void checkForGSECommand();
     void checkLinkStatus();
     void setGSERegister(int addr, unsigned char data);
     unsigned short readGSERegister(int addr);
 
-    std::string serialNumber;
+    // the string serialNumber is has the last 4 digits printed on the barcode sticker
+    // on the Opal Kelly FPGA integration module
+    const std::string serialNumber;
 
     FILE* pFileCommand;
     FILE* pFileTelemetry;
