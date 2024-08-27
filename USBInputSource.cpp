@@ -2,12 +2,17 @@
 
 
 // constructor implementation
-//USBInputSource::USBInputSource(const std::string& serialNumber) : serialNumber(serialNumber), pFileCommand(nullptr), pFileTelemetry(nullptr), 
-//      telemetryOpen(false), commandOpen(false), continueProcessing(false), 
-//      ctrTxBytes(0), ctrRxBytes(0), commandBytesLeft(0), dev(nullptr) {
-//        std::cout << "USBInputSource initialized with serial number: " << serialNumber << std::endl;
-//      }
-USBInputSource::USBInputSource(const std::string& serialNumber) : serialNumber(serialNumber) {
+    USBInputSource::USBInputSource(const std::string& serialNumber ) 
+      : serialNumber(serialNumber), 
+        pFileCommand(nullptr), 
+        pFileTelemetry(nullptr), 
+        telemetryOpen(false), 
+        commandOpen(false), 
+        continueProcessing(false), 
+        ctrTxBytes(0), 
+        ctrRxBytes(0), 
+        commandBytesLeft(0), 
+        dev(nullptr) {
         std::cout << "USBInputSource initialized with serial number: " << serialNumber << std::endl;
       }
 
@@ -25,6 +30,7 @@ bool USBInputSource::open() {
 }
 
 void USBInputSource::close() {
+    // do we need pFileTelemetry and pFileCommand?
     if (pFileTelemetry) {
         fclose(pFileTelemetry);
         pFileTelemetry = nullptr;
