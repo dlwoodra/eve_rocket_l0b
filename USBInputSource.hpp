@@ -67,6 +67,7 @@ private:
     void checkLinkStatus();
     void setGSERegister(int addr, unsigned char data);
     unsigned short readGSERegister(int addr);
+    void resetInterface();
 
     // the string serialNumber is has the last 4 digits printed on the barcode sticker
     // on the Opal Kelly FPGA integration module

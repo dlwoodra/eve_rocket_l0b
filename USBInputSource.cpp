@@ -120,6 +120,13 @@ void USBInputSource::initializeGSE() {
             return;
     }
 
+    resetInterface(); // turn on the light
+
+    std::cout << "GSE initialized." << std::endl;
+}
+
+void USBInputSource::resetInterface() {
+
     // Reset Space interface
     setGSERegister(0, 1);
     setGSERegister(0, 0);
@@ -188,7 +195,6 @@ void USBInputSource::processReceive() {
                 }
                 telemetryOpen = true;
                 ctrRxBytes = 0;
-                //GetSystemTime(&openRxTime);
                 openRxTime.updateNow();
             }
 
@@ -197,7 +203,6 @@ void USBInputSource::processReceive() {
             ctrRxBytes += dataLength;
             pBlkStart += 1020;
 
-            //GetSystemTime(&lastRxTime);
             lastRxTime.updateNow();
         } else {
             pBlkStart += 1024;
