@@ -1,8 +1,29 @@
 #include "USBInputSource.hpp"
 #include "RecordFileWriter.hpp"
+#include "FITSWriter.hpp"
+
+
+const uint16_t USBInputSource::LUT_APID[USBInputSource::nAPID] = { 
+  MEGSA_APID, MEGSB_APID, ESP_APID, MEGSP_APID, HK_APID 
+  };
+const uint16_t USBInputSource::LUT_PktLen[USBInputSource::nAPID] = { 
+    STANDARD_MEGSAB_PACKET_LENGTH, 
+    STANDARD_MEGSAB_PACKET_LENGTH, 
+    STANDARD_ESP_PACKET_LENGTH, 
+    STANDARD_MEGSP_PACKET_LENGTH, 
+    STANDARD_HK_PACKET_LENGTH };
+
+void Sleep(int32_t milliseconds);
+void ProcessPacket(uint16_t APID);
+std::string generateUSBRecordFilename();
+
+extern void processPackets(CCSDSReader& pktReader, \
+    std::unique_ptr<RecordFileWriter>& recordWriter, \
+    std::unique_ptr<FITSWriter>& fitsFileWriter, \
+    bool skipRecord);
 
 // constructor implementation
-    USBInputSource::USBInputSource(const std::string& serialNumber ) 
+USBInputSource::USBInputSource(const std::string& serialNumber ) 
       : serialNumber(selectUSBSerialNumber()), 
         pFileCommand(nullptr), 
         pFileTelemetry(nullptr), 
@@ -14,7 +35,13 @@
         commandBytesLeft(0), 
         dev(nullptr) {
 
-        std::cout << "USBInputSource initialized with serial number: " << serialNumber << std::endl;
+        open();
+        if (isOpen()) {
+            std::cout << "readNextPacket is open" << std::endl;
+        }  
+
+        std::cout << "USBInputSource constructor initialized." << std::endl;
+
       }
 
 USBInputSource::~USBInputSource() {
@@ -47,6 +74,7 @@ void USBInputSource::close() {
 }
 
 bool USBInputSource::read(uint8_t* buffer, size_t maxSize) {
+    std::cout << "USBSource::read calling ReadFromBlockPipeOut" << std::endl;
     size_t bytesRead = dev->ReadFromBlockPipeOut(0xA3, 1024, maxSize, reinterpret_cast<unsigned char*>(buffer));
     return bytesRead == maxSize;
     //processReceive();
@@ -61,7 +89,7 @@ std::string USBInputSource::selectUSBSerialNumber() {
 
     // the string serialNumber is has the last 4 digits printed on the barcode sticker
     // on the Opal Kelly FPGA integration module
-    std::string serialNumber = "12345678"; //replace after probing the HW
+    std::string serialNumber = "24080019Q1"; //replace after probing the HW
 
     okCFrontPanel dev;
     int devCount = dev.GetDeviceCount();
@@ -72,8 +100,8 @@ std::string USBInputSource::selectUSBSerialNumber() {
         std::cout << " *** CONTINUING FOR DEBUGGING PURPOSES ***" << std::endl;
     } else {
         for (int i=0; i < devCount; i++) {
-	        std::cout << "selectUSBSerialNumber: Device[" << i << "] Model : " << dev.GetDeviceListModel(i) << "\n";
-	        std::cout << "selectUSBSerialNumber: Device[" << i << "] Serial : " << dev.GetDeviceListSerial(i) << "\n";
+	        std::cout << "selectUSBSerialNumber: Device[" << i << "] Model : " << dev.GetDeviceListModel(i) << "\n"; // 43
+	        std::cout << "selectUSBSerialNumber: Device[" << i << "] Serial : " << dev.GetDeviceListSerial(i) << "\n"; // 24080019QI
         }
         std::cout << "selecting first USBSerial device " << std::endl;
         serialNumber = dev.GetDeviceListSerial(0); // choosing first one found
@@ -82,29 +110,44 @@ std::string USBInputSource::selectUSBSerialNumber() {
 }
 
 void USBInputSource::initializeGSE() {
+    std::cout<<"initializeGSE calling devices.Open"<<std::endl;
+ 
+    // open device
     devptr = devices.Open(""); // get the first connected device
     dev = devptr.get();
     if (!dev) {
-        if (devices.GetCount() > 1) {
+        int deviceCount = devices.GetCount();
+        if (deviceCount > 1) {
             std::cout << "ERROR: initializeGSE: Multiple devices found!" << std::endl;
         }
-        if (!devices.GetCount()) { // if more than 1, GetCount returns the number
+        if (deviceCount == 0) { // if more than 1, GetCount returns the number
             std::cout << "ERROR: No connected devices detected." << std::endl;
         } else {
             std::cout << "ERROR: Device could not be opened." << std::endl;
         }
-        std::cout << "FATAL: terminating" << std::endl;
-        std::exit(EXIT_FAILURE);
-        //return;
+        //std::cout << "FATAL: terminating" << std::endl;
+        //std::exit(EXIT_FAILURE);
+        return;
     }
 
     dev->GetDeviceInfo(&m_devInfo);
-    std::cout << "Found a device: " << m_devInfo.productName << std::endl;
+    
+    std::cout << "Found a device: " << m_devInfo.productName << std::endl; //XEM7310-A75 
 
+    // Alan loads the GSE firmware from a file
+    //dev->ConfigureFPGA("CSIE_GSE.bit");
     dev->LoadDefaultPLLConfiguration();
-    unsigned short firmwareVer = readGSERegister(4); // probably HW specific
-    gseType = firmwareVer >> 12; // can this even work?
 
+    resetInterface(100); // turn on the light
+
+    // get device temperature
+	double DeviceTemp = (readGSERegister(3) >> 4) * 503.975 / 4096 - 273.15;
+    std::cout << "FPGA Temperature: " << DeviceTemp << std::endl;
+
+    // register values changed in newer firmware
+    unsigned short firmwareVer = readGSERegister(1); // probably HW specific
+    gseType = firmwareVer >> 12; // can this even work?
+    // Alan sees gseType as 1, Sync-Serial
     switch (gseType) {
         case 1:
             std::cout << "Sync-Serial GSE. Firmware Version: " << std::hex << firmwareVer << std::endl;
@@ -117,61 +160,255 @@ void USBInputSource::initializeGSE() {
             break;
         default:
             std::cout << "Error. Unrecognized firmware: " << std::hex << firmwareVer << std::endl;
-            return;
+            //return;
     }
 
-    resetInterface(); // turn on the light
+    // Set status string
+    snprintf(StatusStr, sizeof(StatusStr), "GOOD");
 
     std::cout << "GSE initialized." << std::endl;
+
+    // reset interface again
+    resetInterface(10);
 }
 
-void USBInputSource::resetInterface() {
+void USBInputSource::resetInterface(int32_t milliSeconds) {
 
+    std::cout << "restInterface turning on LED" << std::endl;
     // Reset Space interface
     setGSERegister(0, 1);
     setGSERegister(0, 0);
+    Sleep(milliSeconds);
 
     // Turn on USB LED to show GSE is communicating
     setGSERegister(1, 1);
 }
 
-void USBInputSource::processTransmit() {
-    unsigned char cmdBuff[32];
+// not sure we need this
+// void USBInputSource::processTransmit() {
+//     unsigned char cmdBuff[32];
 
-    if (!commandOpen) return;
+//     if (!commandOpen) return;
 
-    // Check if transmit FIFO is empty
-    if (!(readGSERegister(0) & 0x01)) return;
+//     // Check if transmit FIFO is empty
+//     if (!(readGSERegister(0) & 0x01)) return;
 
-    // Read data
-    if (fread(cmdBuff, 1, 32, pFileCommand) != 32) {
-        std::cout << "Command file read error" << std::endl;
+//     // Read data
+//     if (fread(cmdBuff, 1, 32, pFileCommand) != 32) {
+//         std::cout << "Command file read error" << std::endl;
+//         return;
+//     }
+
+//     // Send data to GSE
+//     if (dev->WriteToPipeIn(0x80, 32, cmdBuff) != 32) {
+//         std::cout << "Transmit data error" << std::endl;
+//     }
+
+//     // Give transmit command to GSE
+//     setGSERegister(0, 2);
+
+//     ctrTxBytes += 32;
+//     commandBytesLeft -= 32;
+//     if (commandBytesLeft < 32) {
+//         commandBytesLeft = 0;
+//         fclose(pFileCommand);
+//         commandOpen = false;
+//         //DeleteFile(L"CSIE_Command.bin");
+//     }
+// }
+
+void USBInputSource::ProcRx() {
+    CGProcRx();
+}
+// *********************************************************************/
+// Function: CGProcRx()
+// Description: Process receive data
+// *********************************************************************/
+void USBInputSource::CGProcRx(void)
+{
+	static int state = 0;
+	static int APID = 0;
+	static unsigned int pktIdx = 0;
+	static unsigned int nPktLeft = 0;
+
+	unsigned int blkIdx = 0;
+	unsigned int nBlkLeft, blk, i;
+	unsigned long* pBlk, APIDidx;
+
+	// check to see if receive FIFO is empty
+	// if not, abort
+#ifndef DEBUG_MODE
+	//if (ReadGSERegister(0) & 0x02)
+	//{
+	//	return;
+	//}
+
+    std::string usbRecordFilename = generateUSBRecordFilename();
+    std::ofstream outputFile(usbRecordFilename, std::ios::binary);
+    if (!outputFile.is_open()) {
+        std::cerr << "ERROR: Failed to open file for writing: " << usbRecordFilename << std::endl;
         return;
     }
 
-    // Send data to GSE
-    if (dev->WriteToPipeIn(0x80, 32, cmdBuff) != 32) {
-        std::cout << "Transmit data error" << std::endl;
-    }
+	// get data, 64k at a time
+	if (dev->ReadFromBlockPipeOut(0xA3, 1024, 65536, (unsigned char*)RxBuff) != 65536)
+	{
+		printf("\nAll data not returned\n");
+		return;
+	}
+    // write to file
+    outputFile.write(reinterpret_cast<const char*>(&RxBuff), sizeof(RxBuff));
 
-    // Give transmit command to GSE
-    setGSERegister(0, 2);
 
-    ctrTxBytes += 32;
-    commandBytesLeft -= 32;
-    if (commandBytesLeft < 32) {
-        commandBytesLeft = 0;
-        fclose(pFileCommand);
-        commandOpen = false;
-        //DeleteFile(L"CSIE_Command.bin");
+
+#endif
+
+#ifdef DEBUG_MODE
+	{
+		unsigned long d[4];
+
+		for (i = 0; i <= 16383; ++i)
+		{
+			fscanf_s(pFileDebug, "%i %i %i %i", &d[0], &d[1], &d[2], &d[3]);
+			RxBuff[i] = (d[3] << 24) | (d[2] << 16) | (d[1] << 8) | d[0];
+		}
+		printf("Block read\n");
+	}
+#endif
+
+	// cycle through 64 blocks
+	for (blk = 0; blk <= 63; ++blk)
+	{
+		if (blk == 40)
+		{
+			blk = blk;
+		}
+
+		// get amount of data in block
+		pBlk = &RxBuff[256 * blk];
+		nBlkLeft = pBlk[0];
+		blkIdx = 1;
+
+		while (nBlkLeft > 0)
+		{
+			switch (state)
+			{
+			case 0:
+				// search for sync code - 0x1ACFFC1D
+				if (pBlk[blkIdx] == 0x1DFCCF1A)
+				{
+					pktIdx = 0;
+					state = 1;
+					++ctrRxPkts;
+				}
+				++blkIdx;
+				--nBlkLeft;
+				break;
+
+			case 1:
+				// get APID index (MSB = 0, LSB = 1)
+				APID = (pBlk[blkIdx] << 8) & 0x300;
+				APID |= ((pBlk[blkIdx] >> 8) & 0xFF);
+
+				// find APID index
+				for (i = 0; i < nAPID; ++i)
+				{
+					if (LUT_APID[i] == APID)
+					{
+						break;
+					}
+				}
+
+				// APID is recognized
+				if (i < nAPID)
+				{
+					APIDidx = i;
+					nPktLeft = LUT_PktLen[APIDidx];
+
+					// check to see if packet is completed in block
+					if (nPktLeft <= nBlkLeft)
+					{
+						// remaining packet is less then data in block
+						nPktLeft &= 0xFF;
+						memcpy(PktBuff, &pBlk[blkIdx], 4 * nPktLeft);
+						nBlkLeft -= nPktLeft;
+						blkIdx += nPktLeft;
+
+						state = 0;
+						ProcessPacket(APID);
+					}
+					else
+					{
+						// packet data is longer than data remaining in block
+						nBlkLeft &= 0xFF;
+						memcpy(PktBuff, &pBlk[blkIdx], 4 * nBlkLeft);
+						pktIdx += nBlkLeft;
+						nPktLeft -= nBlkLeft;
+						nBlkLeft = 0;
+
+						state = 2;
+					}
+				}
+				else
+				{
+					state = 0;
+					snprintf(StatusStr, sizeof(StatusStr),"Unrecognized APID             ");
+				}
+				break;
+
+			case 2:
+				// continuation of packet into new blcok
+				pktIdx &= 0x7FF;
+				if (nPktLeft <= nBlkLeft)
+				{
+					// remaing packet data is less than data left in block
+					nPktLeft &= 0xFF;
+					memcpy(&PktBuff[pktIdx], &pBlk[blkIdx], 4 * nPktLeft);
+					nBlkLeft -= nPktLeft;
+					blkIdx += nPktLeft;
+
+					state = 0;
+					ProcessPacket(APID);
+				}
+				else
+				{
+					// packet data is longer than data remaining in block
+					nBlkLeft &= 0xFF;
+					memcpy(&PktBuff[pktIdx], &pBlk[blkIdx], 4 * nBlkLeft);
+					pktIdx += nBlkLeft;
+					nPktLeft -= nBlkLeft;
+					nBlkLeft = 0;
+				}
+				break;
+
+			default:
+				state = 0;
+
+			}
+		}
+
+	}
+    // done reading
+    outputFile.close();
+    if (outputFile.fail()) {
+        std::cerr << "ERROR: Failed to close the file properly." << std::endl;
+        return;
     }
 }
 
+// CGProcRx
 void USBInputSource::processReceive() {
     unsigned char* pBlkStart = rxBuffer;
 
     // Check if receive FIFO is empty
     if (readGSERegister(0) & 0x02) return;
+
+    // this is where we search for the sync marker
+    // then read the 6-byte packet header
+    // then read the rest of the packet
+    //int32_t nBytesRead = dev->ReadFromBlockPipeOut(0xA3, 1024, 4, rxBuffer); // sync
+    //int32_t nBytesRead = dev->ReadFromBlockPipeOut(0xA3, 1024, 6, rxBuffer); // primary header
+    
 
     // Get data, 64k at a time
     if (dev->ReadFromBlockPipeOut(0xA3, 1024, 65536, rxBuffer) != 65536) {
@@ -188,6 +425,8 @@ void USBInputSource::processReceive() {
 
         if (dataLength) {
             if (!telemetryOpen) {
+
+                // This appears to be writing telemetry to a file, but not doing anything with it.
                 pFileTelemetry = fopen("CSIE_Telemetry.bin", "wb");
                 if (!pFileTelemetry) {
                     std::cout << "Could not open Telemetry file" << std::endl;
@@ -210,76 +449,152 @@ void USBInputSource::processReceive() {
     }
 }
 
-//void USBInputSource::checkForGSECommand() {
-//    FILE* pFileGSECommand;
-//    unsigned char opcode;
+// *********************************************************************/
+// Function: CheckForCloseRequest()
+// Description: Check for close request
+// *********************************************************************/
+// int checkForGSECommand(void)
+// {
+// 	FILE** ppFileCommand = &pFileCommand;
 
-//    if (fopen_s(&pFileGSECommand, "CSIE_GSECommand.bin", "rb")) return;
+// 	if (flgCommandOpen)
+// 	{
+// 		return 0;
+// 	}
 
-//    if (fread(&opcode, 1, 1, pFileGSECommand) != 1) {
-//        opcode = 0;
-//    }
-//    fclose(pFileGSECommand);
-//    DeleteFile(L"CSIE_GSECommand.bin");
+// 	// check for output file and open
+// 	// fopen_s returns 0 if open has worked
+// 	if (fopen_s(ppFileCommand, "../CSIE_GSE/CSIE_Command.bin", "rb"))
+// 	{
+// 		return 0;
+// 	}
 
-//    if (opcode == 1) {
-//        pFileCommand = fopen("CSIE_Command.bin", "rb");
-//        if (!pFileCommand) {
-//            std::cout << "Could not open command file" << std::endl;
-//            return;
-//        }
+// 	// valid file
+// 	else
+// 	{
+// 		// check for close application command
+// 		if (getc(pFileCommand) == 0xFF)
+// 		{
+// 			return 1;
+// 		}
 
-//        fseek(pFileCommand, 0, SEEK_END);
-//        commandBytesLeft = ftell(pFileCommand);
-//        fseek(pFileCommand, 0, SEEK_SET);
-//        commandOpen = true;
-//    } else {
-//        std::cout << "Invalid GSE command opcode" << std::endl;
-//    }
-//}
+// 		// get file length
+// 		fseek(pFileCommand, 0, SEEK_END);
+// 		CommandBytesLeft = ftell(pFileCommand);
+// 		fseek(pFileCommand, 0, SEEK_SET);
+// 		flgCommandOpen = 1;
+// 	}
 
-void USBInputSource::checkLinkStatus() {
-    unsigned short r = readGSERegister(0x02);
-    TimeInfo time;
-    int msElapsed = 0;
+// 	return 0;
+	
+// }
 
-    switch (gseType) {
-        case 1:
-            std::cout << (r ? "\rERR" : "\rGOOD") << "\t" << commandOpen << "\t" << telemetryOpen
-                      << "\t" << ctrTxBytes << "\t" << ctrRxBytes / 1024 << "\t" << std::hex << r;
-            break;
-        case 2:
-            std::cout << (((r & 0xFFFE) != 0x7006) ? "\rDOWN" : "\rGOOD") << "\t" << commandOpen
-                      << "\t" << telemetryOpen << "\t" << ctrTxBytes << "\t" << ctrRxBytes / 1024
-                      << "\t" << std::hex << r;
-            break;
-        case 3:
-            std::cout << (r ? "\rERR" : "\rGOOD") << "\t" << telemetryOpen << "\t" << ctrRxBytes / 1024
-                      << "\t" << std::hex << r;
-            break;
-        default:
-            break;
-    }
+// *********************************************************************/
+// Function: CheckLinkStatus()
+// Description: Check link status
+// *********************************************************************/
+void USBInputSource::checkLinkStatus(void)
+{
+	unsigned short r;
 
-    if (telemetryOpen) {
-        msElapsed = time.calculateTimeDifferenceInMilliseconds(lastRxTime);
-        if (msElapsed > MAX_DEAD_TIME_MS) {
-            std::cout << "\nTelemetry closed after " << ctrRxBytes << " bytes received.\n";
-            telemetryOpen = false;
-            fclose(pFileTelemetry);
-            pFileTelemetry = nullptr;
-        }
-    }
+	// get GSE status
+	r = readGSERegister(0x02);
+	if (r == 1)
+	{
+		//snprintf(StatusStr, sizeof(StatusStr), "FIFO Overflow                 ");
+		std::cout << StatusStr << " FIFO Overflow ************** " << std::endl;
+	}
+
+	//printf("\r%i\t%i\t%s", ctrTxPkts, ctrRxPkts, StatusStr);
+    std::cout << "\r" << ctrTxPkts << "\t" << ctrRxPkts << "\t" << StatusStr << std::flush;
+
 }
 
-void USBInputSource::setGSERegister(int addr, unsigned char data) {
-    unsigned char buf[2] = { static_cast<unsigned char>(addr), data };
-    dev->WriteToPipeIn(0x81, 2, buf);
+// *********************************************************************/
+// Function: SetGSERegister()
+// Description: Sets GSE register
+// *********************************************************************/
+void USBInputSource::setGSERegister(int addr, unsigned char data)
+{
+	unsigned long w;
+
+	w = 0x8000 | addr;
+	w <<= 16;
+	w |= data;
+
+	dev->SetWireInValue(0x00, 0);
+	dev->UpdateWireIns();
+	dev->SetWireInValue(0x00, w);
+	dev->UpdateWireIns();
 }
 
-unsigned short USBInputSource::readGSERegister(int addr) {
-    unsigned char buf[2] = { static_cast<unsigned char>(addr), 0 };
-    dev->WriteToPipeIn(0x81, 2, buf);
-    dev->ReadFromPipeOut(0xA1, 2, buf);
-    return static_cast<unsigned short>(buf[0] + 256 * buf[1]);
+// *********************************************************************/
+// Function: ReadGSERegister()
+// Description: Sets GSE register
+// *********************************************************************/
+unsigned short USBInputSource::readGSERegister(int addr)
+{
+	unsigned long w;
+	unsigned short stat;
+
+	w = 0x800F0000 | addr;
+
+	// set read address
+	dev->SetWireInValue(0x00, 0);
+	dev->UpdateWireIns();
+	dev->SetWireInValue(0x00, w);
+	dev->UpdateWireIns();
+
+	// read data
+	dev->UpdateWireOuts();
+	stat = (unsigned short) dev->GetWireOutValue(0x20) & 0xFFFF;
+
+	return stat;
 }
+
+void Sleep(int32_t milliSeconds) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(milliSeconds));
+}
+
+// stub - Alan's new code expects this
+void ProcessPacket(uint16_t APID) {
+    return;
+}
+
+// Generate a filename based on the current date and time
+std::string generateUSBRecordFilename() {
+    auto now = std::chrono::system_clock::now();
+    auto in_time_t = std::chrono::system_clock::to_time_t(now);
+
+    std::tm buf;
+    localtime_r(&in_time_t, &buf);
+
+    std::ostringstream oss;
+    oss << std::put_time(&buf, "record_%Y_%j_%H_%M_%S") << ".rtlm";
+
+    return oss.str();
+}
+
+// // Check if the current minute has rolled over and open a new file if it has
+// bool checkUSBRecordFilenameAndRotateFile() {
+
+//     TimeInfo currentTime;
+//     int currentMinute = currentTime.getMinute();
+    
+//     if ((recordFileMinute == -1) || (recordFileMinute != currentMinute)) {
+//         // The minute has changed, close the current file and open a new one
+//         if (lastMinute != -1) { close(); } // Close the old file
+//         outputFile = generateUSBRecordFilename(); // Generate new filename
+//         open(outputFile, std::ios::binary); // Open the new file
+
+//         if (!recordFile.is_open()) {
+//             std::cerr << "ERROR: Failed to open output file: " << outputFile << std::endl;
+//             exit(1); // fatal, exit
+//         }
+
+//         std::cout << "Record file rotated: " << outputFile << std::endl;
+//         recordFileMinute = currentMinute;
+//     } // otherwise the minute has not changed, keep writing to the same recordFile
+
+//     return true;
+// }

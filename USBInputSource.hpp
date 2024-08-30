@@ -1,12 +1,18 @@
 #ifndef USB_INPUT_SOURCE_HPP
 #define USB_INPUT_SOURCE_HPP
 
+#include "CCSDSReader.hpp"
 #include "InputSource.hpp"
 #include "TimeInfo.hpp"
+#include <cstdint>
 #include <cstdio>
 #include <string>
 #include <stdio.h>
 #include <okFrontPanelDLL.h>
+
+// these are used to implement Windows Sleep
+#include <chrono>
+#include <thread>
 
 class USBInputSource : public InputSource {
 public:
@@ -52,10 +58,13 @@ public:
         //return transferred == size;
     //}
 
-    // this is soe we can test selectUSBSerialNumber
+    // this is so we can test selectUSBSerialNumber
     std::string getSerialNumber() {
         return selectUSBSerialNumber();
     }
+
+    void ProcRx();
+    void CGProcRx(void);
 
 private:
     
@@ -67,7 +76,31 @@ private:
     void checkLinkStatus();
     void setGSERegister(int addr, unsigned char data);
     unsigned short readGSERegister(int addr);
-    void resetInterface();
+    void resetInterface(int32_t milliSeconds);
+
+    // packet lengths are in 32-bit words and do not include sync-code
+    static const uint16_t nAPID = 5;
+    static const uint16_t LUT_APID[nAPID];
+    static const uint16_t LUT_PktLen[nAPID];
+
+    // flags
+    int flgTelOpen;
+    int flgCommandOpen;
+    int flgSendCommand;
+
+    // states
+    int PPState;
+
+    // buffers
+    unsigned long RxBuff[16384];
+    unsigned long PktBuff[4096];
+    unsigned long PktNull[4096];
+
+    int GSEType;
+    long ctrTxPkts;
+    long ctrRxPkts;
+    //long CommandBytesLeft;
+    char StatusStr[256];
 
     // the string serialNumber is has the last 4 digits printed on the barcode sticker
     // on the Opal Kelly FPGA integration module

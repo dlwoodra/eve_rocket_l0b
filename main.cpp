@@ -17,8 +17,6 @@ target XEM7310-a75
 #include "FileInputSource.hpp"
 #include "USBInputSource.hpp"
 
-//#include "okFrontPanelDLL.h"
-
 #include <chrono>
 #include <cstdint>
 #include <fstream>
@@ -57,13 +55,11 @@ int main(int argc, char* argv[]) {
 
         if (fileReader.open()) {
             processPackets(fileReader, recordWriter, fitsFileWriter, skipRecord);
+        } else {
+            std::cerr << "Failed to open file." << std::endl;
+            return EXIT_FAILURE;  
         }
         fileReader.close();
-
-        if (!fileReader.open()) {
-            std::cerr << "Failed to open file." << std::endl;
-            return EXIT_FAILURE;
-        }
 
     } else {
         // read packets from USB
@@ -75,8 +71,17 @@ int main(int argc, char* argv[]) {
         // create a CCSDSReader instance        
         CCSDSReader usbReader(&usbSource);
         std::cout << "main: Created CCSDSReader usbReader object."  << std::endl;
-        processPackets(usbReader, recordWriter, fitsFileWriter, 0); // always record from USB
-        std::cout << "main: Processed packets."  << std::endl;
+
+        // the way Alan would do it
+        //CGInit - called from constructor
+        //loop
+            usbSource.CGProcRx(); // receive, does not return until disconnect
+            //CGProcTx - transmit is not needed
+            //CheckLinkStatus
+        //
+
+        //processPackets(usbReader, recordWriter, fitsFileWriter, 0); // always record from USB
+        //std::cout << "main: Processed packets."  << std::endl;
         usbReader.close();
 
     }
@@ -111,13 +116,18 @@ void processPackets(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& r
     std::vector<uint8_t> packet;
     int counter = 0;
 
+    std::cout << "entered processPackets" << std::endl;
     while (pktReader.readNextPacket(packet)) {
         std::cout << "processPackets counter " << counter++ << std::endl;
 
         // Record packet if required
+        // c++ guarantees evaluation order from left to right to support short-circuit evaluation
         if (!skipRecord && recordWriter && !recordWriter->writeSyncAndPacketToRecordFile(packet)) {
             std::cerr << "ERROR: processPackets failed to write packet to record file." << std::endl;
             return;
+        } else {
+            // this next line generates too many message to the screen
+            //std::cout << "processPackets wrote to recordFilename " << recordWriter->getRecordFilename() << std::endl;
         }
 
         // Process packet

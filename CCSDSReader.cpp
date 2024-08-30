@@ -1,6 +1,6 @@
 #include "CCSDSReader.hpp"
 
-#define ONE_OVER_65536 (1.0 / 65536.0)
+constexpr double ONE_OVER_65536 = (double (1.0) / double (65536.0));
 
 // initialize to use filename
 CCSDSReader::CCSDSReader(InputSource* source) : source(source) {}
@@ -12,18 +12,12 @@ CCSDSReader::~CCSDSReader() {
 
 // open file in binary mode, true if successful
 bool CCSDSReader::open() {
-  //file.open(filename, std::ios::binary);
-  //std::cout << "ERROR: CCSDSREADER::open status is " << file.is_open() << std::endl;
-  //return file.is_open();
   return source->open();
 }
 
 // close the file if it is open
 void CCSDSReader::close() {
-  //if (file.is_open()) {
   if (source->isOpen()) {
-    //std::cout << "ERROR: CCSDSREADER::close is closing" << std::endl;
-    //file.close();
     source->close();
   }
 }
@@ -35,8 +29,10 @@ bool CCSDSReader::findSyncMarker() {
   uint8_t onebyte = 0;
   int bytecounter = 0;
 
-  // read one byte at a time shifting 8 bits each iteration - endian-safe
+  std::cout << "findSyncMarker" << std::endl;
+ // read one byte at a time shifting 8 bits each iteration - endian-safe
   while (buffer != SYNC_MARKER) {
+    std::cout << "findSyncMarker: calling read" << std::endl;
     if (source->read((&onebyte), sizeof(onebyte))) {
       buffer = (static_cast<uint32_t>(buffer) << 8) | static_cast<uint32_t>(onebyte);
       /* std::cout << "buffer value is " << std::hex << buffer << std::endl; */
@@ -52,16 +48,20 @@ bool CCSDSReader::findSyncMarker() {
 
 // read the sync marker, packet header, and packet data
 bool CCSDSReader::readNextPacket(std::vector<uint8_t>& packet) {
+  std::cout << "readNextPacket" << std::endl;
   if (!findSyncMarker()) {
     std::cout << "ERROR: CCSDSREADER::readNextPacket did not find sync marker " << std::endl;
     return false;
   }
 
+  std::cout << "readNextPacket calling readPacketHeader" << std::endl;
   std::vector<uint8_t> header(PACKET_HEADER_SIZE);
   if (!readPacketHeader(header)) {
     std::cout << "ERROR: CCSDSREADER::readNextPacket did not read the packet header " << std::endl;
     return false; // failed to read a packet header
   }
+
+  std::cout << "readNextPacket calling getPacketLength" << std::endl;
 
   uint16_t packetLength = getPacketLength(header);
   if ((packetLength != STANDARD_MEGSAB_PACKET_LENGTH) && \
@@ -129,14 +129,7 @@ double CCSDSReader::getPacketTimeStamp(const std::vector<uint8_t>& payload) {
   // byte 6 and 7 are allocated, but unused in the rocket fpga
   // only MSB 16-bits (offset+4 and 5) contain subseconds
   timestamp = static_cast<double>(seconds) + 
-    (static_cast<double>(subseconds) * ONE_OVER_65536); //multiplcation is faster than division
+    (static_cast<double>(subseconds) * (ONE_OVER_65536)); //multiplcation is faster than division
 
   return timestamp;
 }
-
-//template<typename T>
-//T CCSDSReader::readValue() {
-//  T value;
-//  source->read((&value), sizeof(T));
-//  return value;
-//}

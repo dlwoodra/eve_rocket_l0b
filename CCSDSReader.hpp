@@ -10,9 +10,7 @@
 
 #include "InputSource.hpp"
 #include "FileInputSource.hpp"
-#include "USBInputSource.hpp"
-
-#define ONE_OVER_65536 (1.0 / 65536.0)
+//#include "USBInputSource.hpp"
 
 // Constants
 const uint32_t SYNC_MARKER = 0x1ACFFC1D; // Example sync marker, typical for CCSDS frames
@@ -33,15 +31,10 @@ const uint8_t mask6bit = 0x3f; // upper byte of source sequence counter
 class CCSDSReader {
 public:
   CCSDSReader(InputSource* source);
-  ~CCSDSReader(); //{ close(); }
+  ~CCSDSReader();
 
-  bool open(); //{
-  //    return source->open();
-  //}       // Opens the binary file or sets up USB
-
-  void close(); // {
-  //  source->close(); 
-  //}      // Close the binary file, reset the USB port
+  bool open(); 
+  void close();
 
   // Read the next CCSDS packet
   bool readNextPacket(std::vector<uint8_t>& packet); 
@@ -73,11 +66,7 @@ public:
     return (uint16_t (payload[offset])<< 8) | uint16_t (payload[offset+1]); 
   }
 
-  // end of public inline functions
-
   double getPacketTimeStamp(const std::vector<uint8_t>& payload); 
-
-
 
 private:
     InputSource* source;
@@ -88,8 +77,6 @@ private:
     // helper method to read the 6-byte CCSDS primary packet header
     bool readPacketHeader(std::vector<uint8_t>& header); 
 
-    //template<typename T>
-    //T readValue(); // Helper function to read a value of type T from the file
 };
 
 #endif // CCSDS_READER_HPP

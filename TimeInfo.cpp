@@ -51,34 +51,34 @@ double TimeInfo::getTAISubseconds() const {
     return utcSubseconds;
 }
 
-int64_t TimeInfo::calculateTAIOffset() {
-    std::tm taiEpoch = {};
-    taiEpoch.tm_year = 58 - 1900;
-    taiEpoch.tm_mon = 0;
-    taiEpoch.tm_mday = 1;
-    taiEpoch.tm_hour = 0;
-    taiEpoch.tm_min = 0;
-    taiEpoch.tm_sec = 0;
-    taiEpoch.tm_isdst = 0;
-
-    std::time_t taiTime = std::mktime(&taiEpoch);
-
-    std::tm unixEpoch = {};
-    unixEpoch.tm_year = 70 - 1900;
-    unixEpoch.tm_mon = 0;
-    unixEpoch.tm_mday = 1;
-    unixEpoch.tm_hour = 0;
-    unixEpoch.tm_min = 0;
-    unixEpoch.tm_sec = 0;
-    unixEpoch.tm_isdst = 0;
-
-    std::time_t unixTime = std::mktime(&unixEpoch);
-
-    return std::difftime(unixTime, taiTime);
-}
-
 long TimeInfo::calculateTimeDifferenceInMilliseconds(const TimeInfo& other) const {
     auto duration = now - other.now;
     auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
     return static_cast<int>(milliseconds);
 }
+
+// int64_t TimeInfo::calculateTAIOffset() {
+//     std::tm taiEpoch = {};
+//     taiEpoch.tm_year = 58 - 1900;
+//     taiEpoch.tm_mon = 0;
+//     taiEpoch.tm_mday = 1;
+//     taiEpoch.tm_hour = 0;
+//     taiEpoch.tm_min = 0;
+//     taiEpoch.tm_sec = 0;
+//     taiEpoch.tm_isdst = 0;
+
+//     std::time_t taiTime = std::mktime(&taiEpoch);
+
+//     std::tm unixEpoch = {};
+//     unixEpoch.tm_year = 70 - 1900;
+//     unixEpoch.tm_mon = 0;
+//     unixEpoch.tm_mday = 1;
+//     unixEpoch.tm_hour = 0;
+//     unixEpoch.tm_min = 0;
+//     unixEpoch.tm_sec = 0;
+//     unixEpoch.tm_isdst = 0;
+
+//     std::time_t unixTime = std::mktime(&unixEpoch);
+
+//     return std::difftime(unixTime, taiTime);
+// }
