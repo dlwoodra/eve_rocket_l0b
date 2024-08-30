@@ -13,9 +13,26 @@ const uint16_t USBInputSource::LUT_PktLen[USBInputSource::nAPID] = {
     STANDARD_MEGSP_PACKET_LENGTH, 
     STANDARD_HK_PACKET_LENGTH };
 
-void Sleep(int32_t milliseconds);
+// replacement for Windows sleep
+void Sleep(int32_t milliSeconds) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(milliSeconds));
+}
+
 void ProcessPacket(uint16_t APID);
-std::string generateUSBRecordFilename();
+
+// Generate a filename based on the current date and time
+std::string generateUSBRecordFilename() {
+    auto now = std::chrono::system_clock::now();
+    auto in_time_t = std::chrono::system_clock::to_time_t(now);
+
+    std::tm buf;
+    localtime_r(&in_time_t, &buf);
+
+    std::ostringstream oss;
+    oss << std::put_time(&buf, "record_%Y_%j_%H_%M_%S") << ".rtlm";
+
+    return oss.str();
+}
 
 extern void processPackets(CCSDSReader& pktReader, \
     std::unique_ptr<RecordFileWriter>& recordWriter, \
@@ -46,6 +63,8 @@ USBInputSource::USBInputSource(const std::string& serialNumber )
 
 USBInputSource::~USBInputSource() {
     close();
+    setGSERegister(1, 0); //turn off LED
+
 }
 
 bool USBInputSource::open() {
@@ -90,6 +109,7 @@ std::string USBInputSource::selectUSBSerialNumber() {
     // the string serialNumber is has the last 4 digits printed on the barcode sticker
     // on the Opal Kelly FPGA integration module
     std::string serialNumber = "24080019Q1"; //replace after probing the HW
+    std::cout << "First board connected has serialNumber " << serialNumber << std::endl;
 
     okCFrontPanel dev;
     int devCount = dev.GetDeviceCount();
@@ -132,10 +152,31 @@ void USBInputSource::initializeGSE() {
 
     dev->GetDeviceInfo(&m_devInfo);
     
-    std::cout << "Found a device: " << m_devInfo.productName << std::endl; //XEM7310-A75 
+    // std:endl also forces a flush, so could impact performance
+    std::cout << "Found a device: " << m_devInfo.productName << "\n"; //XEM7310-A75 
+    std::cout << "deviceID    : " << m_devInfo.deviceID << "\n"; 
+    std::cout << "serialNumber: " << m_devInfo.serialNumber << "\n"; 
+    std::cout << "productName : " << m_devInfo.productName << "\n"; 
+    std::cout << "productID   : " << m_devInfo.productID << "\n"; 
+    std::cout << "deviceMajorVersion deviceMinorVersion   : " << m_devInfo.deviceMajorVersion << " " << m_devInfo.deviceMinorVersion << "\n"; 
+    std::cout << "hostInterfaceMajorVersion hostInterfaceMinorVersion   : " << m_devInfo.hostInterfaceMajorVersion << " " << m_devInfo.hostInterfaceMinorVersion << "\n"; 
+    std::cout << "wireWidth   : " << m_devInfo.wireWidth << "\n"; 
+    std::cout << "triggerWidth: " << m_devInfo.triggerWidth << "\n"; 
+    std::cout << "pipeWidth   : " << m_devInfo.pipeWidth << "\n"; 
+    std::cout << "registerAddressWidth   : " << m_devInfo.registerAddressWidth << "\n"; 
+    std::cout << "registerDataWidth   : " << m_devInfo.registerDataWidth << "\n"; 
+    std::cout << "pipeWidth   : " << m_devInfo.pipeWidth << "\n"; 
+    // usbSpeed 0=unknown, 1=FULL, 2=HIGH, 3=SUPER
+    std::cout << "USBSpeed    : " << m_devInfo.usbSpeed << "\n";
+    // okDevideInterface 0=Unknown, 1=USB2, 2=PCIE, 3=USB3
+    std::cout << "okDeviceInterface: " << m_devInfo.deviceInterface << "\n";
+    // fpgaVendor 0=unknown, 1=XILINX, 2=INTEL
+    std::cout << "fpgaVendor: " << m_devInfo.fpgaVendor << "\n";
+
 
     // Alan loads the GSE firmware from a file
-    //dev->ConfigureFPGA("CSIE_GSE.bit");
+    // this is the one David gave me
+    //dev->ConfigureFPGA("hss_usb_fpga_2024_08_28.bit");
     dev->LoadDefaultPLLConfiguration();
 
     resetInterface(100); // turn on the light
@@ -143,6 +184,25 @@ void USBInputSource::initializeGSE() {
     // get device temperature
 	double DeviceTemp = (readGSERegister(3) >> 4) * 503.975 / 4096 - 273.15;
     std::cout << "FPGA Temperature: " << DeviceTemp << std::endl;
+
+    // stat_rx_err & stat_rx_empty & stat_tx_empty(LSbit) (3-bits)
+    for (int iloop=0; iloop < 1 ; iloop++) {
+        unsigned short reg0 = readGSERegister(0);
+        Sleep(500);
+        std::cout << "reg 0 " << std::hex << reg0 << std::endl;
+    }
+
+    // firmware version
+    unsigned short reg1 = readGSERegister(1);
+    Sleep(100);
+    // lsb is rxerror
+    unsigned short reg2 = readGSERegister(2);
+    Sleep(100);
+    // FPGA temperature
+    unsigned short reg3 = readGSERegister(3);
+    std::cout << "reg 1 " << std::hex << reg1 << std::endl;
+    std::cout << "reg 2 " << std::hex << reg2 << std::endl;
+    std::cout << "reg 3 " << std::hex << reg3 << std::endl;
 
     // register values changed in newer firmware
     unsigned short firmwareVer = readGSERegister(1); // probably HW specific
@@ -168,13 +228,13 @@ void USBInputSource::initializeGSE() {
 
     std::cout << "GSE initialized." << std::endl;
 
-    // reset interface again
-    resetInterface(10);
+    // reset interface again?
+    //resetInterface(10);
 }
 
 void USBInputSource::resetInterface(int32_t milliSeconds) {
 
-    std::cout << "restInterface turning on LED" << std::endl;
+    std::cout << "resetInterface turning on LED" << std::endl;
     // Reset Space interface
     setGSERegister(0, 1);
     setGSERegister(0, 0);
@@ -226,6 +286,8 @@ void USBInputSource::ProcRx() {
 // *********************************************************************/
 void USBInputSource::CGProcRx(void)
 {
+
+    std::cout << "Running CGProxRx" << std::endl;
 	static int state = 0;
 	static int APID = 0;
 	static unsigned int pktIdx = 0;
@@ -238,10 +300,6 @@ void USBInputSource::CGProcRx(void)
 	// check to see if receive FIFO is empty
 	// if not, abort
 #ifndef DEBUG_MODE
-	//if (ReadGSERegister(0) & 0x02)
-	//{
-	//	return;
-	//}
 
     std::string usbRecordFilename = generateUSBRecordFilename();
     std::ofstream outputFile(usbRecordFilename, std::ios::binary);
@@ -250,15 +308,41 @@ void USBInputSource::CGProcRx(void)
         return;
     }
 
+    //uint8_t stat_tx_empty = (readGSERegister(0)) & 0x01; // don't need this bit
+    uint8_t stat_rx_empty = (readGSERegister(0) >> 1 ) & 0x01;
+    uint8_t stat_rx_error = (readGSERegister(0) >> 2) & 0x01; //overflow, we are not keeping up
+    //while (stat_rx_error) {
+    //    // a receive error occurred in the FPGA
+    //    std::cout << "ERROR: FPGA stat_rx_error register is set" << std::endl;
+    //    Sleep(500);
+    //    resetInterface(100);
+    //}
+    while ( stat_rx_empty ) {
+        // the FPGA receive buffer is empty
+        std::cout << "ERROR: FPGA stat_rx_empty register is set - no data to read" << std::endl;
+        Sleep(10);
+    }
+
+    int16_t blockSize = 1024; // bytes, optimal in powers of 2
+    int32_t transferLength = 65536; // bytes to read
+
+    // for these params we should call this every ~75 milliseconds
+    // for now just read the buffer iloop times as fast as possible
+    // note 8/30/24 blockPiptOutStatus is 10000
+    for ( int iloop=0; iloop < 200; ++iloop) {
 	// get data, 64k at a time
-	if (dev->ReadFromBlockPipeOut(0xA3, 1024, 65536, (unsigned char*)RxBuff) != 65536)
+    int32_t blockPipeOutStatus = dev->ReadFromBlockPipeOut(0xA3, blockSize, transferLength, (unsigned char*)RxBuff);
+    // returns number of bytes or <0 for errors
+	if ( blockPipeOutStatus < transferLength)
 	{
 		printf("\nAll data not returned\n");
 		return;
 	}
+    std::cout << "bytes read "<<blockPipeOutStatus << std::endl;
     // write to file
-    outputFile.write(reinterpret_cast<const char*>(&RxBuff), sizeof(RxBuff));
-
+    std::cout << "writing " << sizeof(RxBuff) << " " << std::endl;
+    outputFile.write(reinterpret_cast<const char* >(&RxBuff), sizeof(RxBuff));
+    }
 
 
 #endif
@@ -269,7 +353,8 @@ void USBInputSource::CGProcRx(void)
 
 		for (i = 0; i <= 16383; ++i)
 		{
-			fscanf_s(pFileDebug, "%i %i %i %i", &d[0], &d[1], &d[2], &d[3]);
+			//fscanf_s(pFileDebug, "%i %i %i %i", &d[0], &d[1], &d[2], &d[3]);
+            
 			RxBuff[i] = (d[3] << 24) | (d[2] << 16) | (d[1] << 8) | d[0];
 		}
 		printf("Block read\n");
@@ -279,10 +364,10 @@ void USBInputSource::CGProcRx(void)
 	// cycle through 64 blocks
 	for (blk = 0; blk <= 63; ++blk)
 	{
-		if (blk == 40)
-		{
-			blk = blk;
-		}
+		//if (blk == 40)
+		//{
+		//	blk = blk;
+		//}
 
 		// get amount of data in block
 		pBlk = &RxBuff[256 * blk];
@@ -300,6 +385,7 @@ void USBInputSource::CGProcRx(void)
 					pktIdx = 0;
 					state = 1;
 					++ctrRxPkts;
+                    std::cout << "Found sync marker" << std::endl;
 				}
 				++blkIdx;
 				--nBlkLeft;
@@ -552,28 +638,11 @@ unsigned short USBInputSource::readGSERegister(int addr)
 	return stat;
 }
 
-void Sleep(int32_t milliSeconds) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(milliSeconds));
-}
-
 // stub - Alan's new code expects this
 void ProcessPacket(uint16_t APID) {
     return;
 }
 
-// Generate a filename based on the current date and time
-std::string generateUSBRecordFilename() {
-    auto now = std::chrono::system_clock::now();
-    auto in_time_t = std::chrono::system_clock::to_time_t(now);
-
-    std::tm buf;
-    localtime_r(&in_time_t, &buf);
-
-    std::ostringstream oss;
-    oss << std::put_time(&buf, "record_%Y_%j_%H_%M_%S") << ".rtlm";
-
-    return oss.str();
-}
 
 // // Check if the current minute has rolled over and open a new file if it has
 // bool checkUSBRecordFilenameAndRotateFile() {

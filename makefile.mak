@@ -35,7 +35,9 @@ TEST_OBJS = ${TEST_SRCS:.c=.o}
 
 ROOT := .
 
-cleanall: clean removebinaries all
+cleanall: clean cleanrtlm removebinaries all
+
+cleanql: clean cleanrtlm removebinaries ql
 
 all: ql_test ql ql_debug
 
@@ -62,6 +64,9 @@ ql_debug:
 
 clean:
 	rm -f *.o
+
+cleanrtlm:
+	find . -name "record*.rtlm" -size 0 -delete
 
 removebinaries:
 	rm -f ql ql_test ql_debug
