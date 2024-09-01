@@ -37,7 +37,7 @@ Date     Author          Change Id Description of Change
 08/17/24 Don Woodraska   2         Modified for David's rocket FPGA to support SURF
 ************************************************************/
 
-#include "eve_l0b.h"
+#include "eve_l0b.hpp"
 #include "eve_megs_pixel_parity.h"
 #include "eve_megs_twoscomp.h"
 
