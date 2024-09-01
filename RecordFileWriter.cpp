@@ -76,7 +76,7 @@ std::string RecordFileWriter::generateRecordFilename() {
     localtime_r(&in_time_t, &buf);
 
     std::ostringstream oss;
-    oss << std::put_time(&buf, "record_%Y_%j_%H_%M_%S") << ".rtlm";
+    oss << std::put_time(&buf, "./record/record_%Y_%j_%H_%M_%S") << ".rtlm";
 
     return oss.str();
 }
