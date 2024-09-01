@@ -85,9 +85,9 @@ private:
     void handleReceiveFIFOError();
     int32_t readDataFromUSB();
 
-    void processBlock(unsigned long* pBlk);
-    void processPacketHeader(unsigned long*& pBlk, unsigned int& blkIdx, unsigned int& nBlkLeft, int& state, int& APID, unsigned int& pktIdx, unsigned int& nPktLeft);
-    void processPacketContinuation(unsigned long*& pBlk, unsigned int& blkIdx, unsigned int& nBlkLeft, unsigned int& pktIdx, unsigned int& nPktLeft, int& state);
+    void GSEprocessBlock(unsigned long* pBlk);
+    void GSEprocessPacketHeader(unsigned long*& pBlk, unsigned int& blkIdx, unsigned int& nBlkLeft, int& state, int& APID, unsigned int& pktIdx, unsigned int& nPktLeft);
+    void GSEprocessPacketContinuation(unsigned long*& pBlk, unsigned int& blkIdx, unsigned int& nBlkLeft, unsigned int& pktIdx, unsigned int& nPktLeft, int& state);
 
 
     // packet lengths are in 32-bit words and do not include sync-code

@@ -19,7 +19,7 @@ void Sleep(int32_t milliSeconds) {
     std::this_thread::sleep_for(std::chrono::milliseconds(milliSeconds));
 }
 
-void ProcessPacket(uint16_t APID);
+void GSEProcessPacket(uint16_t APID);
 
 // Generate a filename based on the current date and time
 std::string generateUSBRecordFilename() {
@@ -60,7 +60,7 @@ int32_t USBInputSource::readDataFromUSB() {
     return dev->ReadFromBlockPipeOut(0xA3, blockSize, transferLength, (unsigned char*)RxBuff);
 }
 
-void USBInputSource::processBlock(unsigned long* pBlk) {
+void USBInputSource::GSEprocessBlock(unsigned long* pBlk) {
     // * pBlk is a pointer to the current block of data in the buffer. 
     // This is where the function will read the data from
 
@@ -72,10 +72,10 @@ void USBInputSource::processBlock(unsigned long* pBlk) {
     while (nBlkLeft > 0) {
         switch (state) {
         case 0:
-            processPacketHeader(pBlk, blkIdx, nBlkLeft, this->state, this->APID, this->pktIdx, this->nPktLeft);
+            GSEprocessPacketHeader(pBlk, blkIdx, nBlkLeft, this->state, this->APID, this->pktIdx, this->nPktLeft);
             break;
         case 1:
-            processPacketContinuation(pBlk, blkIdx, nBlkLeft, this->pktIdx, this->nPktLeft, this->state);
+            GSEprocessPacketContinuation(pBlk, blkIdx, nBlkLeft, this->pktIdx, this->nPktLeft, this->state);
             break;
         default:
             state = 0;
@@ -83,7 +83,7 @@ void USBInputSource::processBlock(unsigned long* pBlk) {
     }
 }
 
-void USBInputSource::processPacketHeader(unsigned long*& pBlk, unsigned int& blkIdx, unsigned int& nBlkLeft, int& state, int& APID, unsigned int& pktIdx, unsigned int& nPktLeft) {
+void USBInputSource::GSEprocessPacketHeader(unsigned long*& pBlk, unsigned int& blkIdx, unsigned int& nBlkLeft, int& state, int& APID, unsigned int& pktIdx, unsigned int& nPktLeft) {
     // The whole 32-bit pointer array is 32-bit byte swapped
     // When using data, use reinterpret_cast<char *> to access the bytes
     // the bytes are in correct network (big endian) order
@@ -91,13 +91,13 @@ void USBInputSource::processPacketHeader(unsigned long*& pBlk, unsigned int& blk
         pktIdx = 0;
         state = 1;
         ++ctrRxPkts;
-        std::cout << "processPacketHeader: Found sync marker" << std::endl;
+        std::cout << "GSEprocessPacketHeader: Found sync marker" << std::endl;
     }
     ++blkIdx;
     --nBlkLeft;
 }
 
-void USBInputSource::processPacketContinuation(unsigned long*& pBlk, unsigned int& blkIdx, unsigned int& nBlkLeft, unsigned int& pktIdx, unsigned int& nPktLeft, int& state) {
+void USBInputSource::GSEprocessPacketContinuation(unsigned long*& pBlk, unsigned int& blkIdx, unsigned int& nBlkLeft, unsigned int& pktIdx, unsigned int& nPktLeft, int& state) {
 
     // The 32-bit pointer is byte swapping the first 4 bytes
     APID = ((pBlk[blkIdx] & 0x07) << 8) | ((pBlk[blkIdx] >> 8) & 0xFF); // byte swap and extract 11-bit APID
@@ -113,7 +113,7 @@ void USBInputSource::processPacketContinuation(unsigned long*& pBlk, unsigned in
             nBlkLeft -= nPktLeft;
             blkIdx += nPktLeft;
             state = 0;
-            //ProcessPacket(APID); // placeholder
+            //GSEProcessPacket(APID); // placeholder
         } else {
             nBlkLeft &= 0xFF;
             memcpy(PktBuff, &pBlk[blkIdx], 4 * nBlkLeft);
@@ -421,7 +421,7 @@ void USBInputSource::CGProcRx(void)
 
         // process the blocks of data
         for (unsigned int blk = 0; blk <= 64; ++blk) {
-            processBlock(&RxBuff[256 * blk]);
+            GSEprocessBlock(&RxBuff[256 * blk]);
         }
     }
 
@@ -485,7 +485,7 @@ void USBInputSource::CGProcRx(void)
 	// 					blkIdx += nPktLeft;
 
 	// 					state = 0;
-	// 					ProcessPacket(APID);
+	// 					GSEProcessPacket(APID);
 	// 				}
 	// 				else
 	// 				{
@@ -518,7 +518,7 @@ void USBInputSource::CGProcRx(void)
 	// 				blkIdx += nPktLeft;
 
 	// 				state = 0;
-	// 				ProcessPacket(APID);
+	// 				GSEProcessPacket(APID);
 	// 			}
 	// 			else
 	// 			{
@@ -667,7 +667,7 @@ unsigned short USBInputSource::readGSERegister(int addr)
 }
 
 // stub - Alan's new code expects this
-void ProcessPacket(uint16_t APID) {
+void GSEProcessPacket(uint16_t APID) {
     // need a char * pointer to reinterpret the packet data
     return;
 }
