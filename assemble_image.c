@@ -54,9 +54,10 @@ int assemble_image( uint8_t * vcdu, struct MEGS_IMAGE_REC * ptr, int8_t *status)
   unsigned short pix_val;
   uint32_t src_seq_times_pixels_per_half_vcdu;  
 
-  register uint32_t j, jrel, ki, kj, kk;
+  uint32_t j, jrel, ki, kj, kk;
   uint32_t halfj;
-  static uint32_t istestpattern, not_istestpattern, not_tp2043;
+  //static uint32_t istestpattern, not_istestpattern;
+  static uint32_t not_tp2043;
 
   src_seq    = u16p[8] & 0x3fff;                        // Sequence number
   src_seq_times_pixels_per_half_vcdu = src_seq*PIXELS_PER_HALF_VCDU;
@@ -64,9 +65,9 @@ int assemble_image( uint8_t * vcdu, struct MEGS_IMAGE_REC * ptr, int8_t *status)
   // if megs_image_rec has vcdu_count=0, then assign all header info
   if (ptr->vcdu_count == 0)
     {
-
-      topmode    = getbit8( vcdu[28], 4 );      // topmode
-      bottommode = getbit8( vcdu[28], 5 );      // bottom mode
+      // fixed at TLBR, or readoutmode=1
+      topmode    = 0; //getbit8( vcdu[28], 4 );      // topmode
+      bottommode = 1; //getbit8( vcdu[28], 5 );      // bottom mode
 
       /* time hi */
       ptr->tai_time_seconds = ps_headers.tai_time_seconds;
@@ -75,51 +76,44 @@ int assemble_image( uint8_t * vcdu, struct MEGS_IMAGE_REC * ptr, int8_t *status)
       ptr->tai_time_subseconds = ps_headers.tai_time_subseconds;
 
       // int_time (DN units, so seconds=DN*10)
-      ptr->integration_time = vcdu[29];
+      //ptr->integration_time = vcdu[29];
 
       // Validity bit
-      ptr->valid = getbit8( vcdu[28], 0 );
+      //ptr->valid = getbit8( vcdu[28], 0 );
 
       // Ram bank
-      ptr->ram_bank = getbit8( vcdu[28], 1 );
+      //ptr->ram_bank = getbit8( vcdu[28], 1 );
 
       // Integration warning
-      ptr->int_time_warn = getbit8( vcdu[28], 3 );
+      //ptr->int_time_warn = getbit8( vcdu[28], 3 );
 
       // Reverse clock
-      ptr->reverse_clock = getbit8( vcdu[28], 6 );
+      //ptr->reverse_clock = getbit8( vcdu[28], 6 );
 
       // hw and sw Test bits
-      ptr->hw_test = getbit8( vcdu[28], 2 );
-      ptr->sw_test = getbit8( vcdu[28], 7 );
+      //ptr->hw_test = getbit8( vcdu[28], 2 );
+      //ptr->sw_test = getbit8( vcdu[28], 7 );
 
       // readout_mode
-      ptr->readout_mode = ( topmode << 1 ) + bottommode;
+      //ptr->readout_mode = ( topmode << 1 ) + bottommode;
 // ********* Modify to only check parity for hardware test patterns *************
-      istestpattern = (ptr->hw_test) + (ptr->sw_test);
-      not_istestpattern = (istestpattern + 1) & 0x1;
-      not_tp2043 = not_istestpattern * 2044; /* 2047 - 4 compensates for dark pixel insertion */
+      //istestpattern = (ptr->hw_test) + (ptr->sw_test);
+      //not_istestpattern = (istestpattern + 1) & 0x1;
+      //not_tp2043 = not_istestpattern * 2044; /* 2047 - 4 compensates for dark pixel insertion */
 // ********* Modify to only check parity for hardware test patterns *************
     }
     else
     {
-    	if( (ptr->hw_test != getbit8( vcdu[28], 2 )) || (ptr->hw_test != getbit8( vcdu[28], 2)) )
-    	{
-   			printf("Mode changed to/from test pattern\n" );
-    		if(ptr->valid == getbit8( vcdu[28], 0))
-    		{
-    			printf("Mode changed to/from test pattern and valid bit is stil set\n" );
-    		}
-    	}
+    	//if( (ptr->hw_test != getbit8( vcdu[28], 2 )) || (ptr->hw_test != getbit8( vcdu[28], 2)) )
+    	//{
+   		//	printf("Mode changed to/from test pattern\n" );
+    	//	if(ptr->valid == getbit8( vcdu[28], 0))
+    	//	{
+    	//		printf("Mode changed to/from test pattern and valid bit is stil set\n" );
+    	//	}
+    	//}
     }
 
-/*    
-  if(!ptr->valid)
-    {
-      ptr->vcdu_count = 0;
-      return 0;
-    }
-*/
 
   // Loop over 875 pixel pairs in packet
   for (j = 30; j <= 1780; j += 2)
@@ -140,12 +134,15 @@ int assemble_image( uint8_t * vcdu, struct MEGS_IMAGE_REC * ptr, int8_t *status)
 
       // Only check parity if NOT a test pattern
       //  and image is marked valid
-      if( (istestpattern == 0) && ((ptr->valid) == 1) )
+      //if( (istestpattern == 0) && ((ptr->valid) == 1) )
+      // for the Rocket, always calculate parity and 2s comp
+      if( true )
       {
           /* now perform parity check for each pixel */
           /* if a pixel passes parity check, copy the vcdu pixel data to the image */
           /*  ODD-PARITY ON 14 LSBs */
 
+      // for David's new rocketFPGA, do both parity and 2s complement
 // #ifndef SKIPPARITY
           parity = odd_parity_15bit_table[pixval16 & 0x7FFF];
 // #endif
@@ -161,7 +158,7 @@ int assemble_image( uint8_t * vcdu, struct MEGS_IMAGE_REC * ptr, int8_t *status)
 #ifndef SKIPPARITY
       if( parity ==  (( u16p[halfj] >> 15 ) & 0x01) )
 #else
-      if( TRUE )
+      if( true )
 #endif
       {
           /* parity check passed, assign pix_val to proper location in image */
@@ -192,9 +189,6 @@ int assemble_image( uint8_t * vcdu, struct MEGS_IMAGE_REC * ptr, int8_t *status)
                 }
             }
           
-          // can use next line to flip the image vertically, NOT NEEDED
-          // kj = MEGS_IMAGE_HEIGHT - 1 - kj;
-
           // Insert the pixel value into the image in memory            
           ptr->image[ki][kj] = (unsigned short) pix_val;
         }
