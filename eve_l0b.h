@@ -32,7 +32,7 @@
 #define FONTHEIGHT 32				// Used in quicklook images
 #define skipval 4				// Scale quicklook images by this factor
 
-#define SYNC_MARKER 0x1ACFFC1D			// The SDO defined sync marker
+//#define SYNC_MARKER 0x1ACFFC1D			// The SDO defined sync marker
 #define BYTE_SWAPPED_SYNC_MARKER 0xFC1D1ACF	// The sync marker byte swapped
 
 #define MAX_STRING_LENGTH		512		// Maximum string length value
@@ -61,14 +61,14 @@
 #define RM_Bottom_Y RateMeterPixel_Y
 
 // The APID's for EVE
-#define MEGS_A_APID 	601
-#define MEGS_B_APID 	602
-#define PHOTOMETER_APID 603
-#define SHK_APID    	604
-#define SHK_ECHO_APID   605
-#define MA1_APID	900
-#define MA2_APID	901
-#define SAM_APID	902
+//#define MEGS_A_APID 	601
+//#define MEGS_B_APID 	602
+//#define PHOTOMETER_APID 603
+//#define SHK_APID    	604
+//#define SHK_ECHO_APID   605
+//#define MA1_APID	900
+//#define MA2_APID	901
+//#define SAM_APID	902
 
 // DEFINE ERROR CODES SPECIFIC TO L0B
 #define ERROR 			-1		// USED as default value per previous versions
@@ -95,21 +95,21 @@
 #define E_FITS_IO			401			// Error Reading/Writing Fits file
 
 // The time - Time of first packet in file
-uint32_t starttime;
+//extern uint32_t starttime;
 
 //  Storage for file names on command line
-char filenames[2][MAX_STRING_LENGTH];		
+//char filenames[2][MAX_STRING_LENGTH];		
 
 // Define arrays for test images
-uint16_t testAimage[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT];
-uint16_t testBimage[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT];
-uint16_t testAimageSW[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT];
-uint16_t testBimageSW[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT];
+//uint16_t testAimage[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT];
+//uint16_t testBimage[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT];
+//uint16_t testAimageSW[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT];
+//uint16_t testBimageSW[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT];
 
 // Command line switches
-bool ImagesMade;
-bool doByteSwap, nocrc, noquicklook, nolog;
-bool nomegsa, nomegsb, noshk, nophoto, routineplots;
+//bool ImagesMade;
+//bool doByteSwap, nocrc, noquicklook, nolog;
+//bool nomegsa, nomegsb, noshk, nophoto, routineplots;
 
 // User defined include files
 #include "eve_structures.h"
@@ -127,10 +127,10 @@ bool nomegsa, nomegsb, noshk, nophoto, routineplots;
 
 // +++++++++++++++++  The procedure prototypes  ++++++++++++++++++
 
-inline int assemble_image( uint8_t * vcdu, struct MEGS_IMAGE_REC * ptr, int8_t *status);
+int assemble_image( uint8_t * vcdu, struct MEGS_IMAGE_REC * ptr, int8_t *status);
 int	processPHOTOpacket(uint32_t *esp_time_seconds, uint32_t *esp_index, uint8_t *vcdu_data);
-int	processSHKpacket(uint32_t *shk_time_seconds, int *shk_index, int *esp_index, uint8_t *vcdu_data, struct MEGS_IMAGE_REC *ptr_ma, struct MEGS_IMAGE_REC *ptr_mb);
-inline void read_header( uint8_t *vcdu );  
+//int	processSHKpacket(uint32_t *shk_time_seconds, int *shk_index, int *esp_index, uint8_t *vcdu_data, struct MEGS_IMAGE_REC *ptr_ma, struct MEGS_IMAGE_REC *ptr_mb);
+//inline void read_header( uint8_t *vcdu );  
 inline int WHERE( uint32_t tai_time, int shk_index );
 
 uint16_t max( uint16_t, uint16_t, uint16_t, uint16_t);
@@ -161,14 +161,14 @@ void locatesam( uint16_t **image, int width, int height, int xstart, int xstop, 
 int fillimagedata(uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT]);
 
 int checkdir( char * filename );
-int ParseCommandLineBool( char *cval, int argc, char *argv[] );
-uint8_t * read_tlm(  char argv[2][MAX_STRING_LENGTH], int numfiles, uint32_t * memsize, uint32_t * packets, int8_t *status  );
-int	processMegsPacket( uint16_t MEGS_APID, struct MEGS_IMAGE_REC *ptr_megs, uint8_t * vcdu, int shk_index );
+//int ParseCommandLineBool( char *cval, int argc, char *argv[] );
+//uint8_t * read_tlm(  char argv[2][MAX_STRING_LENGTH], int numfiles, uint32_t * memsize, uint32_t * packets, int8_t *status  );
+//int	processMegsPacket( uint16_t MEGS_APID, struct MEGS_IMAGE_REC *ptr_megs, uint8_t * vcdu, int shk_index );
 
 
 // **********  Quicklook prototypes  *******************
-void dumpshk( char * filename, int );
-void dumpesp( char * filename );
+//void dumpshk( char * filename, int );
+//void dumpesp( char * filename );
 int plotspectra( uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT], char * filename, uint32_t tai_time_seconds, int mode, int termination_flag );
 int write_quicklook(char *, char *, uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT], int, uint8_t, struct MEGS_IMAGE_REC * rec, int pck_recvd );
 uint8_t write_megsa1(char *, uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT], uint8_t, char * );

@@ -24,8 +24,8 @@ LINKED_LIBS = -L/usr/local/lib -Wl,-rpath=/usr/local/lib -L/home/dlwoodra/rocket
 #
 # List the C source files that need to be compiled
 #
-SRCS = CCSDSReader.cpp RecordFileWriter.cpp USBInputSource.cpp FileInputSource.cpp fileutils.cpp FITSWriter.cpp PacketProcessor.cpp TimeInfo.cpp main.cpp 
-TEST_SRCS = CCSDSReader.cpp RecordFileWriter.cpp USBInputSource.cpp FileInputSource.cpp fileutils.cpp FITSWriter.cpp PacketProcessor.cpp TimeInfo.cpp test_main.cpp 
+SRCS = CCSDSReader.cpp RecordFileWriter.cpp USBInputSource.cpp FileInputSource.cpp fileutils.cpp FITSWriter.cpp PacketProcessor.cpp TimeInfo.cpp assemble_image.cpp main.cpp 
+TEST_SRCS = CCSDSReader.cpp RecordFileWriter.cpp USBInputSource.cpp FileInputSource.cpp fileutils.cpp FITSWriter.cpp PacketProcessor.cpp TimeInfo.cpp assemble_image.cpp test_main.cpp 
 
 #
 # Create a list of object files from the source files

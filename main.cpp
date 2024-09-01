@@ -9,7 +9,7 @@ target XEM7310-a75
 #include "CCSDSReader.hpp"
 #include "eve_megs_twoscomp.h"
 #include "eve_megs_pixel_parity.h"
-//#include "eve_structures.h"
+#include "eve_l0b.h"
 #include "fileutils.hpp"
 #include "FITSWriter.hpp"
 #include "RecordFileWriter.hpp"
@@ -23,14 +23,20 @@ target XEM7310-a75
 #include <iostream>
 #include <vector>
 
+void print_help();
 void parseCommandLineArgs(int argc, char* argv[], std::string& filename, bool& skipESP, bool& skipMP, bool& skipRecord);
 void processPackets(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& recordWriter, std::unique_ptr<FITSWriter>& fitsFileWriter, bool skipRecord);
 void processPacket(CCSDSReader& pktReader, const std::vector<uint8_t>& packet);
-void processMegsAPacket();
-void processMegsBPacket();
-void processMegsPPacket();
-void processESPPacket();
-void print_help();
+void processMegsAPacket(std::vector<uint8_t> payload, 
+    uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp);
+void processMegsBPacket(std::vector<uint8_t> payload, 
+    uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp);
+void processMegsPPacket(std::vector<uint8_t> payload, 
+    uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp);
+void processESPPacket(std::vector<uint8_t> payload, 
+    uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp);
+void processHKPacket(std::vector<uint8_t> payload, 
+    uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp);
 std::string SelectUSBSerialNumber();
 
 int main(int argc, char* argv[]) {
@@ -75,8 +81,6 @@ int main(int argc, char* argv[]) {
         //loop
         usbSource.CGProcRx(); // receive, does not return until disconnect
 
-        //processPackets(usbReader, recordWriter, fitsFileWriter, 0); // always record from USB
-        //std::cout << "main: Processed packets."  << std::endl;
         usbReader.close();
 
     }
@@ -140,53 +144,54 @@ void processPacket(CCSDSReader& pktReader, const std::vector<uint8_t>& packet) {
 
     auto payload = std::vector<uint8_t>(packet.cbegin() + PACKET_HEADER_SIZE, packet.cend());
     double timeStamp = pktReader.getPacketTimeStamp(payload);
-    uint16_t mode = pktReader.getMode(payload);
+    //uint16_t mode = pktReader.getMode(payload);
 
     std::cout << "APID: " << apid << " SSC: " << sourceSequenceCounter << " pktLen:" << packetLength 
-              << " timestamp: " << timeStamp << " mode:" << mode << std::endl;
+              << " timestamp: " << timeStamp << "\n"; //" mode:" << mode << std::endl;
+
+    switch (apid) {
+        case MEGSA_APID:
+            processMegsAPacket(payload, sourceSequenceCounter, packetLength, timeStamp);
+            break;
+        case MEGSB_APID:
+            processMegsBPacket(payload, sourceSequenceCounter, packetLength, timeStamp);
+            break;
+        case ESP_APID:
+            processESPPacket(payload, sourceSequenceCounter, packetLength, timeStamp);
+            break;
+        case MEGSP_APID:
+            processMegsPPacket(payload, sourceSequenceCounter, packetLength, timeStamp);
+            break;
+        case HK_APID:
+            processHKPacket(payload, sourceSequenceCounter, packetLength, timeStamp);
+            break;
+        default:
+            std::cerr << "Unrecognized APID: " << apid << std::endl;
+            // Handle error or unknown APID case if necessary
+            break;
+    }
 
     auto end = std::chrono::system_clock::now();
     std::chrono::duration<double> elapsed_seconds = end - start;
     std::cout << "Elapsed time: " << elapsed_seconds.count() << " sec" << std::endl;
 }
 
-// void processPackets(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& recordWriter, std::unique_ptr<FITSWriter>& fitsFileWriter, bool skipRecord) {
-//     std::vector<uint8_t> packet;
+// the payload starts with the secondary header timestamp
+void processMegsAPacket(std::vector<uint8_t> payload, 
+    uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp) {
 
-//     int counter=0;
-//     while (pktReader.readNextPacket(packet)) {
+    // insert pixels into image
 
-//         std::cout<< "processPackets counter " << counter++ << std::endl;
+    int8_t status=0;
+    struct MEGS_IMAGE_REC megsImage;
+    uint8_t pktarr[STANDARD_MEGSAB_PACKET_LENGTH];
 
-//         if (!skipRecord && recordWriter) {
-//             if (!recordWriter->writeSyncAndPacketToRecordFile(packet)) {
-//                 std::cerr << "ERROR: processPackets failed to write packet to record file." << std::endl;
-//                 return;
-//             }
-//             //std::cout << "processPackets wrote to recordFilename " << recordWriter->getRecordFilename() << std::endl;
-//         }
+    int parityErrors = assemble_image(pktarr, &megsImage, &status);
 
-//         auto start = std::chrono::system_clock::now();
+    if ( parityErrors > 0 ) {
+        std::cout << "assemble_image returned parity errors: " << parityErrors << "\n";
+    }
 
-//         std::vector<uint8_t> header(packet.cbegin(), packet.cbegin() + PACKET_HEADER_SIZE);
-//         uint16_t apid = pktReader.getAPID(header);
-//         uint16_t sourceSequenceCounter = pktReader.getSourceSequenceCounter(header);
-
-//         uint16_t packetLength = pktReader.getPacketLength(header);
-
-//         std::vector<uint8_t> payload(packet.cbegin() + PACKET_HEADER_SIZE, packet.cend());
-//         double timeStamp = pktReader.getPacketTimeStamp(payload);
-//         uint16_t mode = pktReader.getMode(payload);
- 
-//         std::cout << "APID: " << apid << " SSC: " << sourceSequenceCounter << " pktLen:" << packetLength << " timestamp: " << timeStamp << " mode:" << mode << std::endl;
-
-//         auto end = std::chrono::system_clock::now();
-//         std::chrono::duration<double> elapsed_seconds = end - start;
-//         //std::cout << "Elapsed time: " << elapsed_seconds.count() << " sec" << std::endl;
-//     }
-// }
-
-void processMegsAPacket() {
     // Write packet data to a FITS file if applicable
     //if (fitsFileWriter) {
     //  if (!fitsFileWriter->writePacketToFITS(packet, apid, timeStamp)) {
@@ -195,12 +200,20 @@ void processMegsAPacket() {
     //  }
     //}
 }
-void processMegsBPacket() {
+void processMegsBPacket(std::vector<uint8_t> payload, 
+    uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp) {
 }
-void processMegsPPacket() {
+void processMegsPPacket(std::vector<uint8_t> payload, 
+    uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp) {
 }
-void processESPPacket() {
+void processESPPacket(std::vector<uint8_t> payload, 
+    uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp) {
 }
+
+void processHKPacket(std::vector<uint8_t> payload, 
+    uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp) {
+}
+
 
 void print_help() {
   std::cout << "Main c++ program to support SDO EVE Rocket calibration at SURF." << std::endl;

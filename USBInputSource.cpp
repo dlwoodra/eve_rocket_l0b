@@ -114,6 +114,7 @@ void USBInputSource::GSEprocessPacketContinuation(unsigned long*& pBlk, unsigned
             blkIdx += nPktLeft;
             state = 0;
             //GSEProcessPacket(APID); // placeholder
+            // processPackets takes pktReader, recordWriter,fitsFileWriter as args
         } else {
             nBlkLeft &= 0xFF;
             memcpy(PktBuff, &pBlk[blkIdx], 4 * nBlkLeft);
