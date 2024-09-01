@@ -1,8 +1,9 @@
 #include "USBInputSource.hpp"
 #include "RecordFileWriter.hpp"
 #include "FITSWriter.hpp"
+#include <algorithm> // for lower_bound (searching for LUT_APID)
 
-
+// APIDs MUST be sorted in increasing numerical order
 const uint16_t USBInputSource::LUT_APID[USBInputSource::nAPID] = { 
   MEGSA_APID, MEGSB_APID, ESP_APID, MEGSP_APID, HK_APID 
   };
@@ -33,6 +34,103 @@ std::string generateUSBRecordFilename() {
 
     return oss.str();
 }
+
+std::ofstream USBInputSource::initializeOutputFile() {
+    std::string usbRecordFilename = generateUSBRecordFilename();
+    std::ofstream outputFile(usbRecordFilename, std::ios::binary);
+    if (!outputFile.is_open()) {
+        std::cerr << "ERROR: Failed to open file for writing: " << usbRecordFilename << std::endl;
+    }
+    return outputFile;
+}
+
+bool USBInputSource::isReceiveFIFOEmpty() {
+    uint8_t reg0 = readGSERegister(0);
+    return ((reg0 >> 1) & 0x01) != 0;
+}
+
+void USBInputSource::handleReceiveFIFOError() {
+    std::cerr << "ERROR: FPGA stat_rx_empty register - no data to read" << std::endl;
+    Sleep(10);
+}
+
+int32_t USBInputSource::readDataFromUSB() {
+    int16_t blockSize = 1024; // bytes
+    int32_t transferLength = blockSize * 64; // bytes to read
+    return dev->ReadFromBlockPipeOut(0xA3, blockSize, transferLength, (unsigned char*)RxBuff);
+}
+
+void USBInputSource::processBlock(unsigned long* pBlk) {
+    // * pBlk is a pointer to the current block of data in the buffer. 
+    // This is where the function will read the data from
+
+    // blkIdx is the index into the block tracking where we are as we process the block
+    unsigned int blkIdx = 1; 
+    // nBlkLeft is a reference to the number of data words left to process in the current block so we don't read beyond the data.
+    unsigned int nBlkLeft = pBlk[0]; 
+
+    while (nBlkLeft > 0) {
+        switch (state) {
+        case 0:
+            processPacketHeader(pBlk, blkIdx, nBlkLeft, this->state, this->APID, this->pktIdx, this->nPktLeft);
+            break;
+        case 1:
+            processPacketContinuation(pBlk, blkIdx, nBlkLeft, this->pktIdx, this->nPktLeft, this->state);
+            break;
+        default:
+            state = 0;
+        }
+    }
+}
+
+void USBInputSource::processPacketHeader(unsigned long*& pBlk, unsigned int& blkIdx, unsigned int& nBlkLeft, int& state, int& APID, unsigned int& pktIdx, unsigned int& nPktLeft) {
+    // The whole 32-bit pointer array is 32-bit byte swapped
+    // When using data, use reinterpret_cast<char *> to access the bytes
+    // the bytes are in correct network (big endian) order
+    if (pBlk[blkIdx] == 0x1DFCCF1A) {
+        pktIdx = 0;
+        state = 1;
+        ++ctrRxPkts;
+        std::cout << "processPacketHeader: Found sync marker" << std::endl;
+    }
+    ++blkIdx;
+    --nBlkLeft;
+}
+
+void USBInputSource::processPacketContinuation(unsigned long*& pBlk, unsigned int& blkIdx, unsigned int& nBlkLeft, unsigned int& pktIdx, unsigned int& nPktLeft, int& state) {
+
+    // The 32-bit pointer is byte swapping the first 4 bytes
+    APID = ((pBlk[blkIdx] & 0x07) << 8) | ((pBlk[blkIdx] >> 8) & 0xFF); // byte swap and extract 11-bit APID
+
+    // find APIDidx into LUT_APID that matches APID
+    unsigned int APIDidx = std::lower_bound(LUT_APID, LUT_APID + nAPID, APID) - LUT_APID;
+
+    if (APIDidx < nAPID && LUT_APID[APIDidx] == APID) {
+        nPktLeft = LUT_PktLen[APIDidx];
+        if (nPktLeft <= nBlkLeft) {
+            nPktLeft &= 0xFF;
+            memcpy(PktBuff, &pBlk[blkIdx], 4 * nPktLeft);
+            nBlkLeft -= nPktLeft;
+            blkIdx += nPktLeft;
+            state = 0;
+            //ProcessPacket(APID); // placeholder
+        } else {
+            nBlkLeft &= 0xFF;
+            memcpy(PktBuff, &pBlk[blkIdx], 4 * nBlkLeft);
+            pktIdx += nBlkLeft;
+            nPktLeft -= nBlkLeft;
+            nBlkLeft = 0;
+            state = 2;
+        }
+    } else {
+        // for an unknown APID, we should search for the next sync marker
+        state = 0;
+        snprintf(StatusStr, sizeof(StatusStr), "Unrecognized APID");
+    }
+}
+
+
+
 
 extern void processPackets(CCSDSReader& pktReader, \
     std::unique_ptr<RecordFileWriter>& recordWriter, \
@@ -145,8 +243,6 @@ void USBInputSource::initializeGSE() {
         } else {
             std::cout << "ERROR: Device could not be opened." << std::endl;
         }
-        //std::cout << "FATAL: terminating" << std::endl;
-        //std::exit(EXIT_FAILURE);
         return;
     }
 
@@ -177,12 +273,15 @@ void USBInputSource::initializeGSE() {
     // Alan loads the GSE firmware from a file
     // this is the one David gave me
     //dev->ConfigureFPGA("hss_usb_fpga_2024_08_28.bit");
+
+    // Load the default PLL config into EEPROM
     dev->LoadDefaultPLLConfiguration();
 
-    resetInterface(100); // turn on the light
+    resetInterface(100); 
+    powerOnLED();// turn on the light
 
     // get device temperature
-	double DeviceTemp = (readGSERegister(3) >> 4) * 503.975 / 4096 - 273.15;
+	double DeviceTemp = (readGSERegister(3) >> 4) * 503.975 / 4096 - 273.15; //reports over 30 deg C at room temp
     std::cout << "FPGA Temperature: " << DeviceTemp << std::endl;
 
     // stat_rx_err & stat_rx_empty & stat_tx_empty(LSbit) (3-bits)
@@ -228,8 +327,6 @@ void USBInputSource::initializeGSE() {
 
     std::cout << "GSE initialized." << std::endl;
 
-    // reset interface again?
-    //resetInterface(10);
 }
 
 void USBInputSource::resetInterface(int32_t milliSeconds) {
@@ -243,43 +340,22 @@ void USBInputSource::resetInterface(int32_t milliSeconds) {
     // Turn on USB LED to show GSE is communicating
     setGSERegister(1, 1);
 }
+void USBInputSource::powerOnLED() {
+    std::cout << "powerLED: turning on LED" << "\n";
+    // Turn on USB LED to show GSE is communicating
+    setGSERegister(1, 1);
+}
+void USBInputSource::powerOffLED() {
+    std::cout << "powerLED: turning off LED" << "\n";
+    // Turn off USB LED (second one on the board)
+    setGSERegister(1, 0);
+}
 
-// not sure we need this
-// void USBInputSource::processTransmit() {
-//     unsigned char cmdBuff[32];
-
-//     if (!commandOpen) return;
-
-//     // Check if transmit FIFO is empty
-//     if (!(readGSERegister(0) & 0x01)) return;
-
-//     // Read data
-//     if (fread(cmdBuff, 1, 32, pFileCommand) != 32) {
-//         std::cout << "Command file read error" << std::endl;
-//         return;
-//     }
-
-//     // Send data to GSE
-//     if (dev->WriteToPipeIn(0x80, 32, cmdBuff) != 32) {
-//         std::cout << "Transmit data error" << std::endl;
-//     }
-
-//     // Give transmit command to GSE
-//     setGSERegister(0, 2);
-
-//     ctrTxBytes += 32;
-//     commandBytesLeft -= 32;
-//     if (commandBytesLeft < 32) {
-//         commandBytesLeft = 0;
-//         fclose(pFileCommand);
-//         commandOpen = false;
-//         //DeleteFile(L"CSIE_Command.bin");
-//     }
-// }
 
 void USBInputSource::ProcRx() {
     CGProcRx();
 }
+
 // *********************************************************************/
 // Function: CGProcRx()
 // Description: Process receive data
@@ -287,193 +363,182 @@ void USBInputSource::ProcRx() {
 void USBInputSource::CGProcRx(void)
 {
 
-    std::cout << "Running CGProxRx" << std::endl;
-	static int state = 0;
-	static int APID = 0;
-	static unsigned int pktIdx = 0;
-	static unsigned int nPktLeft = 0;
+    std::cout << "Running CGProcRx" << std::endl;
+	//static int state = 0;
+	//static int APID = 0;
+	//static unsigned int pktIdx = 0;
+	//static unsigned int nPktLeft = 0;
 
-	unsigned int blkIdx = 0;
-	unsigned int nBlkLeft, blk, i;
-	unsigned long* pBlk, APIDidx;
+	//unsigned int blkIdx = 0;
+	//unsigned int nBlkLeft, blk, i;
+	//unsigned long* pBlk, APIDidx;
 
-	// check to see if receive FIFO is empty
-	// if not, abort
-#ifndef DEBUG_MODE
+    std::ofstream outputFile = initializeOutputFile();
+    if (!outputFile.is_open()) return;
 
-    std::string usbRecordFilename = generateUSBRecordFilename();
-    std::ofstream outputFile(usbRecordFilename, std::ios::binary);
-    if (!outputFile.is_open()) {
-        std::cerr << "ERROR: Failed to open file for writing: " << usbRecordFilename << std::endl;
+    if (isReceiveFIFOEmpty()) {
+        handleReceiveFIFOError();
         return;
     }
 
-    //uint8_t stat_tx_empty = (readGSERegister(0)) & 0x01; // don't need this bit
-    uint8_t stat_rx_empty = (readGSERegister(0) >> 1 ) & 0x01;
-    uint8_t stat_rx_error = (readGSERegister(0) >> 2) & 0x01; //overflow, we are not keeping up
-    //while (stat_rx_error) {
-    //    // a receive error occurred in the FPGA
-    //    std::cout << "ERROR: FPGA stat_rx_error register is set" << std::endl;
-    //    Sleep(500);
-    //    resetInterface(100);
+    // LSB register bit is stat_tx_empty - don't need that bit
+    //uint8_t reg0 = readGSERegister(0);
+    //uint8_t stat_rx_empty = (reg0 >> 1 ) & 0x01;
+    //uint8_t stat_rx_error = (reg0 >> 2) & 0x01; //overflow, we are not keeping up
+    //if (stat_rx_error) {
+    //    std::cout << "ERROR: FPGA stat_rx_error register - Overflow" << std::endl;
     //}
-    while ( stat_rx_empty ) {
-        // the FPGA receive buffer is empty
-        std::cout << "ERROR: FPGA stat_rx_empty register is set - no data to read" << std::endl;
-        Sleep(10);
-    }
 
-    int16_t blockSize = 1024; // bytes, optimal in powers of 2
-    int32_t transferLength = 65536; // bytes to read
+    //while ( stat_rx_empty ) {
+    //    // the FPGA receive buffer is empty
+    //    std::cout << "ERROR: FPGA stat_rx_empty register - no data to read" << std::endl;
+    //    Sleep(10);
+    //}
 
-    // for these params we should call this every ~75 milliseconds
+    //int16_t blockSize = 1024; // bytes, optimal in powers of 2
+    //int32_t transferLength = 65536; // bytes to read
+
+    // for these params we should call this every ~65-75 milliseconds
     // for now just read the buffer iloop times as fast as possible
-    // note 8/30/24 blockPiptOutStatus is 10000
+    // note 8/30/24 blockPipeOutStatus is 10000 (if hex then 65536)
     for ( int iloop=0; iloop < 200; ++iloop) {
-	// get data, 64k at a time
-    int32_t blockPipeOutStatus = dev->ReadFromBlockPipeOut(0xA3, blockSize, transferLength, (unsigned char*)RxBuff);
-    // returns number of bytes or <0 for errors
-	if ( blockPipeOutStatus < transferLength)
-	{
-		printf("\nAll data not returned\n");
-		return;
-	}
-    std::cout << "bytes read "<<blockPipeOutStatus << std::endl;
-    // write to file
-    std::cout << "writing " << sizeof(RxBuff) << " " << std::endl;
-    outputFile.write(reinterpret_cast<const char* >(&RxBuff), sizeof(RxBuff));
+        //int32_t blockPipeOutStatus = dev->ReadFromBlockPipeOut(0xA3, blockSize, transferLength, (unsigned char*)RxBuff);
+        int32_t blockPipeOutStatus = readDataFromUSB();
+        // returns number of bytes or <0 for errors
+	    if ( blockPipeOutStatus < 0)
+	    {
+            std::cerr << "ERROR: USB Read Error" << std::endl;
+		    return;
+	    }
+        std::cout << "bytes read "<<blockPipeOutStatus << std::endl; // says 10000, it is encoded as hex
+
+        // NOTE we won't normally write here, write after extracting packets from the frame.
+        // This should be moved into ProcessPackets
+        // write to file
+        std::cout << "writing " << sizeof(RxBuff) << " " << std::endl; // says 20000?
+        outputFile.write(reinterpret_cast<const char* >(&RxBuff), sizeof(RxBuff));
+
+
+        // process the blocks of data
+        for (unsigned int blk = 0; blk <= 64; ++blk) {
+            processBlock(&RxBuff[256 * blk]);
+        }
     }
 
+	// // cycle through 64 blocks
+	// for (blk = 0; blk <= 63; ++blk)
+	// {
+	// 	//if (blk == 40)
+	// 	//{
+	// 	//	blk = blk;
+	// 	//}
 
-#endif
+	// 	// get amount of data in block
+	// 	pBlk = &RxBuff[256 * blk];
+	// 	nBlkLeft = pBlk[0];
+	// 	blkIdx = 1;
 
-#ifdef DEBUG_MODE
-	{
-		unsigned long d[4];
+	// 	while (nBlkLeft > 0)
+	// 	{
+	// 		switch (state)
+	// 		{
+	// 		case 0:
+	// 			// search for sync code - 0x1ACFFC1D
+	// 			if (pBlk[blkIdx] == 0x1DFCCF1A)
+	// 			{
+	// 				pktIdx = 0;
+	// 				state = 1;
+	// 				++ctrRxPkts;
+    //                 std::cout << "Found sync marker" << std::endl;
+	// 			}
+	// 			++blkIdx;
+	// 			--nBlkLeft;
+	// 			break;
 
-		for (i = 0; i <= 16383; ++i)
-		{
-			//fscanf_s(pFileDebug, "%i %i %i %i", &d[0], &d[1], &d[2], &d[3]);
-            
-			RxBuff[i] = (d[3] << 24) | (d[2] << 16) | (d[1] << 8) | d[0];
-		}
-		printf("Block read\n");
-	}
-#endif
+	// 		case 1:
+	// 			// get APID index (MSB = 0, LSB = 1)
+	// 			APID = (pBlk[blkIdx] << 8) & 0x300;
+	// 			APID |= ((pBlk[blkIdx] >> 8) & 0xFF);
 
-	// cycle through 64 blocks
-	for (blk = 0; blk <= 63; ++blk)
-	{
-		//if (blk == 40)
-		//{
-		//	blk = blk;
-		//}
+	// 			// find APID index
+	// 			for (i = 0; i < nAPID; ++i)
+	// 			{
+	// 				if (LUT_APID[i] == APID)
+	// 				{
+	// 					break;
+	// 				}
+	// 			}
 
-		// get amount of data in block
-		pBlk = &RxBuff[256 * blk];
-		nBlkLeft = pBlk[0];
-		blkIdx = 1;
+	// 			// APID is recognized
+	// 			if (i < nAPID)
+	// 			{
+	// 				APIDidx = i;
+	// 				nPktLeft = LUT_PktLen[APIDidx];
 
-		while (nBlkLeft > 0)
-		{
-			switch (state)
-			{
-			case 0:
-				// search for sync code - 0x1ACFFC1D
-				if (pBlk[blkIdx] == 0x1DFCCF1A)
-				{
-					pktIdx = 0;
-					state = 1;
-					++ctrRxPkts;
-                    std::cout << "Found sync marker" << std::endl;
-				}
-				++blkIdx;
-				--nBlkLeft;
-				break;
+	// 				// check to see if packet is completed in block
+	// 				if (nPktLeft <= nBlkLeft)
+	// 				{
+	// 					// remaining packet is less then data in block
+	// 					nPktLeft &= 0xFF;
+	// 					memcpy(PktBuff, &pBlk[blkIdx], 4 * nPktLeft);
+	// 					nBlkLeft -= nPktLeft;
+	// 					blkIdx += nPktLeft;
 
-			case 1:
-				// get APID index (MSB = 0, LSB = 1)
-				APID = (pBlk[blkIdx] << 8) & 0x300;
-				APID |= ((pBlk[blkIdx] >> 8) & 0xFF);
+	// 					state = 0;
+	// 					ProcessPacket(APID);
+	// 				}
+	// 				else
+	// 				{
+	// 					// packet data is longer than data remaining in block
+	// 					nBlkLeft &= 0xFF;
+	// 					memcpy(PktBuff, &pBlk[blkIdx], 4 * nBlkLeft);
+	// 					pktIdx += nBlkLeft;
+	// 					nPktLeft -= nBlkLeft;
+	// 					nBlkLeft = 0;
 
-				// find APID index
-				for (i = 0; i < nAPID; ++i)
-				{
-					if (LUT_APID[i] == APID)
-					{
-						break;
-					}
-				}
+	// 					state = 2;
+	// 				}
+	// 			}
+	// 			else
+	// 			{
+	// 				state = 0;
+	// 				snprintf(StatusStr, sizeof(StatusStr),"Unrecognized APID             ");
+	// 			}
+	// 			break;
 
-				// APID is recognized
-				if (i < nAPID)
-				{
-					APIDidx = i;
-					nPktLeft = LUT_PktLen[APIDidx];
+	// 		case 2:
+	// 			// continuation of packet into new blcok
+	// 			pktIdx &= 0x7FF;
+	// 			if (nPktLeft <= nBlkLeft)
+	// 			{
+	// 				// remaing packet data is less than data left in block
+	// 				nPktLeft &= 0xFF;
+	// 				memcpy(&PktBuff[pktIdx], &pBlk[blkIdx], 4 * nPktLeft);
+	// 				nBlkLeft -= nPktLeft;
+	// 				blkIdx += nPktLeft;
 
-					// check to see if packet is completed in block
-					if (nPktLeft <= nBlkLeft)
-					{
-						// remaining packet is less then data in block
-						nPktLeft &= 0xFF;
-						memcpy(PktBuff, &pBlk[blkIdx], 4 * nPktLeft);
-						nBlkLeft -= nPktLeft;
-						blkIdx += nPktLeft;
+	// 				state = 0;
+	// 				ProcessPacket(APID);
+	// 			}
+	// 			else
+	// 			{
+	// 				// packet data is longer than data remaining in block
+	// 				nBlkLeft &= 0xFF;
+	// 				memcpy(&PktBuff[pktIdx], &pBlk[blkIdx], 4 * nBlkLeft);
+	// 				pktIdx += nBlkLeft;
+	// 				nPktLeft -= nBlkLeft;
+	// 				nBlkLeft = 0;
+	// 			}
+	// 			break;
 
-						state = 0;
-						ProcessPacket(APID);
-					}
-					else
-					{
-						// packet data is longer than data remaining in block
-						nBlkLeft &= 0xFF;
-						memcpy(PktBuff, &pBlk[blkIdx], 4 * nBlkLeft);
-						pktIdx += nBlkLeft;
-						nPktLeft -= nBlkLeft;
-						nBlkLeft = 0;
+	// 		default:
+	// 			state = 0;
 
-						state = 2;
-					}
-				}
-				else
-				{
-					state = 0;
-					snprintf(StatusStr, sizeof(StatusStr),"Unrecognized APID             ");
-				}
-				break;
+	// 		}
+	// 	}
 
-			case 2:
-				// continuation of packet into new blcok
-				pktIdx &= 0x7FF;
-				if (nPktLeft <= nBlkLeft)
-				{
-					// remaing packet data is less than data left in block
-					nPktLeft &= 0xFF;
-					memcpy(&PktBuff[pktIdx], &pBlk[blkIdx], 4 * nPktLeft);
-					nBlkLeft -= nPktLeft;
-					blkIdx += nPktLeft;
+	// }
 
-					state = 0;
-					ProcessPacket(APID);
-				}
-				else
-				{
-					// packet data is longer than data remaining in block
-					nBlkLeft &= 0xFF;
-					memcpy(&PktBuff[pktIdx], &pBlk[blkIdx], 4 * nBlkLeft);
-					pktIdx += nBlkLeft;
-					nPktLeft -= nBlkLeft;
-					nBlkLeft = 0;
-				}
-				break;
-
-			default:
-				state = 0;
-
-			}
-		}
-
-	}
     // done reading
     outputFile.close();
     if (outputFile.fail()) {
@@ -489,11 +554,13 @@ void USBInputSource::processReceive() {
     // Check if receive FIFO is empty
     if (readGSERegister(0) & 0x02) return;
 
-    // this is where we search for the sync marker
-    // then read the 6-byte packet header
-    // then read the rest of the packet
-    //int32_t nBytesRead = dev->ReadFromBlockPipeOut(0xA3, 1024, 4, rxBuffer); // sync
-    //int32_t nBytesRead = dev->ReadFromBlockPipeOut(0xA3, 1024, 6, rxBuffer); // primary header
+    // First read a whole block of data from the FPGA
+    // The buffer may be full, partly full, or empty
+    // and it contains the frame marker at the start of each block.
+    // The code skips that block and joins packets that span blocks.
+    // After that, search for the sync marker
+    // then get the 6-byte packet header
+    // then get the rest of the packet
     
 
     // Get data, 64k at a time
@@ -535,45 +602,6 @@ void USBInputSource::processReceive() {
     }
 }
 
-// *********************************************************************/
-// Function: CheckForCloseRequest()
-// Description: Check for close request
-// *********************************************************************/
-// int checkForGSECommand(void)
-// {
-// 	FILE** ppFileCommand = &pFileCommand;
-
-// 	if (flgCommandOpen)
-// 	{
-// 		return 0;
-// 	}
-
-// 	// check for output file and open
-// 	// fopen_s returns 0 if open has worked
-// 	if (fopen_s(ppFileCommand, "../CSIE_GSE/CSIE_Command.bin", "rb"))
-// 	{
-// 		return 0;
-// 	}
-
-// 	// valid file
-// 	else
-// 	{
-// 		// check for close application command
-// 		if (getc(pFileCommand) == 0xFF)
-// 		{
-// 			return 1;
-// 		}
-
-// 		// get file length
-// 		fseek(pFileCommand, 0, SEEK_END);
-// 		CommandBytesLeft = ftell(pFileCommand);
-// 		fseek(pFileCommand, 0, SEEK_SET);
-// 		flgCommandOpen = 1;
-// 	}
-
-// 	return 0;
-	
-// }
 
 // *********************************************************************/
 // Function: CheckLinkStatus()
@@ -584,15 +612,15 @@ void USBInputSource::checkLinkStatus(void)
 	unsigned short r;
 
 	// get GSE status
-	r = readGSERegister(0x02);
-	if (r == 1)
+	r = readGSERegister(0); //(0x02);
+	if ((r && 0x01) == 1)
 	{
 		//snprintf(StatusStr, sizeof(StatusStr), "FIFO Overflow                 ");
-		std::cout << StatusStr << " FIFO Overflow ************** " << std::endl;
+		std::cout << StatusStr << "checkLinkStatus: FIFO Overflow ************** " << std::endl;
 	}
 
 	//printf("\r%i\t%i\t%s", ctrTxPkts, ctrRxPkts, StatusStr);
-    std::cout << "\r" << ctrTxPkts << "\t" << ctrRxPkts << "\t" << StatusStr << std::flush;
+    std::cout << "\r" << ctrTxPkts << "\t" << ctrRxPkts << "\t" << StatusStr << std::endl;
 
 }
 

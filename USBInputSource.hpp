@@ -77,11 +77,29 @@ private:
     void setGSERegister(int addr, unsigned char data);
     unsigned short readGSERegister(int addr);
     void resetInterface(int32_t milliSeconds);
+    void powerOnLED();
+    void powerOffLED();
+
+    std::ofstream initializeOutputFile();
+    bool isReceiveFIFOEmpty();
+    void handleReceiveFIFOError();
+    int32_t readDataFromUSB();
+
+    void processBlock(unsigned long* pBlk);
+    void processPacketHeader(unsigned long*& pBlk, unsigned int& blkIdx, unsigned int& nBlkLeft, int& state, int& APID, unsigned int& pktIdx, unsigned int& nPktLeft);
+    void processPacketContinuation(unsigned long*& pBlk, unsigned int& blkIdx, unsigned int& nBlkLeft, unsigned int& pktIdx, unsigned int& nPktLeft, int& state);
+
 
     // packet lengths are in 32-bit words and do not include sync-code
     static const uint16_t nAPID = 5;
     static const uint16_t LUT_APID[nAPID];
     static const uint16_t LUT_PktLen[nAPID];
+
+    // variables used to persist with the blocks and packet processing
+    int state; // current state of the processing state machine
+    int APID;
+    unsigned int pktIdx; // an index into the packet buffer to join packets spread across 2 blocks
+    unsigned int nPktLeft; // number of remaining words in the packet
 
     // flags
     int flgTelOpen;
@@ -100,7 +118,7 @@ private:
     long ctrTxPkts;
     long ctrRxPkts;
     //long CommandBytesLeft;
-    char StatusStr[256];
+    char StatusStr[256]; // reference string to hold status messages
 
     // the string serialNumber is has the last 4 digits printed on the barcode sticker
     // on the Opal Kelly FPGA integration module
