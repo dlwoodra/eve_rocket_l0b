@@ -32,7 +32,7 @@ bool CCSDSReader::findSyncMarker() {
   std::cout << "findSyncMarker" << std::endl;
  // read one byte at a time shifting 8 bits each iteration - endian-safe
   while (buffer != SYNC_MARKER) {
-    std::cout << "findSyncMarker: calling read" << std::endl;
+    //std::cout << "findSyncMarker: calling read" << std::endl;
     if (source->read((&onebyte), sizeof(onebyte))) {
       buffer = (static_cast<uint32_t>(buffer) << 8) | static_cast<uint32_t>(onebyte);
       /* std::cout << "buffer value is " << std::hex << buffer << std::endl; */
