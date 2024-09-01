@@ -72,13 +72,8 @@ int main(int argc, char* argv[]) {
         CCSDSReader usbReader(&usbSource);
         std::cout << "main: Created CCSDSReader usbReader object."  << std::endl;
 
-        // the way Alan would do it
-        //CGInit - called from constructor
         //loop
-            usbSource.CGProcRx(); // receive, does not return until disconnect
-            //CGProcTx - transmit is not needed
-            //CheckLinkStatus
-        //
+        usbSource.CGProcRx(); // receive, does not return until disconnect
 
         //processPackets(usbReader, recordWriter, fitsFileWriter, 0); // always record from USB
         //std::cout << "main: Processed packets."  << std::endl;
