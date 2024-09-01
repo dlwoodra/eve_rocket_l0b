@@ -668,6 +668,7 @@ unsigned short USBInputSource::readGSERegister(int addr)
 
 // stub - Alan's new code expects this
 void ProcessPacket(uint16_t APID) {
+    // need a char * pointer to reinterpret the packet data
     return;
 }
 
