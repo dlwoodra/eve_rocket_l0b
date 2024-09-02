@@ -42,7 +42,9 @@ struct MEGS_STATS_STRUCT
 	long totalCRCerrors;
 	uint32_t last_megs_a_tai_seconds;
 	uint32_t last_megs_b_tai_seconds;	
-}megs_stats;
+};
+
+extern MEGS_STATS_STRUCT megs_stats;
 
 struct HEADERS
 {
@@ -63,8 +65,10 @@ struct HEADERS
 	uint16_t packet_length;
 	uint32_t tai_time_seconds;
 	uint32_t tai_time_subseconds;
-}ps_headers;
- 
+};
+
+extern HEADERS ps_headers;
+
 struct SHK_PACKET
 {
 	//uint16_t  	spare_mode_flags;					// 1
@@ -160,7 +164,8 @@ struct SHK_PACKET
   	//bool 		mb_int_time_warn;
   	//uint8_t 	mb_readout_mode;
 } __attribute__ ((packed));
-struct SHK_PACKET shk_data[200];
+
+extern struct SHK_PACKET shk_data[200];
 
 struct PHOTOMETER_PACKET
 {
@@ -182,7 +187,8 @@ struct PHOTOMETER_PACKET
 	uint32_t 	tai_time_seconds;  
 	uint32_t 	tai_time_subseconds;
 } __attribute__ ((packed));
-struct PHOTOMETER_PACKET photometer_data[512];	// In 2 minutes there are 480 observations
+
+extern struct PHOTOMETER_PACKET photometer_data[512];	// In 2 minutes there are 480 observations
 
 struct MEGSP_PACKET
 {
@@ -197,68 +203,69 @@ struct MEGSP_PACKET
 	uint32_t 	tai_time_seconds;  
 	uint32_t 	tai_time_subseconds;
 } __attribute__ ((packed));
-struct MEGSP_PACKET megsp_data[512];
 
-struct DARK_STRUCT
-{
-	uint32_t 	tai_time_seconds;
-	uint8_t	 	int_time;
-	float		mean;
-	float		StdDev;
-	float		min;
-	float		max;
-} __attribute__ ((packed));
-struct DARK_STRUCT dark_photo_data;
+extern struct MEGSP_PACKET megsp_data[512];
 
-struct MEGS_DARK_STRUCT
-{
-	uint32_t yyyydoy;
-	uint32_t sod;
-	uint32_t tai_time_seconds;
-	uint32_t tai_time_subseconds;
-	uint16_t vcdu_count;
-	uint8_t integration_time;
-	bool reverse_clock;
-	bool ram_bank;
-	bool int_time_warn;
-	uint8_t readout_mode;
-	float ccd_temp;
-	bool led_on; 
-	uint8_t led_0_level;
-	uint8_t led_1_level;
-	uint16_t 	num_pix_tl;
-	uint32_t 	num_pix_tm;
-	uint16_t 	num_pix_tr;
-	uint16_t 	num_pix_bl;
-	uint32_t 	num_pix_bm;
-	uint16_t 	num_pix_br;
-	float		tl_mean;
-	float		tl_StdDev;
-	float		tl_min;
-	float		tl_max;
-	float		tm_mean;
-	float		tm_StdDev;
-	float		tm_min;
-	float		tm_max;
-	float		tr_mean;
-	float		tr_StdDev;
-	float		tr_min;
-	float		tr_max;
-	float		bl_mean;
-	float		bl_StdDev;
-	float		bl_min;
-	float		bl_max;
-	float		bm_mean;
-	float		bm_StdDev;
-	float		bm_min;
-	float		bm_max;
-	float		br_mean;
-	float		br_StdDev;
-	float		br_min;
-	float		br_max;
-} __attribute__ ((packed));
+// struct DARK_STRUCT
+// {
+// 	uint32_t 	tai_time_seconds;
+// 	uint8_t	 	int_time;
+// 	float		mean;
+// 	float		StdDev;
+// 	float		min;
+// 	float		max;
+// } __attribute__ ((packed));
+// struct DARK_STRUCT dark_photo_data;
 
-struct MEGS_DARK_STRUCT megs_dark_data;
+// struct MEGS_DARK_STRUCT
+// {
+// 	uint32_t yyyydoy;
+// 	uint32_t sod;
+// 	uint32_t tai_time_seconds;
+// 	uint32_t tai_time_subseconds;
+// 	uint16_t vcdu_count;
+// 	uint8_t integration_time;
+// 	bool reverse_clock;
+// 	bool ram_bank;
+// 	bool int_time_warn;
+// 	uint8_t readout_mode;
+// 	float ccd_temp;
+// 	bool led_on; 
+// 	uint8_t led_0_level;
+// 	uint8_t led_1_level;
+// 	uint16_t 	num_pix_tl;
+// 	uint32_t 	num_pix_tm;
+// 	uint16_t 	num_pix_tr;
+// 	uint16_t 	num_pix_bl;
+// 	uint32_t 	num_pix_bm;
+// 	uint16_t 	num_pix_br;
+// 	float		tl_mean;
+// 	float		tl_StdDev;
+// 	float		tl_min;
+// 	float		tl_max;
+// 	float		tm_mean;
+// 	float		tm_StdDev;
+// 	float		tm_min;
+// 	float		tm_max;
+// 	float		tr_mean;
+// 	float		tr_StdDev;
+// 	float		tr_min;
+// 	float		tr_max;
+// 	float		bl_mean;
+// 	float		bl_StdDev;
+// 	float		bl_min;
+// 	float		bl_max;
+// 	float		bm_mean;
+// 	float		bm_StdDev;
+// 	float		bm_min;
+// 	float		bm_max;
+// 	float		br_mean;
+// 	float		br_StdDev;
+// 	float		br_min;
+// 	float		br_max;
+// } __attribute__ ((packed));
+
+// struct MEGS_DARK_STRUCT megs_dark_data;
 
 struct MEGS_IMAGE_REC 
 {
@@ -290,11 +297,15 @@ struct TLM_ERRORS
 	uint16_t	crc;
 	uint16_t	parity;
 	uint16_t	sync;
-}tlm_errors;
+};
+
+extern TLM_ERRORS tlm_errors;
 
 // Compression file rec
 struct FILECOMP {
 	char filename[128];
-}filecomp;
+};
+
+extern FILECOMP filecomp;
 
 #endif
