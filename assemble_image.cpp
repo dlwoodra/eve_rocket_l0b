@@ -41,13 +41,14 @@ Date     Author          Change Id Description of Change
 #include "eve_megs_pixel_parity.h"
 #include "eve_megs_twoscomp.h"
 
-int assemble_image( uint8_t * vcdu, struct MEGS_IMAGE_REC * ptr, int8_t *status)
+int assemble_image( uint8_t * vcdu, struct MEGS_IMAGE_REC * ptr, uint16_t sourceSequenceCounter, int8_t *status)
 {
   int   parityerrors = 0;
 
   static uint8_t topmode, bottommode;
 
-  uint16_t parity=0, src_seq;
+  uint16_t parity=0;
+  uint16_t src_seq = sourceSequenceCounter;
   uint16_t * u16p = (uint16_t *) vcdu;  // 16 bit pointer to data
   uint16_t MEGS_IMAGE_WIDTH_SHIFT=11;
   uint16_t MEGS_IMAGE_HEIGHT_LESS1=MEGS_IMAGE_HEIGHT-1, MEGS_IMAGE_WIDTH_LESS1=MEGS_IMAGE_WIDTH-1;
@@ -59,7 +60,7 @@ int assemble_image( uint8_t * vcdu, struct MEGS_IMAGE_REC * ptr, int8_t *status)
   //static uint32_t istestpattern, not_istestpattern;
   static uint32_t not_tp2043;
 
-  src_seq    = u16p[8] & 0x3fff;                        // Sequence number
+  //src_seq    = u16p[8] & 0x3fff;           // Sequence number is an arg
   src_seq_times_pixels_per_half_vcdu = src_seq*PIXELS_PER_HALF_VCDU;
 
   // if megs_image_rec has vcdu_count=0, then assign all header info
@@ -70,10 +71,10 @@ int assemble_image( uint8_t * vcdu, struct MEGS_IMAGE_REC * ptr, int8_t *status)
       bottommode = 1; //getbit8( vcdu[28], 5 );      // bottom mode
 
       /* time hi */
-      ptr->tai_time_seconds = ps_headers.tai_time_seconds;
+      //ptr->tai_time_seconds = ps_headers.tai_time_seconds;
           
       // time lo 
-      ptr->tai_time_subseconds = ps_headers.tai_time_subseconds;
+      //ptr->tai_time_subseconds = ps_headers.tai_time_subseconds;
 
       // int_time (DN units, so seconds=DN*10)
       //ptr->integration_time = vcdu[29];
