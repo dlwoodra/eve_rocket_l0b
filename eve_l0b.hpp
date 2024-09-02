@@ -1,4 +1,4 @@
-/* EVE_l0b.h */
+/* EVE_l0b.hpp */
 #ifndef EVE_l0b_defined
 #define EVE_l0b_defined
 
@@ -112,7 +112,7 @@
 //bool nomegsa, nomegsb, noshk, nophoto, routineplots;
 
 // User defined include files
-#include "eve_structures.h"
+#include "eve_structures.hpp"
 //#include "eve_graphics.h"
 //#include "rainbow_colors.h"
 //#include "fits_rw.h"
@@ -127,17 +127,17 @@
 
 // +++++++++++++++++  The procedure prototypes  ++++++++++++++++++
 
-int assemble_image( uint8_t * vcdu, struct MEGS_IMAGE_REC * ptr, int8_t *status);
+int assemble_image( uint8_t * vcdu, struct MEGS_IMAGE_REC * ptr, uint16_t sourceSequenceCounter, int8_t *status);
 int	processPHOTOpacket(uint32_t *esp_time_seconds, uint32_t *esp_index, uint8_t *vcdu_data);
 //int	processSHKpacket(uint32_t *shk_time_seconds, int *shk_index, int *esp_index, uint8_t *vcdu_data, struct MEGS_IMAGE_REC *ptr_ma, struct MEGS_IMAGE_REC *ptr_mb);
-//inline void read_header( uint8_t *vcdu );  
+//inline void read_header( uint8_t *vcdu );
 inline int WHERE( uint32_t tai_time, int shk_index );
 
 uint16_t max( uint16_t, uint16_t, uint16_t, uint16_t);
 
 void checkstring( char * teststring );
-inline int tai_to_ydhms(uint32_t tai_in, uint16_t *year, uint16_t *doy, 
-		 uint32_t *sod, uint16_t *hh, uint16_t *mm, uint16_t *ss);
+extern int tai_to_ydhms(uint32_t tai_in, uint16_t *year, uint16_t *doy, 
+      uint32_t *sod, uint16_t *hh, uint16_t *mm, uint16_t *ss);
 
 // Math and pointer helper procedures
 void realfft(float data [ ], unsigned long n, int isign);
