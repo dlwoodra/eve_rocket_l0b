@@ -25,7 +25,7 @@ target XEM7310-a75
 
 void print_help();
 void parseCommandLineArgs(int argc, char* argv[], std::string& filename, bool& skipESP, bool& skipMP, bool& skipRecord);
-void processPackets(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& recordWriter, std::unique_ptr<FITSWriter>& fitsFileWriter, bool skipRecord);
+void processPackets(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& recordWriter, bool skipRecord);
 void processPacket(CCSDSReader& pktReader, const std::vector<uint8_t>& packet);
 void processMegsAPacket(std::vector<uint8_t> payload, 
     uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp);
@@ -48,10 +48,8 @@ int main(int argc, char* argv[]) {
     parseCommandLineArgs(argc, argv, filename, skipESP, skipMP, skipRecord);
 
     std::unique_ptr<RecordFileWriter> recordWriter;
-    std::unique_ptr<FITSWriter> fitsFileWriter;
     if (!skipRecord) {
         recordWriter = std::make_unique<RecordFileWriter>();
-        fitsFileWriter = std::make_unique<FITSWriter>();
     }
 
     if (isValidFilename(filename)) {
@@ -60,7 +58,7 @@ int main(int argc, char* argv[]) {
         CCSDSReader fileReader(&fileSource);
 
         if (fileReader.open()) {
-            processPackets(fileReader, recordWriter, fitsFileWriter, skipRecord);
+            processPackets(fileReader, recordWriter, skipRecord);
         } else {
             std::cerr << "Failed to open file." << std::endl;
             return EXIT_FAILURE;  
@@ -111,7 +109,7 @@ void parseCommandLineArgs(int argc, char* argv[], std::string& filename, bool& s
     }
 }
 
-void processPackets(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& recordWriter, std::unique_ptr<FITSWriter>& fitsFileWriter, bool skipRecord) {
+void processPackets(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& recordWriter, bool skipRecord) {
     std::vector<uint8_t> packet;
     int counter = 0;
 
@@ -176,30 +174,80 @@ void processPacket(CCSDSReader& pktReader, const std::vector<uint8_t>& packet) {
     std::cout << "Elapsed time: " << elapsed_seconds.count() << " sec" << std::endl;
 }
 
+uint32_t payloadToTAITimeSeconds(const std::vector<uint8_t>& payload) {
+    if (payload.size() < 4) {
+        // Handle the error case, perhaps by throwing an exception
+        throw std::invalid_argument("Payload must contain at least 4 bytes.");
+    }
+
+    return (static_cast<uint32_t>(payload[0]) << 24) |
+           (static_cast<uint32_t>(payload[1]) << 16) |
+           (static_cast<uint32_t>(payload[2]) << 8)  |
+           static_cast<uint32_t>(payload[3]);
+}
+
+uint32_t payloadToTAITimeSubseconds(const std::vector<uint8_t>& payload) {
+    if (payload.size() < 6) {
+        // Handle the error case, perhaps by throwing an exception
+        throw std::invalid_argument("Payload must contain at least 4 bytes.");
+    }
+
+    return (static_cast<uint32_t>(payload[4]) << 24) |
+           (static_cast<uint32_t>(payload[5]) << 16);
+}
+
 // the payload starts with the secondary header timestamp
 void processMegsAPacket(std::vector<uint8_t> payload, 
-    uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp) {
+    uint16_t sourceSequenceCounter, uint16_t packetLength, 
+    double timeStamp) {
 
     // insert pixels into image
 
+    uint16_t year, doy, hh, mm, ss;
+    uint32_t sod;
+    uint32_t tai_sec;
     int8_t status=0;
     struct MEGS_IMAGE_REC megsImage;
-    uint8_t pktarr[STANDARD_MEGSAB_PACKET_LENGTH];
+    int vcdu_impdu_prihdr_length = 20;
+    uint8_t pktarr[STANDARD_MEGSAB_PACKET_LENGTH + vcdu_impdu_prihdr_length];
+    // vcdu has 14 bytes before the packet start (vcdu=6, impdu=8)
+    // pkthdr=6 bytes before the payload starts at the 2nd hdr timestamp
+    // copy from payload into pktarr starting at byte 20
+    std::copy(payload.begin(), payload.end(), pktarr+vcdu_impdu_prihdr_length);
 
-    int parityErrors = assemble_image(pktarr, &megsImage, &status);
+    tai_sec = payloadToTAITimeSeconds(payload);
+    megsImage.tai_time_seconds = tai_sec;
+    megsImage.tai_time_subseconds = payloadToTAITimeSubseconds(payload);
+
+    tai_to_ydhms(tai_sec, &year, &doy, &sod, &hh, &mm, &ss);
+    std::cout << "called tai_to_ydhms " << year << " "<< doy << "-" << hh << ":" << mm << ":" << ss <<"\n";
+
+    int parityErrors = assemble_image(pktarr, &megsImage, sourceSequenceCounter, &status);
+    std::cout << "called assemble_image" << "\n";
+
 
     if ( parityErrors > 0 ) {
         std::cout << "assemble_image returned parity errors: " << parityErrors << "\n";
     }
 
-    // Write packet data to a FITS file if applicable
-    //if (fitsFileWriter) {
-    //  if (!fitsFileWriter->writePacketToFITS(packet, apid, timeStamp)) {
-    //    std::cerr << "ERROR: Failed to write packet to FITS file." << std::endl;
-    //    return;
-    //  }
-    //}
+    if ( sourceSequenceCounter == 2394) {
+        std::cout<<"end of MEGS-A at 2394"<<"\n";
+
+        // need to run this in another thread
+
+        // Write packet data to a FITS file if applicable
+        std::unique_ptr<FITSWriter> fitsFileWriter;
+        fitsFileWriter = std::make_unique<FITSWriter>();
+        if (fitsFileWriter) {
+        //  if (!fitsFileWriter->writePacketToFITS(packet, apid, timeStamp)) {
+        //    std::cerr << "ERROR: Failed to write packet to FITS file." << std::endl;
+        //    return;
+        //  }
+        }
+    }
+
 }
+
 void processMegsBPacket(std::vector<uint8_t> payload, 
     uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp) {
 }
