@@ -345,15 +345,15 @@ TEST_CASE("USBInputSource Test Suite", "[USBInputSource]") {
 
     SECTION("getSerialNumber returns expected serial number") {
         // Create an instance of USBInputSource
-        std::string initialSerialNumber = "12345678";
-        USBInputSource usbSource(initialSerialNumber);
-        //USBInputSource usbSource;
+        std::string initialSerialNumber = "24080019Q1";
+        std::string emptySerialNumber;
+        USBInputSource usbSource(emptySerialNumber);
 
         // Call the selectUSBSerialNumber function
         std::string serialNumber = usbSource.getSerialNumber();
 
-        // Check if the returned serial number is "12345678"
-        REQUIRE(serialNumber == "12345678");
+        // Check if the returned serial number is "24080019Q1"
+        REQUIRE(serialNumber == initialSerialNumber);
     }
 
     // You can add more SECTIONs here for other tests related to USBInputSource
