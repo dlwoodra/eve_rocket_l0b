@@ -13,20 +13,20 @@
 //#include "USBInputSource.hpp"
 
 // Constants
-const uint32_t SYNC_MARKER = 0x1ACFFC1D; // Example sync marker, typical for CCSDS frames
-const uint32_t BSWAP_SYNC_MARKER = 0x1DFCCF1A;
-const size_t PACKET_HEADER_SIZE = 6;     // CCSDS packet primary header size in bytes
-const uint16_t STANDARD_MEGSAB_PACKET_LENGTH = 1761; // value from packet (one less than size)
-const uint16_t STANDARD_MEGSP_PACKET_LENGTH = 25; // apid 604
-const uint16_t STANDARD_ESP_PACKET_LENGTH = 89; // apid 605
-const uint16_t STANDARD_HK_PACKET_LENGTH = 265; // apid 606
+constexpr uint32_t SYNC_MARKER = 0x1ACFFC1D; // sync marker
+constexpr uint32_t BSWAP_SYNC_MARKER = 0x1DFCCF1A;
+constexpr size_t PACKET_HEADER_SIZE = 6;     // CCSDS packet primary header size in bytes
+constexpr uint16_t STANDARD_MEGSAB_PACKET_LENGTH = 1761; // value from packet (one less than size)
+constexpr uint16_t STANDARD_MEGSP_PACKET_LENGTH = 25; // apid 604
+constexpr uint16_t STANDARD_ESP_PACKET_LENGTH = 89; // apid 605
+constexpr uint16_t STANDARD_HK_PACKET_LENGTH = 265; // apid 606
 // David's definitions of APIDs
-const uint16_t MEGSA_APID = 601; // same as SDO EVE
-const uint16_t MEGSB_APID = 602; // same as SDO EVE
-const uint16_t MEGSP_APID = 604; // was SHK in SDO EVE
-const uint16_t ESP_APID = 605; // not used in SDO EVE, MEGS-P and ESP were both in 603
-const uint16_t HK_APID = 606; // rocket housekeeping only
-const uint8_t mask6bit = 0x3f; // upper byte of source sequence counter
+constexpr uint16_t MEGSA_APID = 601; // same as SDO EVE
+constexpr uint16_t MEGSB_APID = 602; // same as SDO EVE
+constexpr uint16_t MEGSP_APID = 604; // was SHK in SDO EVE
+constexpr uint16_t ESP_APID = 605; // not used in SDO EVE, MEGS-P and ESP were both in 603
+constexpr uint16_t HK_APID = 606; // rocket housekeeping only
+constexpr uint8_t mask6bit = 0x3f; // upper byte of source sequence counter
 
 class CCSDSReader {
 public:
