@@ -60,33 +60,42 @@ int32_t USBInputSource::readDataFromUSB() {
     return dev->ReadFromBlockPipeOut(0xA3, blockSize, transferLength, (unsigned char*)RxBuff);
 }
 
-void USBInputSource::GSEprocessBlock(unsigned long* pBlk) {
-    // * pBlk is a pointer to the current block of data in the buffer. 
+void USBInputSource::GSEprocessBlock(uint32_t* pBlk) {
+    // * pBlk is a pointer to the current block of data in the buffer. (&RxBuff[256*blk])
     // This is where the function will read the data from
 
     // blkIdx is the index into the block tracking where we are as we process the block
-    unsigned int blkIdx = 1; 
+    uint16_t blkIdx = 1; 
     // nBlkLeft is a reference to the number of data words left to process in the current block so we don't read beyond the data.
-    unsigned int nBlkLeft = pBlk[0]; 
+    uint16_t nBlkLeft = pBlk[0]; 
+
 
     while (nBlkLeft > 0) {
-        switch (state) {
+        switch (this->state) {
         case 0:
             GSEprocessPacketHeader(pBlk, blkIdx, nBlkLeft, this->state, this->APID, this->pktIdx, this->nPktLeft);
             break;
         case 1:
+            std::cout<<"state "<<state<<" nBlkLeft "<<nBlkLeft<<std::endl;
             GSEprocessPacketContinuation(pBlk, blkIdx, nBlkLeft, this->pktIdx, this->nPktLeft, this->state);
             break;
+        case 2:
+            std::cout<<"state "<<state<<" nBlkLeft "<<nBlkLeft<<std::endl;
+            GSEContinuePacket(pBlk, blkIdx, nBlkLeft, this->state, this->pktIdx, this->nPktLeft, APIDidx);
+            break;
         default:
-            state = 0;
+            this->state = 0;
         }
     }
 }
 
-void USBInputSource::GSEprocessPacketHeader(unsigned long*& pBlk, unsigned int& blkIdx, unsigned int& nBlkLeft, int& state, int& APID, unsigned int& pktIdx, unsigned int& nPktLeft) {
+void USBInputSource::GSEprocessPacketHeader(uint32_t *& pBlk, uint16_t& blkIdx, uint16_t& nBlkLeft, int16_t& state, int16_t& APID, uint16_t& pktIdx, uint16_t& nPktLeft) {
     // The whole 32-bit pointer array is 32-bit byte swapped
     // When using data, use reinterpret_cast<char *> to access the bytes
     // the bytes are in correct network (big endian) order
+    //if ( pBlk[blkIdx] != 0) {
+    //    std::cout<<"GSEprocessPacketHeader: pBlk[blkdIdx] "<<std::hex<< (pBlk[blkIdx]) <<std::endl;
+    //}
     if (pBlk[blkIdx] == 0x1DFCCF1A) {
         pktIdx = 0;
         state = 1;
@@ -97,17 +106,22 @@ void USBInputSource::GSEprocessPacketHeader(unsigned long*& pBlk, unsigned int& 
     --nBlkLeft;
 }
 
-void USBInputSource::GSEprocessPacketContinuation(unsigned long*& pBlk, unsigned int& blkIdx, unsigned int& nBlkLeft, unsigned int& pktIdx, unsigned int& nPktLeft, int& state) {
+
+void USBInputSource::GSEprocessPacketContinuation(uint32_t*& pBlk, uint16_t& blkIdx, uint16_t& nBlkLeft, uint16_t& pktIdx, uint16_t& nPktLeft, int16_t& state) {
 
     // The 32-bit pointer is byte swapping the first 4 bytes
     APID = ((pBlk[blkIdx] & 0x07) << 8) | ((pBlk[blkIdx] >> 8) & 0xFF); // byte swap and extract 11-bit APID
 
     // find APIDidx into LUT_APID that matches APID
-    unsigned int APIDidx = std::lower_bound(LUT_APID, LUT_APID + nAPID, APID) - LUT_APID;
+    uint16_t APIDidx = std::lower_bound(LUT_APID, LUT_APID + nAPID, APID) - LUT_APID;
+
+    std::cout<<"GSEprocessPacketContinuation - APID: "<<APID<<" APIDidx "<<APIDidx<<std::endl;
 
     if (APIDidx < nAPID && LUT_APID[APIDidx] == APID) {
         nPktLeft = LUT_PktLen[APIDidx]; // the whole packet length
+        // check to see if packet is completed in block
         if (nPktLeft <= nBlkLeft) {
+            // remaining packet content is less than data left in block
             nPktLeft &= 0xFF;
 
             // Alan's code and magic counters
@@ -127,7 +141,9 @@ void USBInputSource::GSEprocessPacketContinuation(unsigned long*& pBlk, unsigned
             // append the packet data into the vector
             std::copy(RxBuff, RxBuff + pktLen, pktVec.begin());
 
+            std::cout<<"APID "<<APID<<" pktLen "<<pktLen<<std::endl;
 
+            std::cout<<"PktVec hdr: "<<std::hex<< static_cast<int>(pktVec[0])<< static_cast<int>(pktVec[1])<<static_cast<int>(pktVec[2])<<static_cast<int>(pktVec[3])<<static_cast<int>(pktVec[4])<<static_cast<int>(pktVec[5])<<std::endl;
 
             // write to file
             //std::cout << "writing " << sizeof(RxBuff) << " " << std::endl; // says 20000?
@@ -142,6 +158,7 @@ void USBInputSource::GSEprocessPacketContinuation(unsigned long*& pBlk, unsigned
             }
             //processOnePacket(pktReader, syncAndPktVec, 0);
         } else {
+            // packet data is longer than data remining in block
             nBlkLeft &= 0xFF;
             memcpy(PktBuff, &pBlk[blkIdx], 4 * nBlkLeft);
             pktIdx += nBlkLeft;
@@ -155,6 +172,45 @@ void USBInputSource::GSEprocessPacketContinuation(unsigned long*& pBlk, unsigned
         snprintf(StatusStr, sizeof(StatusStr), "Unrecognized APID");
     }
 }
+
+void USBInputSource::GSEContinuePacket(uint32_t*& pBlk, uint16_t& blkIdx, uint16_t& nBlkLeft, int16_t& state, uint16_t& pktIdx, uint16_t& nPktLeft, int16_t APIDidx) {
+    // continuation of packet into new block
+    pktIdx &= 0x7FF;
+    if (nPktLeft <= nBlkLeft) {
+        // remaining data is less than the data left in the block
+        nPktLeft &= 0xFF;
+        memcpy(&PktBuff[pktIdx], &pBlk[blkIdx], 4 * nPktLeft);
+        nBlkLeft -= nPktLeft;
+        blkIdx += nPktLeft;
+
+        state = 0;
+
+        //ProcessPacket(APIDidx);
+        // same thing from case 1
+        uint16_t pktLen = (7 + ((static_cast<uint16_t>(RxBuff[4]) << 8) | static_cast<uint16_t>(RxBuff[5])));
+        // define vector length to contain pktLen, the complete packet
+        std::vector<uint8_t> pktVec(pktLen);
+        // append the packet data into the vector
+        std::copy(RxBuff, RxBuff + pktLen, pktVec.begin());
+        std::cout<<"APID "<<APID<<" pktLen "<<pktLen<<std::endl;
+        std::cout<<"PktVec hdr: "<<std::hex<<pktVec[0]<<pktVec[1]<<pktVec[2]<<pktVec[3]<<pktVec[4]<<pktVec[5]<<std::endl;
+        // processPackets takes pktReader, recordWriter, skipRecord as args
+        // here the "packet" includes the 4 byte sync marker
+//        if (!recordFileWriter->writeSyncAndPacketToRecordFile(pktVec)) {
+//            std::cerr << "ERROR: processPackets failed to write packet to record file." << std::endl;
+//            return;
+//        }
+
+    } else {
+        // packet data is longer than data remaining in block
+        nBlkLeft &= 0xFF;
+        memcpy(&PktBuff[pktIdx], &pBlk[blkIdx], 4 * nBlkLeft);
+        pktIdx += nBlkLeft;
+        nPktLeft -= nBlkLeft;
+        nBlkLeft = 0;
+    }
+}
+
 
 extern void processPackets(CCSDSReader& pktReader, \
     std::unique_ptr<RecordFileWriter>& recordWriter, \
@@ -195,7 +251,8 @@ bool USBInputSource::open() {
     std::cout << "Opening USBInputSource for serial number: " << serialNumber << std::endl;
 
     //outputFile = initializeOutputFile();
-    if (!recordFileWriter->writeSyncAndPacketToRecordFile({})) {
+    //if (!recordFileWriter->writeSyncAndPacketToRecordFile({})) {
+    if (!recordFileWriter) {
         std::cerr << "ERROR: USBInputSource::open Failed to open record file."<<std::endl;
         return false;
     }
@@ -324,26 +381,26 @@ void USBInputSource::initializeGSE() {
     std::cout << "FPGA Temperature: " << DeviceTemp << std::endl;
 
     // stat_rx_err & stat_rx_empty & stat_tx_empty(LSbit) (3-bits)
-    for (int iloop=0; iloop < 1 ; iloop++) {
-        unsigned short reg0 = readGSERegister(0);
+    for (int32_t iloop=0; iloop < 1 ; iloop++) {
+        uint16_t reg0 = readGSERegister(0);
         Sleep(500);
         std::cout << "reg 0 " << std::hex << reg0 << std::endl;
     }
 
     // firmware version
-    unsigned short reg1 = readGSERegister(1);
+    uint16_t reg1 = readGSERegister(1);
     Sleep(100);
     // lsb is rxerror
-    unsigned short reg2 = readGSERegister(2);
+    uint16_t reg2 = readGSERegister(2);
     Sleep(100);
     // FPGA temperature
-    unsigned short reg3 = readGSERegister(3);
+    uint16_t reg3 = readGSERegister(3);
     std::cout << "reg 1 " << std::hex << reg1 << std::endl;
     std::cout << "reg 2 " << std::hex << reg2 << std::endl;
     std::cout << "reg 3 " << std::hex << reg3 << std::endl;
 
     // register values changed in newer firmware
-    unsigned short firmwareVer = readGSERegister(1); // probably HW specific
+    uint16_t firmwareVer = readGSERegister(1); // probably HW specific
     gseType = firmwareVer >> 12; // can this even work?
     // Alan sees gseType as 1, Sync-Serial
     switch (gseType) {
@@ -437,7 +494,7 @@ void USBInputSource::CGProcRx(void)
     // for these params we should call this every ~65-75 milliseconds
     // for now just read the buffer iloop times as fast as possible
     // note 8/30/24 blockPipeOutStatus is 10000 (if hex then 65536)
-    for ( int iloop=0; iloop < 200; ++iloop) {
+    for ( int32_t iloop=0; iloop < 10; ++iloop) {
         //int32_t blockPipeOutStatus = dev->ReadFromBlockPipeOut(0xA3, blockSize, transferLength, (unsigned char*)RxBuff);
         int32_t blockPipeOutStatus = readDataFromUSB();
         // returns number of bytes or <0 for errors
@@ -446,7 +503,7 @@ void USBInputSource::CGProcRx(void)
             std::cerr << "ERROR: USB Read Error" << std::endl;
 		    return;
 	    }
-        std::cout << "bytes read "<<blockPipeOutStatus << std::endl; // says 10000, it is encoded as hex
+        std::cout << "blockPipeOutStatus bytes read "<<blockPipeOutStatus << std::endl; // says 10000, it is encoded as hex
 
         // NOTE we won't normally write here, write after extracting packets from the frame.
 
@@ -641,7 +698,7 @@ void USBInputSource::processReceive() {
 // *********************************************************************/
 void USBInputSource::checkLinkStatus(void)
 {
-	unsigned short r;
+	uint16_t r;
 
 	// get GSE status
 	r = readGSERegister(0); //(0x02);
@@ -660,9 +717,9 @@ void USBInputSource::checkLinkStatus(void)
 // Function: SetGSERegister()
 // Description: Sets GSE register
 // *********************************************************************/
-void USBInputSource::setGSERegister(int addr, unsigned char data)
+void USBInputSource::setGSERegister(int16_t addr, unsigned char data)
 {
-	unsigned long w;
+	uint32_t w;
 
 	w = 0x8000 | addr;
 	w <<= 16;
@@ -680,8 +737,8 @@ void USBInputSource::setGSERegister(int addr, unsigned char data)
 // *********************************************************************/
 unsigned short USBInputSource::readGSERegister(int addr)
 {
-	unsigned long w;
-	unsigned short stat;
+	uint32_t w;
+	uint16_t stat;
 
 	w = 0x800F0000 | addr;
 
@@ -693,7 +750,7 @@ unsigned short USBInputSource::readGSERegister(int addr)
 
 	// read data
 	dev->UpdateWireOuts();
-	stat = (unsigned short) dev->GetWireOutValue(0x20) & 0xFFFF;
+	stat = (uint16_t) dev->GetWireOutValue(0x20) & 0xFFFF;
 
 	return stat;
 }
