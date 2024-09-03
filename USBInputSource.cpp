@@ -469,9 +469,10 @@ void USBInputSource::CGProcRx(void)
 	//unsigned int nBlkLeft, blk, i;
 	//unsigned long* pBlk, APIDidx;
 
-    if (isReceiveFIFOEmpty()) {
+    while (isReceiveFIFOEmpty()) {
         handleReceiveFIFOError();
-        return;
+        std::cout<<"Waiting for data..."<<std::endl;
+        //Sleep(250); //millisec
     }
 
     // LSB register bit is stat_tx_empty - don't need that bit
@@ -488,14 +489,22 @@ void USBInputSource::CGProcRx(void)
     //    Sleep(10);
     //}
 
-    //int16_t blockSize = 1024; // bytes, optimal in powers of 2
-    //int32_t transferLength = 65536; // bytes to read
-
     // for these params we should call this every ~65-75 milliseconds
     // for now just read the buffer iloop times as fast as possible
     // note 8/30/24 blockPipeOutStatus is 10000 (if hex then 65536)
-    for ( int32_t iloop=0; iloop < 10; ++iloop) {
-        //int32_t blockPipeOutStatus = dev->ReadFromBlockPipeOut(0xA3, blockSize, transferLength, (unsigned char*)RxBuff);
+    for ( int32_t iloop=0; iloop < 200; ++iloop) {
+        //std::cout<< "Starting loop" <<std::endl;
+        uint32_t waitCounter=0;
+        while (isReceiveFIFOEmpty()) {
+            waitCounter++;
+            if ((waitCounter % 100) == 0) {
+                resetInterface(2);
+            } 
+            //handleReceiveFIFOError();
+            //std::cout<<"ReceiveFIFOEmpty: waiting"<<std::endl;
+            Sleep(5); // 2 millisec - need to tune
+        }
+        std::cout<<"Wait counter "<<waitCounter<<std::endl;
         int32_t blockPipeOutStatus = readDataFromUSB();
         // returns number of bytes or <0 for errors
 	    if ( blockPipeOutStatus < 0)
@@ -504,9 +513,6 @@ void USBInputSource::CGProcRx(void)
 		    return;
 	    }
         std::cout << "blockPipeOutStatus bytes read "<<blockPipeOutStatus << std::endl; // says 10000, it is encoded as hex
-
-        // NOTE we won't normally write here, write after extracting packets from the frame.
-
 
         // process the blocks of data
         for (unsigned int blk = 0; blk <= 64; ++blk) {
