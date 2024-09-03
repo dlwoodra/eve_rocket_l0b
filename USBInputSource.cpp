@@ -239,19 +239,21 @@ USBInputSource::USBInputSource(const std::string& serialNumber )
 
         std::cout << "USBInputSource constructor initialized." << std::endl;
 
+        powerOnLED();
       }
+
 
 USBInputSource::~USBInputSource() {
     close();
-    setGSERegister(1, 0); //turn off LED
+    //setGSERegister(1, 0); //turn off LED
+    powerOffLED();
     recordFileWriter->close();
 }
 
 bool USBInputSource::open() {
     std::cout << "Opening USBInputSource for serial number: " << serialNumber << std::endl;
 
-    //outputFile = initializeOutputFile();
-    //if (!recordFileWriter->writeSyncAndPacketToRecordFile({})) {
+    // the constructor creates the recordFileWriter
     if (!recordFileWriter) {
         std::cerr << "ERROR: USBInputSource::open Failed to open record file."<<std::endl;
         return false;
