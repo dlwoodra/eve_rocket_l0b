@@ -3,7 +3,7 @@
 *  Description: This is the implementation for the minimum processing
 *  capability. Open a connection to the USB via an opal kelly api,
 *  read packets, write packets to a file separated by a 32-bit timestamp.
-target XEM7310-a75
+*  target is XEM7310-a75
 */
 
 #include "CCSDSReader.hpp"
@@ -12,9 +12,10 @@ target XEM7310-a75
 #include "eve_l0b.hpp"
 #include "fileutils.hpp"
 #include "FITSWriter.hpp"
-#include "RecordFileWriter.hpp"
-#include "InputSource.hpp"
 #include "FileInputSource.hpp"
+#include "InputSource.hpp"
+#include "LogFileWriter.hpp"
+#include "RecordFileWriter.hpp"
 #include "USBInputSource.hpp"
 
 #include <chrono>
@@ -26,7 +27,7 @@ target XEM7310-a75
 void print_help();
 void parseCommandLineArgs(int argc, char* argv[], std::string& filename, bool& skipESP, bool& skipMP, bool& skipRecord);
 void processPackets(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& recordWriter, bool skipRecord);
-void processPacket(CCSDSReader& pktReader, const std::vector<uint8_t>& packet);
+void processOnePacket(CCSDSReader& pktReader, const std::vector<uint8_t>& packet);
 void processMegsAPacket(std::vector<uint8_t> payload, 
     uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp);
 void processMegsBPacket(std::vector<uint8_t> payload, 
@@ -49,7 +50,8 @@ int main(int argc, char* argv[]) {
 
     std::unique_ptr<RecordFileWriter> recordWriter;
     if (!skipRecord) {
-        recordWriter = std::make_unique<RecordFileWriter>();
+        recordWriter = std::unique_ptr<RecordFileWriter>(new RecordFileWriter());
+        // the c++14 way recordWriter = std::make_unique<RecordFileWriter>();
     }
 
     if (isValidFilename(filename)) {
@@ -78,7 +80,6 @@ int main(int argc, char* argv[]) {
 
         //loop
         usbSource.CGProcRx(); // receive, does not return until disconnect
-
         usbReader.close();
 
     }
@@ -95,20 +96,26 @@ void parseCommandLineArgs(int argc, char* argv[], std::string& filename, bool& s
         std::string arg = argv[i];
         if (isValidFilename(arg) && arg[0] != '-') {
             filename = arg;
+            LogFileWriter::getInstance().logInfo("Received filename arg: " + arg);
         } else if (arg == "--skipESP" || arg == "-skipESP") {
             skipESP = true;
+            LogFileWriter::getInstance().logInfo("Received : " + arg);
         } else if (arg == "--skipMP" || arg == "-skipMP") {
             skipMP = true;
+            LogFileWriter::getInstance().logInfo("Received : " + arg);
         } else if (arg == "--help" || arg == "-help") {
             print_help();
         } else if (arg == "--skipRecord" || arg == "-skipRecord") {
             skipRecord = true;
+            LogFileWriter::getInstance().logInfo("Received : " + arg);
         } else {
+            LogFileWriter::getInstance().logError("Unknown command line option: " + arg);
             std::cerr << "Unknown option: " << arg << std::endl;
         }
     }
 }
 
+// reads a packet and writes it to the recordfile
 void processPackets(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& recordWriter, bool skipRecord) {
     std::vector<uint8_t> packet;
     int counter = 0;
@@ -120,7 +127,7 @@ void processPackets(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& r
         // Record packet if required
         // c++ guarantees evaluation order from left to right to support short-circuit evaluation
         if (!skipRecord && recordWriter && !recordWriter->writeSyncAndPacketToRecordFile(packet)) {
-            std::cerr << "ERROR: processPackets failed to write packet to record file." << std::endl;
+            LogFileWriter::getInstance().logError("ERROR: processPackets failed to write packet to record file.");
             return;
         } else {
             // this next line generates too many message to the screen
@@ -128,11 +135,11 @@ void processPackets(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& r
         }
 
         // Process packet
-        processPacket(pktReader, packet);
+        processOnePacket(pktReader, packet);
     }
 }
 
-void processPacket(CCSDSReader& pktReader, const std::vector<uint8_t>& packet) {
+void processOnePacket(CCSDSReader& pktReader, const std::vector<uint8_t>& packet) {
     auto start = std::chrono::system_clock::now();
 
     auto header = std::vector<uint8_t>(packet.cbegin(), packet.cbegin() + PACKET_HEADER_SIZE);
@@ -142,10 +149,12 @@ void processPacket(CCSDSReader& pktReader, const std::vector<uint8_t>& packet) {
 
     auto payload = std::vector<uint8_t>(packet.cbegin() + PACKET_HEADER_SIZE, packet.cend());
     double timeStamp = pktReader.getPacketTimeStamp(payload);
-    //uint16_t mode = pktReader.getMode(payload);
 
-    std::cout << "APID: " << apid << " SSC: " << sourceSequenceCounter << " pktLen:" << packetLength 
-              << " timestamp: " << timeStamp << "\n"; //" mode:" << mode << std::endl;
+    LogFileWriter::getInstance().logInfo("APID " + std::to_string(apid) + \
+        " SSC " + std::to_string(sourceSequenceCounter) + \
+        " pktLen " + std::to_string(packetLength) );
+    //std::cout << "APID: " << apid << " SSC: " << sourceSequenceCounter << " pktLen:" << packetLength 
+    //          << " timestamp: " << timeStamp << "\n"; //" mode:" << mode << std::endl;
 
     switch (apid) {
         case MEGSA_APID:
@@ -172,6 +181,8 @@ void processPacket(CCSDSReader& pktReader, const std::vector<uint8_t>& packet) {
     auto end = std::chrono::system_clock::now();
     std::chrono::duration<double> elapsed_seconds = end - start;
     std::cout << "Elapsed time: " << elapsed_seconds.count() << " sec" << std::endl;
+    uint64_t elapsedMicrosec = 1.e6 * elapsed_seconds.count();
+    LogFileWriter::getInstance().logInfo("Elapsed microsec "+ std::to_string(elapsedMicrosec));
 }
 
 uint32_t payloadToTAITimeSeconds(const std::vector<uint8_t>& payload) {
@@ -237,7 +248,8 @@ void processMegsAPacket(std::vector<uint8_t> payload,
 
         // Write packet data to a FITS file if applicable
         std::unique_ptr<FITSWriter> fitsFileWriter;
-        fitsFileWriter = std::make_unique<FITSWriter>();
+        fitsFileWriter = std::unique_ptr<FITSWriter>(new FITSWriter());
+        // the c++14 way fitsFileWriter = std::make_unique<FITSWriter>();
         if (fitsFileWriter) {
         //  if (!fitsFileWriter->writePacketToFITS(packet, apid, timeStamp)) {
         //    std::cerr << "ERROR: Failed to write packet to FITS file." << std::endl;
