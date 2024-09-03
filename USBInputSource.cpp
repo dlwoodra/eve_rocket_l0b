@@ -30,7 +30,7 @@ std::string generateUSBRecordFilename() {
     localtime_r(&in_time_t, &buf);
 
     std::ostringstream oss;
-    oss << std::put_time(&buf, "record_%Y_%j_%H_%M_%S") << ".rtlm";
+    oss << std::put_time(&buf, "recordUSB_%Y_%j_%H_%M_%S") << ".rtlm";
 
     return oss.str();
 }
@@ -39,7 +39,7 @@ std::ofstream USBInputSource::initializeOutputFile() {
     std::string usbRecordFilename = generateUSBRecordFilename();
     std::ofstream outputFile(usbRecordFilename, std::ios::binary);
     if (!outputFile.is_open()) {
-        std::cerr << "ERROR: Failed to open file for writing: " << usbRecordFilename << std::endl;
+        std::cerr << "ERROR: Failed to open USB record file for writing: " << usbRecordFilename << std::endl;
     }
     return outputFile;
 }
@@ -106,15 +106,41 @@ void USBInputSource::GSEprocessPacketContinuation(unsigned long*& pBlk, unsigned
     unsigned int APIDidx = std::lower_bound(LUT_APID, LUT_APID + nAPID, APID) - LUT_APID;
 
     if (APIDidx < nAPID && LUT_APID[APIDidx] == APID) {
-        nPktLeft = LUT_PktLen[APIDidx];
+        nPktLeft = LUT_PktLen[APIDidx]; // the whole packet length
         if (nPktLeft <= nBlkLeft) {
             nPktLeft &= 0xFF;
+
+            // Alan's code and magic counters
             memcpy(PktBuff, &pBlk[blkIdx], 4 * nPktLeft);
             nBlkLeft -= nPktLeft;
             blkIdx += nPktLeft;
             state = 0;
-            //GSEProcessPacket(APID); // placeholder
-            // processPackets takes pktReader, recordWriter,fitsFileWriter as args
+
+            // the sync marker is not included in pBlk, could decrement pBlk, but we need a vector anyway
+
+            // we can just read the packet length from the primary header
+            // total length is 6 byte pri hdr + pktlen field + 1
+            uint16_t pktLen = (7 + ((static_cast<uint16_t>(RxBuff[4]) << 8) | static_cast<uint16_t>(RxBuff[5])));
+
+            // define vector length to contain pktLen, the complete packet
+            std::vector<uint8_t> pktVec(pktLen);
+            // append the packet data into the vector
+            std::copy(RxBuff, RxBuff + pktLen, pktVec.begin());
+
+
+
+            // write to file
+            //std::cout << "writing " << sizeof(RxBuff) << " " << std::endl; // says 20000?
+            //outputFile.write(reinterpret_cast<const char* >(&RxBuff), sizeof(RxBuff));
+            //outputFile.write(reinterpret_cast<const char* >(pktVec.data()), sizeof(pktVec.data()));
+
+            // processPackets takes pktReader, recordWriter, skipRecord as args
+            // here the "packet" includes the 4 byte sync marker
+            if (!recordFileWriter->writeSyncAndPacketToRecordFile(pktVec)) {
+                std::cerr << "ERROR: processPackets failed to write packet to record file." << std::endl;
+                return;
+            }
+            //processOnePacket(pktReader, syncAndPktVec, 0);
         } else {
             nBlkLeft &= 0xFF;
             memcpy(PktBuff, &pBlk[blkIdx], 4 * nBlkLeft);
@@ -130,13 +156,10 @@ void USBInputSource::GSEprocessPacketContinuation(unsigned long*& pBlk, unsigned
     }
 }
 
-
-
-
 extern void processPackets(CCSDSReader& pktReader, \
     std::unique_ptr<RecordFileWriter>& recordWriter, \
-    std::unique_ptr<FITSWriter>& fitsFileWriter, \
     bool skipRecord);
+    //std::unique_ptr<FITSWriter>& fitsFileWriter
 
 // constructor implementation
 USBInputSource::USBInputSource(const std::string& serialNumber ) 
@@ -149,7 +172,9 @@ USBInputSource::USBInputSource(const std::string& serialNumber )
         ctrTxBytes(0), 
         ctrRxBytes(0), 
         commandBytesLeft(0), 
-        dev(nullptr) {
+        dev(nullptr),
+        recordFileWriter(std::unique_ptr<RecordFileWriter>(new RecordFileWriter())) {
+        // c++14 allows this recordFileWriter(std::make_unique<RecordFileWriter>())
 
         open();
         if (isOpen()) {
@@ -163,12 +188,17 @@ USBInputSource::USBInputSource(const std::string& serialNumber )
 USBInputSource::~USBInputSource() {
     close();
     setGSERegister(1, 0); //turn off LED
-
+    recordFileWriter->close();
 }
 
 bool USBInputSource::open() {
     std::cout << "Opening USBInputSource for serial number: " << serialNumber << std::endl;
 
+    //outputFile = initializeOutputFile();
+    if (!recordFileWriter->writeSyncAndPacketToRecordFile({})) {
+        std::cerr << "ERROR: USBInputSource::open Failed to open record file."<<std::endl;
+        return false;
+    }
     initializeGSE();
     continueProcessing = true;
 
@@ -189,6 +219,8 @@ void USBInputSource::close() {
 
     continueProcessing = false;
     std::cout << "USB input source closed." << std::endl;
+
+    recordFileWriter->close();
 }
 
 bool USBInputSource::read(uint8_t* buffer, size_t maxSize) {
@@ -229,20 +261,25 @@ std::string USBInputSource::selectUSBSerialNumber() {
 }
 
 void USBInputSource::initializeGSE() {
-    std::cout<<"initializeGSE calling devices.Open"<<std::endl;
- 
+
+    //std::cout<<"initializeGSE calling devices.Open"<<std::endl;
+    LogFileWriter::getInstance().logInfo("initializeGSE calling devices.Open");
+
     // open device
     devptr = devices.Open(""); // get the first connected device
     dev = devptr.get();
     if (!dev) {
         int deviceCount = devices.GetCount();
         if (deviceCount > 1) {
-            std::cout << "ERROR: initializeGSE: Multiple devices found!" << std::endl;
+            //std::cout << "ERROR: initializeGSE: Multiple devices found!" << std::endl;
+            LogFileWriter::getInstance().logError("initializeGSE Multiple devices found!");
         }
         if (deviceCount == 0) { // if more than 1, GetCount returns the number
-            std::cout << "ERROR: No connected devices detected." << std::endl;
+            //std::cout << "ERROR: No connected devices detected." << std::endl;
+            LogFileWriter::getInstance().logError("initializeGSE No connected devices found!");
         } else {
-            std::cout << "ERROR: Device could not be opened." << std::endl;
+            //std::cout << "ERROR: Device could not be opened." << std::endl;
+            LogFileWriter::getInstance().logError("initializeGSE Device could not be opened!");
         }
         return;
     }
@@ -250,6 +287,7 @@ void USBInputSource::initializeGSE() {
     dev->GetDeviceInfo(&m_devInfo);
     
     // std:endl also forces a flush, so could impact performance
+    //LogFileWriter::getInstance().logInfo("initializeGSE productName " + (m_devInfo.productName));
     std::cout << "Found a device: " << m_devInfo.productName << "\n"; //XEM7310-A75 
     std::cout << "deviceID    : " << m_devInfo.deviceID << "\n"; 
     std::cout << "serialNumber: " << m_devInfo.serialNumber << "\n"; 
@@ -374,9 +412,6 @@ void USBInputSource::CGProcRx(void)
 	//unsigned int nBlkLeft, blk, i;
 	//unsigned long* pBlk, APIDidx;
 
-    std::ofstream outputFile = initializeOutputFile();
-    if (!outputFile.is_open()) return;
-
     if (isReceiveFIFOEmpty()) {
         handleReceiveFIFOError();
         return;
@@ -414,15 +449,11 @@ void USBInputSource::CGProcRx(void)
         std::cout << "bytes read "<<blockPipeOutStatus << std::endl; // says 10000, it is encoded as hex
 
         // NOTE we won't normally write here, write after extracting packets from the frame.
-        // This should be moved into ProcessPackets
-        // write to file
-        std::cout << "writing " << sizeof(RxBuff) << " " << std::endl; // says 20000?
-        outputFile.write(reinterpret_cast<const char* >(&RxBuff), sizeof(RxBuff));
 
 
         // process the blocks of data
         for (unsigned int blk = 0; blk <= 64; ++blk) {
-            GSEprocessBlock(&RxBuff[256 * blk]);
+            GSEprocessBlock(&RxBuff[256 * blk]); // 1024 bytes at a time
         }
     }
 
@@ -541,11 +572,11 @@ void USBInputSource::CGProcRx(void)
 	// }
 
     // done reading
-    outputFile.close();
-    if (outputFile.fail()) {
-        std::cerr << "ERROR: Failed to close the file properly." << std::endl;
-        return;
-    }
+    //outputFile.close();
+    //if (outputFile.fail()) {
+    //    std::cerr << "ERROR: Failed to close the file properly." << std::endl;
+    //    return;
+    //}
 }
 
 // CGProcRx
@@ -673,27 +704,3 @@ void GSEProcessPacket(uint16_t APID) {
     return;
 }
 
-
-// // Check if the current minute has rolled over and open a new file if it has
-// bool checkUSBRecordFilenameAndRotateFile() {
-
-//     TimeInfo currentTime;
-//     int currentMinute = currentTime.getMinute();
-    
-//     if ((recordFileMinute == -1) || (recordFileMinute != currentMinute)) {
-//         // The minute has changed, close the current file and open a new one
-//         if (lastMinute != -1) { close(); } // Close the old file
-//         outputFile = generateUSBRecordFilename(); // Generate new filename
-//         open(outputFile, std::ios::binary); // Open the new file
-
-//         if (!recordFile.is_open()) {
-//             std::cerr << "ERROR: Failed to open output file: " << outputFile << std::endl;
-//             exit(1); // fatal, exit
-//         }
-
-//         std::cout << "Record file rotated: " << outputFile << std::endl;
-//         recordFileMinute = currentMinute;
-//     } // otherwise the minute has not changed, keep writing to the same recordFile
-
-//     return true;
-// }
