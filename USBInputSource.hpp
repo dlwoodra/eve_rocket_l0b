@@ -3,9 +3,12 @@
 
 #include "CCSDSReader.hpp"
 #include "InputSource.hpp"
+#include "LogFileWriter.hpp"
+#include "RecordFileWriter.hpp"
 #include "TimeInfo.hpp"
 #include <cstdint>
 #include <cstdio>
+#include <memory>
 #include <string>
 #include <stdio.h>
 #include <okFrontPanelDLL.h>
@@ -24,44 +27,14 @@ public:
     //size_t read(char* buffer, size_t maxSize) override;
     bool isOpen() const override;
 
-    //bool open() override; // {
-        // Implement USB port opening logic here
-        //isOpen = true;  // Example, change to actual open status
-        //return isOpen;
-        //dev = new okCFrontPanel();
-        //if (dev->OpenBySerial(serialNumber) != okCFrontPanel::NoError) {
-            //std::cerr << "Failed to open Opal Kelly device" << std::endl;
-            //delete dev;
-            //dev = nullptr;
-            //return false;
-        //}
-        //opened = true;
-        //return true;
-    //}
-
-    //void close() override; // {
-        // Implement USB port closing logic here
-        //isOpen = false;
-        //if(dev) {
-            //delete dev;
-            //dev = nullptr;
-        //}
-        //opened = false;
-    //}
-
     bool read(uint8_t* buffer, size_t size) override;
-    //{
-        // Implement USB port read logic here
-        //return true; // Example, change to actual read status
-        //if (!dev) return false;
-        //long transferred = dev->ReadFromBlockPipeOut(0xA0, 1024, size, buffer);
-        //return transferred == size;
-    //}
 
     // this is so we can test selectUSBSerialNumber
     std::string getSerialNumber() {
         return selectUSBSerialNumber();
     }
+
+    //std::ofstream outputFile;
 
     void ProcRx();
     void CGProcRx(void);
@@ -148,6 +121,8 @@ private:
     OpalKelly::FrontPanelPtr devptr;
     okCFrontPanel* dev;
     okTDeviceInfo m_devInfo;
+
+    std::unique_ptr<RecordFileWriter> recordFileWriter;
 
 };
 
