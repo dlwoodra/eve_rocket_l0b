@@ -47,7 +47,7 @@ private:
     void processReceive();
     //void checkForGSECommand();
     void checkLinkStatus();
-    void setGSERegister(int addr, unsigned char data);
+    void setGSERegister(int16_t addr, unsigned char data);
     unsigned short readGSERegister(int addr);
     void resetInterface(int32_t milliSeconds);
     void powerOnLED();
@@ -58,10 +58,10 @@ private:
     void handleReceiveFIFOError();
     int32_t readDataFromUSB();
 
-    void GSEprocessBlock(unsigned long* pBlk);
-    void GSEprocessPacketHeader(unsigned long*& pBlk, unsigned int& blkIdx, unsigned int& nBlkLeft, int& state, int& APID, unsigned int& pktIdx, unsigned int& nPktLeft);
-    void GSEprocessPacketContinuation(unsigned long*& pBlk, unsigned int& blkIdx, unsigned int& nBlkLeft, unsigned int& pktIdx, unsigned int& nPktLeft, int& state);
-
+    void GSEprocessBlock(uint32_t * pBlk);
+    void GSEprocessPacketHeader(uint32_t *& pBlk, uint16_t & blkIdx, uint16_t & nBlkLeft, int16_t & state, int16_t & APID, uint16_t& pktIdx, uint16_t & nPktLeft);
+    void GSEprocessPacketContinuation(uint32_t *& pBlk, uint16_t& blkIdx, uint16_t& nBlkLeft, uint16_t & pktIdx, uint16_t & nPktLeft, int16_t & state);
+    void GSEContinuePacket(uint32_t *& pBlk, uint16_t &blkIdx, uint16_t& nBlkLeft, int16_t& state, uint16_t& pktIdx, uint16_t& nPktLeft, int16_t APIDidx);
 
     // packet lengths are in 32-bit words and do not include sync-code
     static const uint16_t nAPID = 5;
@@ -69,10 +69,12 @@ private:
     static const uint16_t LUT_PktLen[nAPID];
 
     // variables used to persist with the blocks and packet processing
-    int state; // current state of the processing state machine
-    int APID;
-    unsigned int pktIdx; // an index into the packet buffer to join packets spread across 2 blocks
-    unsigned int nPktLeft; // number of remaining words in the packet
+    int16_t state; // current state of the processing state machine
+    int16_t APID;
+    uint16_t pktIdx; // an index into the packet buffer to join packets spread across 2 blocks
+    uint16_t nPktLeft; // number of remaining words in the packet
+    uint16_t APIDidx;
+    //uint16_t blkSize;
 
     // flags
     int flgTelOpen;
@@ -83,13 +85,13 @@ private:
     int PPState;
 
     // buffers
-    unsigned long RxBuff[16384];
-    unsigned long PktBuff[4096];
-    unsigned long PktNull[4096];
+    uint32_t RxBuff[16384];
+    uint32_t PktBuff[4096];
+    uint32_t PktNull[4096];
 
-    int GSEType;
-    long ctrTxPkts;
-    long ctrRxPkts;
+    int16_t GSEType;
+    int32_t ctrTxPkts;
+    int32_t ctrRxPkts;
     //long CommandBytesLeft;
     char StatusStr[256]; // reference string to hold status messages
 
@@ -105,14 +107,14 @@ private:
     bool continueProcessing;
 
     unsigned char rxBuffer[65536];
-    int gseType;
-    long ctrTxBytes;
-    long ctrRxBytes;
-    long commandBytesLeft;
+    int16_t gseType;
+    int32_t ctrTxBytes;
+    int32_t ctrRxBytes;
+    int32_t commandBytesLeft;
     TimeInfo openRxTime;
     TimeInfo lastRxTime;
 
-    const int MAX_DEAD_TIME_MS = 200;
+    const int16_t MAX_DEAD_TIME_MS = 200;
 
     //void* dev;
     //bool opened;
