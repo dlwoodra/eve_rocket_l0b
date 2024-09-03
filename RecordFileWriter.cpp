@@ -25,8 +25,6 @@ RecordFileWriter::~RecordFileWriter() {
 
 // Method to write the sync marker and packet data to the file
 bool RecordFileWriter::writeSyncAndPacketToRecordFile(const std::vector<uint8_t>& packet) {
-    //static uint32_t syncMarker = SYNC_MARKER;
-    //static uint32_t syncMarker = BSWAP_SYNC_MARKER;
 
     if (!recordFile.is_open()) {
         std::cerr << "ERROR: File is not open for writing." << std::endl;
@@ -34,23 +32,14 @@ bool RecordFileWriter::writeSyncAndPacketToRecordFile(const std::vector<uint8_t>
     }
 
     // Check if we need to rotate the file
-    if ( checkAndRotateFile() == true ) {
-        //std::cout << "Info: writeSyncAndPacketToRecordFile received good status from checkAndRotateFile" << std::endl;
-    } else {
+    if ( !checkAndRotateFile() ) {
         std::cout << "Info: writeSyncAndPacketToRecordFile received BAD status from checkAndRotateFile" << std::endl;
     }
 
     // Write sync marker to the file
-    //recordFile.write(reinterpret_cast<char*>(&syncMarker), sizeof(syncMarker));
-    //recordFile.write(reinterpret_cast<char*>(&syncMarker), sizeof(syncMarker));
- 
-    // Guarantee endian-independence one byte at a time
-    uint8_t syncMarkerBytes[4];
-    syncMarkerBytes[0] = (SYNC_MARKER >>24) & 0xff;
-    syncMarkerBytes[1] = (SYNC_MARKER >>16) & 0xff;
-    syncMarkerBytes[2] = (SYNC_MARKER >>8) & 0xff;
-    syncMarkerBytes[3] = (SYNC_MARKER) & 0xff;
-    recordFile.write(reinterpret_cast<char*>(syncMarkerBytes), sizeof(syncMarkerBytes));
+    // on little endian a 32-bit write is byteswapped, 
+    // use reversed sync to compensate
+    recordFile.write(reinterpret_cast<const char*>(&BSWAP_SYNC_MARKER), sizeof(BSWAP_SYNC_MARKER));
     //std::cout << "writeSyncAndPacketToRecordFile wrote syncMarker" << std::endl;
 
     // Write packet data to the file
@@ -76,7 +65,18 @@ std::string RecordFileWriter::generateRecordFilename() {
     localtime_r(&in_time_t, &buf);
 
     std::ostringstream oss;
-    oss << std::put_time(&buf, "./record/record_%Y_%j_%H_%M_%S") << ".rtlm";
+
+        // create directory
+    oss << std::put_time(&buf, "./record/%Y/%j/");
+    std::string dirPath = oss.str();
+    // Create the directories if they don't exist, use system call
+    std::string mkdirCommand = "mkdir -p " + dirPath;
+    if (system(mkdirCommand.c_str()) != 0) {
+        std::cerr << "ERROR: Could not create directories for record file." << std::endl;
+        return "";
+    }
+
+    oss << std::put_time(&buf, "record_%Y_%j_%m_%d_%H_%M_%S") << ".rtlm";
 
     return oss.str();
 }
@@ -88,15 +88,9 @@ std::string RecordFileWriter::getRecordFilename() const {
 // Check if the current minute has rolled over and open a new file if it has
 bool RecordFileWriter::checkAndRotateFile() {
 
-    //static int lastMinute = -1; // out of bounds
-
     TimeInfo currentTime;
     int currentMinute = currentTime.getMinute();
     
-
-    //std::cout << "checkAndRotateFile currentMinute:" << currentMinute << std::endl; 
-    //std::cout << "checkAndRotateFile recordFileMinute:" << recordFileMinute << std::endl;
-
     if ((recordFileMinute == -1) || (recordFileMinute != currentMinute)) {
         // The minute has changed, close the current file and open a new one
         if (lastMinute != -1) { close(); } // Close the old file
