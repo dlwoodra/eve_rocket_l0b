@@ -1,0 +1,31 @@
+[2024-09-05 23:21:29.468] [device_logger] [info] Found a device: XEM7310-A75
+[2024-09-05 23:21:29.468] [device_logger] [info] deviceID    : Opal Kelly XEM7310
+[2024-09-05 23:21:29.468] [device_logger] [info] serialNumber: 24080019QI
+[2024-09-05 23:21:29.468] [device_logger] [info] productName : XEM7310-A75
+[2024-09-05 23:21:29.468] [device_logger] [info] productID   : 43
+[2024-09-05 23:21:29.468] [device_logger] [info] deviceMajorVersion deviceMinorVersion   : 1 30
+[2024-09-05 23:21:29.468] [device_logger] [info] hostInterfaceMajorVersion hostInterfaceMinorVersion   : 1 0
+[2024-09-05 23:21:29.468] [device_logger] [info] wireWidth   : 32
+[2024-09-05 23:21:29.468] [device_logger] [info] triggerWidth: 32
+[2024-09-05 23:21:29.468] [device_logger] [info] pipeWidth   : 32
+[2024-09-05 23:21:29.468] [device_logger] [info] registerAddressWidth   : 32
+[2024-09-05 23:21:29.468] [device_logger] [info] registerDataWidth   : 32
+[2024-09-05 23:21:29.468] [device_logger] [info] pipeWidth   : 32
+[2024-09-05 23:21:29.468] [device_logger] [info] USBSpeed    : SUPER
+[2024-09-05 23:21:29.468] [device_logger] [info] okDeviceInterface: USB3
+[2024-09-05 23:21:29.468] [device_logger] [info] fpgaVendor: XILINX
+[2024-09-05 23:24:28.714] [device_logger] [info] deviceID    : Opal Kelly XEM7310
+[2024-09-05 23:24:28.714] [device_logger] [info] serialNumber: 24080019QI
+[2024-09-05 23:24:28.714] [device_logger] [info] productName : XEM7310-A75
+[2024-09-05 23:24:28.714] [device_logger] [info] productID   : 43
+[2024-09-05 23:24:28.714] [device_logger] [info] deviceMajorVersion deviceMinorVersion   : 1 30
+[2024-09-05 23:24:28.714] [device_logger] [info] hostInterfaceMajorVersion hostInterfaceMinorVersion   : 1 0
+[2024-09-05 23:24:28.714] [device_logger] [info] wireWidth   : 32
+[2024-09-05 23:24:28.714] [device_logger] [info] triggerWidth: 32
+[2024-09-05 23:24:28.714] [device_logger] [info] pipeWidth   : 32
+[2024-09-05 23:24:28.714] [device_logger] [info] registerAddressWidth   : 32
+[2024-09-05 23:24:28.714] [device_logger] [info] registerDataWidth   : 32
+[2024-09-05 23:24:28.714] [device_logger] [info] pipeWidth   : 32
+[2024-09-05 23:24:28.714] [device_logger] [info] USBSpeed    : SUPER
+[2024-09-05 23:24:28.714] [device_logger] [info] okDeviceInterface: USB3
+[2024-09-05 23:24:28.714] [device_logger] [info] fpgaVendor: XILINX
