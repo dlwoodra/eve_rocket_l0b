@@ -61,30 +61,28 @@ void processOnePacket(CCSDSReader& pktReader, const std::vector<uint8_t>& packet
     auto start = std::chrono::system_clock::now();
 
     auto header = std::vector<uint8_t>(packet.cbegin(), packet.cbegin() + PACKET_HEADER_SIZE);
-    std::cout<<"processOnePacket - a" <<std::endl;
+    //std::cout<<"processOnePacket - a" <<std::endl;
     uint16_t apid = pktReader.getAPID(header);
-    std::cout<<"processOnePacket - b apid "<<apid <<std::endl;
+    //std::cout<<"processOnePacket - b apid "<<apid <<std::endl;
     uint16_t sourceSequenceCounter = pktReader.getSourceSequenceCounter(header);
-    std::cout<<"processOnePacket - c ssc "<<sourceSequenceCounter <<std::endl;
+    //std::cout<<"processOnePacket - c ssc "<<sourceSequenceCounter <<std::endl;
     uint16_t packetLength = pktReader.getPacketLength(header);
-    std::cout<<"processOnePacket - d pktlen "<<packetLength <<std::endl;
+    //std::cout<<"processOnePacket - d pktlen "<<packetLength <<std::endl;
 
     auto payload = std::vector<uint8_t>(packet.cbegin() + PACKET_HEADER_SIZE, packet.cend());
-    std::cout<<"processOnePacket - e payload " <<std::endl;
+    //std::cout<<"processOnePacket - e payload " <<std::endl;
     double timeStamp = pktReader.getPacketTimeStamp(payload);
-    std::cout<<"processOnePacket - f timeStamp "<<timeStamp <<std::endl;
+    //std::cout<<"processOnePacket - f timeStamp "<<timeStamp <<std::endl;
 
     LogFileWriter::getInstance().logInfo("APID " + std::to_string(apid) + \
         " SSC " + std::to_string(sourceSequenceCounter) + \
         " pktLen " + std::to_string(packetLength) + \
         " time " + std::to_string(timeStamp) \
         );
-    //std::cout << "APID: " << apid << " SSC: " << sourceSequenceCounter << " pktLen:" << packetLength 
-    //          << " timestamp: " << timeStamp << "\n"; //" mode:" << mode << std::endl;
 
     switch (apid) {
         case MEGSA_APID:
-            std::cout<<"processOnePacket - g calling processMegsAPacket " <<std::endl;
+            //std::cout<<"processOnePacket - g calling processMegsAPacket " <<std::endl;
             processMegsAPacket(payload, sourceSequenceCounter, packetLength, timeStamp);
             break;
         case MEGSB_APID:
@@ -107,7 +105,7 @@ void processOnePacket(CCSDSReader& pktReader, const std::vector<uint8_t>& packet
 
     auto end = std::chrono::system_clock::now();
     std::chrono::duration<double> elapsed_seconds = end - start;
-    std::cout << "Elapsed time: " << elapsed_seconds.count() << " sec" << std::endl;
+    //std::cout << "Elapsed time: " << elapsed_seconds.count() << " sec" << std::endl;
     uint64_t elapsedMicrosec = 1.e6 * elapsed_seconds.count();
     LogFileWriter::getInstance().logInfo("Elapsed microsec "+ std::to_string(elapsedMicrosec));
 }
@@ -139,7 +137,7 @@ void processMegsAPacket(std::vector<uint8_t> payload,
     uint16_t sourceSequenceCounter, uint16_t packetLength, 
     double timeStamp) {
 
-    std::cout<<"processMegsAPacket a " <<std::endl;
+    //std::cout<<"processMegsAPacket a " <<std::endl;
     LogFileWriter::getInstance().logInfo("processMegsAPacket");
 
     // insert pixels into image
@@ -153,21 +151,21 @@ void processMegsAPacket(std::vector<uint8_t> payload,
     int vcdu_impdu_prihdr_length = 20;
     uint8_t pktarr[STANDARD_MEGSAB_PACKET_LENGTH + vcdu_impdu_prihdr_length];
 
-    std::cout<<"processMegsAPacket b " <<std::endl;
+    //std::cout<<"processMegsAPacket b " <<std::endl;
 
     // vcdu has 14 bytes before the packet start (vcdu=6, impdu=8)
     // pkthdr=6 bytes before the payload starts at the 2nd hdr timestamp
     // copy from payload into pktarr starting at byte 20
     std::copy(payload.begin(), payload.end(), pktarr + vcdu_impdu_prihdr_length);
 
-    std::cout<<"processMegsAPacket c " <<std::endl;
+    //std::cout<<"processMegsAPacket c " <<std::endl;
 
     tai_sec = payloadToTAITimeSeconds(payload);
     megsImage.tai_time_seconds = tai_sec;
     megsImage.tai_time_subseconds = payloadToTAITimeSubseconds(payload);
 
     tai_to_ydhms(tai_sec, &year, &doy, &sod, &hh, &mm, &ss);
-    std::cout << "called tai_to_ydhms " << year << " "<< doy << "-" << hh << ":" << mm << ":" << ss <<" . "<< megsImage.tai_time_subseconds <<"\n";
+    std::cout << "called tai_to_ydhms " << year << " "<< doy << "-" << hh << ":" << mm << ":" << ss <<" . "<< megsImage.tai_time_subseconds/65535 <<"\n";
 
     //if (previousSrcSeqCount + 1 != sourceSequenceCounter) {
     if (previousSrcSeqCount + 1 == sourceSequenceCounter) {
@@ -182,7 +180,7 @@ void processMegsAPacket(std::vector<uint8_t> payload,
     }
 
     int parityErrors = assemble_image(pktarr, &megsImage, sourceSequenceCounter, &status);
-    std::cout << "called assemble_image" << "\n";
+    //std::cout << "called assemble_image" << "\n";
 
 
     if ( parityErrors > 0 ) {
