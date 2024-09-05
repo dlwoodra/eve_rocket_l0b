@@ -7,10 +7,10 @@
 */
 
 #include "CCSDSReader.hpp"
+#include "commonFunctions.hpp"
 #include "eve_megs_twoscomp.h"
 #include "eve_megs_pixel_parity.h"
-#include "eve_l0b.hpp"
-#include "fileutils.hpp"
+//#include "eve_l0b.hpp"
 #include "FITSWriter.hpp"
 #include "FileInputSource.hpp"
 #include "InputSource.hpp"
@@ -24,21 +24,24 @@
 #include <iostream>
 #include <vector>
 
+// prototypes
 void print_help();
 void parseCommandLineArgs(int argc, char* argv[], std::string& filename, bool& skipESP, bool& skipMP, bool& skipRecord);
-void processPackets(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& recordWriter, bool skipRecord);
-void processOnePacket(CCSDSReader& pktReader, const std::vector<uint8_t>& packet);
-void processMegsAPacket(std::vector<uint8_t> payload, 
+void extern processPackets(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& recordWriter, bool skipRecord);
+void extern processOnePacket(CCSDSReader& pktReader, const std::vector<uint8_t>& packet);
+void extern processMegsAPacket(std::vector<uint8_t> payload, 
     uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp);
-void processMegsBPacket(std::vector<uint8_t> payload, 
+void extern processMegsBPacket(std::vector<uint8_t> payload, 
     uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp);
-void processMegsPPacket(std::vector<uint8_t> payload, 
+void extern processMegsPPacket(std::vector<uint8_t> payload, 
     uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp);
-void processESPPacket(std::vector<uint8_t> payload, 
+void extern processESPPacket(std::vector<uint8_t> payload, 
     uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp);
-void processHKPacket(std::vector<uint8_t> payload, 
+void extern processHKPacket(std::vector<uint8_t> payload, 
     uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp);
-std::string SelectUSBSerialNumber();
+//bool extern isValidFilename(const std::string& filename);
+
+//void extern printBytesToStdOut(const uint8_t* array, uint32_t start, uint32_t end);
 
 int main(int argc, char* argv[]) {
     std::string filename;
@@ -78,8 +81,8 @@ int main(int argc, char* argv[]) {
         CCSDSReader usbReader(&usbSource);
         std::cout << "main: Created CCSDSReader usbReader object."  << std::endl;
 
-        //loop
-        usbSource.CGProcRx(); // receive, does not return until disconnect
+        //pass usbReader by reference
+        usbSource.CGProcRx(usbReader); // receive, does not return until disconnect
         usbReader.close();
 
     }
@@ -114,166 +117,6 @@ void parseCommandLineArgs(int argc, char* argv[], std::string& filename, bool& s
         }
     }
 }
-
-// reads a packet and writes it to the recordfile
-void processPackets(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& recordWriter, bool skipRecord) {
-    std::vector<uint8_t> packet;
-    int counter = 0;
-
-    std::cout << "entered processPackets" << std::endl;
-    while (pktReader.readNextPacket(packet)) {
-        std::cout << "processPackets counter " << counter++ << std::endl;
-
-        // Record packet if required
-        // c++ guarantees evaluation order from left to right to support short-circuit evaluation
-        if (!skipRecord && recordWriter && !recordWriter->writeSyncAndPacketToRecordFile(packet)) {
-            LogFileWriter::getInstance().logError("ERROR: processPackets failed to write packet to record file.");
-            return;
-        } else {
-            // this next line generates too many message to the screen
-            //std::cout << "processPackets wrote to recordFilename " << recordWriter->getRecordFilename() << std::endl;
-        }
-
-        // Process packet
-        processOnePacket(pktReader, packet);
-    }
-}
-
-void processOnePacket(CCSDSReader& pktReader, const std::vector<uint8_t>& packet) {
-    auto start = std::chrono::system_clock::now();
-
-    auto header = std::vector<uint8_t>(packet.cbegin(), packet.cbegin() + PACKET_HEADER_SIZE);
-    uint16_t apid = pktReader.getAPID(header);
-    uint16_t sourceSequenceCounter = pktReader.getSourceSequenceCounter(header);
-    uint16_t packetLength = pktReader.getPacketLength(header);
-
-    auto payload = std::vector<uint8_t>(packet.cbegin() + PACKET_HEADER_SIZE, packet.cend());
-    double timeStamp = pktReader.getPacketTimeStamp(payload);
-
-    LogFileWriter::getInstance().logInfo("APID " + std::to_string(apid) + \
-        " SSC " + std::to_string(sourceSequenceCounter) + \
-        " pktLen " + std::to_string(packetLength) );
-    //std::cout << "APID: " << apid << " SSC: " << sourceSequenceCounter << " pktLen:" << packetLength 
-    //          << " timestamp: " << timeStamp << "\n"; //" mode:" << mode << std::endl;
-
-    switch (apid) {
-        case MEGSA_APID:
-            processMegsAPacket(payload, sourceSequenceCounter, packetLength, timeStamp);
-            break;
-        case MEGSB_APID:
-            processMegsBPacket(payload, sourceSequenceCounter, packetLength, timeStamp);
-            break;
-        case ESP_APID:
-            processESPPacket(payload, sourceSequenceCounter, packetLength, timeStamp);
-            break;
-        case MEGSP_APID:
-            processMegsPPacket(payload, sourceSequenceCounter, packetLength, timeStamp);
-            break;
-        case HK_APID:
-            processHKPacket(payload, sourceSequenceCounter, packetLength, timeStamp);
-            break;
-        default:
-            std::cerr << "Unrecognized APID: " << apid << std::endl;
-            // Handle error or unknown APID case if necessary
-            break;
-    }
-
-    auto end = std::chrono::system_clock::now();
-    std::chrono::duration<double> elapsed_seconds = end - start;
-    std::cout << "Elapsed time: " << elapsed_seconds.count() << " sec" << std::endl;
-    uint64_t elapsedMicrosec = 1.e6 * elapsed_seconds.count();
-    LogFileWriter::getInstance().logInfo("Elapsed microsec "+ std::to_string(elapsedMicrosec));
-}
-
-uint32_t payloadToTAITimeSeconds(const std::vector<uint8_t>& payload) {
-    if (payload.size() < 4) {
-        // Handle the error case, perhaps by throwing an exception
-        throw std::invalid_argument("Payload must contain at least 4 bytes.");
-    }
-
-    return (static_cast<uint32_t>(payload[0]) << 24) |
-           (static_cast<uint32_t>(payload[1]) << 16) |
-           (static_cast<uint32_t>(payload[2]) << 8)  |
-           static_cast<uint32_t>(payload[3]);
-}
-
-uint32_t payloadToTAITimeSubseconds(const std::vector<uint8_t>& payload) {
-    if (payload.size() < 6) {
-        // Handle the error case, perhaps by throwing an exception
-        throw std::invalid_argument("Payload must contain at least 4 bytes.");
-    }
-
-    return (static_cast<uint32_t>(payload[4]) << 24) |
-           (static_cast<uint32_t>(payload[5]) << 16);
-}
-
-// the payload starts with the secondary header timestamp
-void processMegsAPacket(std::vector<uint8_t> payload, 
-    uint16_t sourceSequenceCounter, uint16_t packetLength, 
-    double timeStamp) {
-
-    // insert pixels into image
-
-    uint16_t year, doy, hh, mm, ss;
-    uint32_t sod;
-    uint32_t tai_sec;
-    int8_t status=0;
-    struct MEGS_IMAGE_REC megsImage;
-    int vcdu_impdu_prihdr_length = 20;
-    uint8_t pktarr[STANDARD_MEGSAB_PACKET_LENGTH + vcdu_impdu_prihdr_length];
-    // vcdu has 14 bytes before the packet start (vcdu=6, impdu=8)
-    // pkthdr=6 bytes before the payload starts at the 2nd hdr timestamp
-    // copy from payload into pktarr starting at byte 20
-    std::copy(payload.begin(), payload.end(), pktarr+vcdu_impdu_prihdr_length);
-
-    tai_sec = payloadToTAITimeSeconds(payload);
-    megsImage.tai_time_seconds = tai_sec;
-    megsImage.tai_time_subseconds = payloadToTAITimeSubseconds(payload);
-
-    tai_to_ydhms(tai_sec, &year, &doy, &sod, &hh, &mm, &ss);
-    std::cout << "called tai_to_ydhms " << year << " "<< doy << "-" << hh << ":" << mm << ":" << ss <<"\n";
-
-    int parityErrors = assemble_image(pktarr, &megsImage, sourceSequenceCounter, &status);
-    std::cout << "called assemble_image" << "\n";
-
-
-    if ( parityErrors > 0 ) {
-        std::cout << "assemble_image returned parity errors: " << parityErrors << "\n";
-    }
-
-    if ( sourceSequenceCounter == 2394) {
-        std::cout<<"end of MEGS-A at 2394"<<"\n";
-
-        // need to run this in another thread
-
-        // Write packet data to a FITS file if applicable
-        std::unique_ptr<FITSWriter> fitsFileWriter;
-        fitsFileWriter = std::unique_ptr<FITSWriter>(new FITSWriter());
-        // the c++14 way fitsFileWriter = std::make_unique<FITSWriter>();
-        if (fitsFileWriter) {
-        //  if (!fitsFileWriter->writePacketToFITS(packet, apid, timeStamp)) {
-        //    std::cerr << "ERROR: Failed to write packet to FITS file." << std::endl;
-        //    return;
-        //  }
-        }
-    }
-
-}
-
-void processMegsBPacket(std::vector<uint8_t> payload, 
-    uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp) {
-}
-void processMegsPPacket(std::vector<uint8_t> payload, 
-    uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp) {
-}
-void processESPPacket(std::vector<uint8_t> payload, 
-    uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp) {
-}
-
-void processHKPacket(std::vector<uint8_t> payload, 
-    uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp) {
-}
-
 
 void print_help() {
   std::cout << "Main c++ program to support SDO EVE Rocket calibration at SURF." << std::endl;
