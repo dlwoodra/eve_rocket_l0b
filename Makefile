@@ -22,8 +22,9 @@ LINKED_LIBS = -L/usr/local/lib -Wl,-rpath=/usr/local/lib
 # List the C source files that need to be compiled
 #
 COMSRC = CCSDSReader.cpp RecordFileWriter.cpp USBInputSource.cpp \
-	FileInputSource.cpp fileutils.cpp FITSWriter.cpp PacketProcessor.cpp \
-	TimeInfo.cpp assemble_image.cpp tai_to_ydhms.cpp LogFileWriter.cpp
+	FileInputSource.cpp FITSWriter.cpp PacketProcessor.cpp \
+	TimeInfo.cpp assemble_image.cpp tai_to_ydhms.cpp LogFileWriter.cpp \
+	commonFunctions.cpp
 
 SRCS = ${COMSRC} main.cpp
 TEST_SRCS = ${COMSRC} test_main.cpp 
@@ -36,9 +37,9 @@ TEST_OBJS = ${TEST_SRCS:.c=.o}
 
 ROOT := .
 
-cleanall: clean cleanrtlm removebinaries all
+cleanall: clean cleanrtlm cleanlog removebinaries all
 
-cleanql: clean cleanrtlm removebinaries ql
+cleanql: clean cleanrtlm cleanlog removebinaries ql
 
 all: ql_test ql ql_debug
 
@@ -68,6 +69,9 @@ clean:
 
 cleanrtlm:
 	find . -name "record*.rtlm" -size 0 -delete
+
+cleanlog:
+	find . -name "log*.log" -size 0 -delete
 
 removebinaries:
 	rm -f ql ql_test ql_debug
