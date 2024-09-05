@@ -152,9 +152,10 @@ inline unsigned char 	getbit16( uint16_t, uint8_t );
 inline uint8_t 			bitswap8( uint8_t inbits );
 inline uint16_t 		bitswap16( uint16_t inbits );
 // Swap bytes in 32 bit value.  MACRO
-#define byteswap_32(x) \
-     ((((x) & 0xff000000) >> 24) | (((x) & 0x00ff0000) >>  8) |		      \
-      (((x) & 0x0000ff00) <<  8) | (((x) & 0x000000ff) << 24))
+// replaced with commonFunctions.cpp
+//#define byteswap_32(x) 
+//     ((((x) & 0xff000000) >> 24) | (((x) & 0x00ff0000) >>  8) |
+//      (((x) & 0x0000ff00) <<  8) | (((x) & 0x000000ff) << 24))
 
 void locatesam( uint16_t **image, int width, int height, int xstart, int xstop, int ystart, int ystop, int * xloc, int * yloc, int * radius );
 
