@@ -4,16 +4,15 @@
 //#include "spdlog/spdlog.h" // fancy logging needs a main
 
 #include "CCSDSReader.hpp"
-#include "fileutils.hpp"
+#include "commonFunctions.hpp"
 #include "FileInputSource.hpp"
 #include "InputSource.hpp"
 #include "RecordFileWriter.hpp"
 #include "TimeInfo.hpp"
 #include "USBInputSource.hpp"
 
-#define NORMAL_FILE "packetizer_out_2024_08_20.bin"
-
-//#define byteswap_32(x) ((((x) & 0xff000000) >> 24) | (((x) & 0x00ff0000) >>  8) | (((x) & 0x0000ff00) <<  8) | (((x) & 0x000000ff) << 24))
+//#define NORMAL_FILE "packetizer_out_2024_08_20.bin"
+#define NORMAL_FILE "packetizer_out_2024_08_31.bin"
 
 std::string normalFile = NORMAL_FILE;
 
@@ -341,21 +340,23 @@ TEST_CASE("isValidFilename function tests", "[isValidFilename]") {
     }
 }
 
-TEST_CASE("USBInputSource Test Suite", "[USBInputSource]") {
+// These can only be tested when connected to a device.
+//
+// TEST_CASE("USBInputSource Test Suite", "[USBInputSource]") {
 
-    SECTION("getSerialNumber returns expected serial number") {
-        // Create an instance of USBInputSource
-        std::string initialSerialNumber = "24080019Q1";
-        std::string emptySerialNumber;
-        USBInputSource usbSource(emptySerialNumber);
+//     SECTION("getSerialNumber returns expected serial number") {
+//         // Create an instance of USBInputSource
+//         std::string initialSerialNumber = "24080019Q1";
+//         std::string emptySerialNumber;
+//         USBInputSource usbSource(emptySerialNumber);
 
-        // Call the selectUSBSerialNumber function
-        std::string serialNumber = usbSource.getSerialNumber();
+//         // Call the selectUSBSerialNumber function
+//         std::string serialNumber = usbSource.getSerialNumber();
 
-        // Check if the returned serial number is "24080019Q1"
-        REQUIRE(serialNumber == initialSerialNumber);
-    }
+//         // Check if the returned serial number is "24080019Q1"
+//         REQUIRE(serialNumber == initialSerialNumber);
+//     }
 
-    // You can add more SECTIONs here for other tests related to USBInputSource
+//     // You can add more SECTIONs here for other tests related to USBInputSource
 
-}
+// }
