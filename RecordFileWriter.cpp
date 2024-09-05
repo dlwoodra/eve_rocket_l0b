@@ -48,6 +48,14 @@ bool RecordFileWriter::writeSyncAndPacketToRecordFile(const std::vector<uint8_t>
     return recordFile.good(); // Returns true if the write was successful
 }
 
+// Flush the file buffer
+void RecordFileWriter::flush() {
+    if (recordFile.is_open()) {
+        recordFile.flush();
+        std::cout << "Record file buffer flushed: " << outputFile << std::endl;
+    }
+}
+
 // Close the file if it's open
 void RecordFileWriter::close() {
     if (recordFile.is_open()) {
