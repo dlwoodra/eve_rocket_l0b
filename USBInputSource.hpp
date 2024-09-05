@@ -36,8 +36,9 @@ public:
 
     //std::ofstream outputFile;
 
-    void ProcRx();
-    void CGProcRx(void);
+    //CCSDSReader usbReader;
+    void ProcRx(CCSDSReader& usbReader);
+    void CGProcRx(CCSDSReader& usbReader);
 
 private:
     
@@ -58,10 +59,13 @@ private:
     void handleReceiveFIFOError();
     int32_t readDataFromUSB();
 
-    void GSEprocessBlock(uint32_t * pBlk);
-    void GSEprocessPacketHeader(uint32_t *& pBlk, uint16_t & blkIdx, uint16_t & nBlkLeft, int16_t & state, int16_t & APID, uint16_t& pktIdx, uint16_t & nPktLeft);
-    void GSEprocessPacketContinuation(uint32_t *& pBlk, uint16_t& blkIdx, uint16_t& nBlkLeft, uint16_t & pktIdx, uint16_t & nPktLeft, int16_t & state);
-    void GSEContinuePacket(uint32_t *& pBlk, uint16_t &blkIdx, uint16_t& nBlkLeft, int16_t& state, uint16_t& pktIdx, uint16_t& nPktLeft, int16_t APIDidx);
+    //void GSEprocessBlock(uint8_t * pBlk);
+    //void GSEprocessPacketHeader(uint8_t *& pBlk, uint16_t & blkIdx, uint16_t & nBlkLeft, int16_t & state, int16_t & APID, uint16_t& pktIdx, uint16_t & nPktLeft);
+    //void GSEprocessPacketContinuation(uint8_t *& pBlk, uint16_t& blkIdx, uint16_t& nBlkLeft, uint16_t & pktIdx, uint16_t & nPktLeft, int16_t & state);
+    //void GSEContinuePacket(uint8_t *& pBlk, uint16_t &blkIdx, uint16_t& nBlkLeft, int16_t& state, uint16_t& pktIdx, uint16_t& nPktLeft, int16_t APIDidx);
+    void discardFirstFourBytes();
+
+    void GSEProcessPacket(uint32_t *PktBuff, uint16_t APID, CCSDSReader& usbReader);
 
     // packet lengths are in 32-bit words and do not include sync-code
     static const uint16_t nAPID = 5;
@@ -69,10 +73,10 @@ private:
     static const uint16_t LUT_PktLen[nAPID];
 
     // variables used to persist with the blocks and packet processing
-    int16_t state; // current state of the processing state machine
-    int16_t APID;
-    uint16_t pktIdx; // an index into the packet buffer to join packets spread across 2 blocks
-    uint16_t nPktLeft; // number of remaining words in the packet
+    static int16_t state; // current state of the processing state machine
+    static int16_t APID;
+    static uint16_t pktIdx; // an index into the packet buffer to join packets spread across 2 blocks
+    static uint16_t nPktLeft; // number of remaining words in the packet
     uint16_t APIDidx;
     //uint16_t blkSize;
 
@@ -106,7 +110,8 @@ private:
     bool commandOpen;
     bool continueProcessing;
 
-    unsigned char rxBuffer[65536];
+    //unsigned char rxBuffer[65536];
+    uint8_t rxBuffer[65536];
     int16_t gseType;
     int32_t ctrTxBytes;
     int32_t ctrRxBytes;
