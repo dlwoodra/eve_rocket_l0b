@@ -19,7 +19,9 @@
 #include "USBInputSource.hpp"
 
 #include <chrono>
+#include <csignal>
 #include <cstdint>
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <vector>
@@ -39,9 +41,33 @@ void extern processESPPacket(std::vector<uint8_t> payload,
     uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp);
 void extern processHKPacket(std::vector<uint8_t> payload, 
     uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp);
-//bool extern isValidFilename(const std::string& filename);
 
-//void extern printBytesToStdOut(const uint8_t* array, uint32_t start, uint32_t end);
+// Function to handle the Ctrl-C (SIGINT) signal
+void handleSigint(int signal) {
+    std::cout << "\nCaught Ctrl-C (SIGINT)! Cleaning up and exiting..." << std::endl;
+
+    spdlog::info("SIGINT received, flushing log and exiting.");
+    spdlog::shutdown();
+
+    // in order to flush the recordFileWriter a global variable is needed
+    // I'd rather keep this simple
+    // we could do by making a global
+    //like RecordFileWriter* g_recordFileWriter = nullptr;
+    // then in here there would be code
+    // like         
+    // Flush the buffer and close the file
+    //    if (g_recordFileWriter) {
+    //        g_recordFileWriter->flush();
+    //        g_recordFileWriter->close();
+    //    }
+
+    // then in main this would be needed
+    //// Assign the global pointer
+    //g_recordFileWriter = &recordFileWriter;
+
+
+    std::exit(signal); // Exit the program with the signal code
+}
 
 int main(int argc, char* argv[]) {
     std::string filename;
@@ -49,6 +75,11 @@ int main(int argc, char* argv[]) {
     bool skipMP = false;
     bool skipRecord = false;
 
+    // Register the signal handler for SIGINT
+    std::signal(SIGINT, handleSigint);
+
+    std::cout << "Program running. Press Ctrl-C to exit." << std::endl;
+    
     parseCommandLineArgs(argc, argv, filename, skipESP, skipMP, skipRecord);
 
     std::unique_ptr<RecordFileWriter> recordWriter;
