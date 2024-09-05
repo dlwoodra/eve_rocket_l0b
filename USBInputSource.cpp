@@ -3,6 +3,81 @@
 #include "FITSWriter.hpp"
 #include <algorithm> // for lower_bound (searching for LUT_APID)
 
+
+struct DeviceInfo {
+    std::string productName;
+    uint32_t deviceID;
+    std::string serialNumber;
+    uint32_t productID;
+    uint16_t deviceMajorVersion;
+    uint16_t deviceMinorVersion;
+    uint16_t hostInterfaceMajorVersion;
+    uint16_t hostInterfaceMinorVersion;
+    uint32_t wireWidth;
+    uint32_t triggerWidth;
+    uint32_t pipeWidth;
+    uint32_t registerAddressWidth;
+    uint32_t registerDataWidth;
+    uint32_t usbSpeed;
+    uint32_t deviceInterface;
+    uint32_t fpgaVendor;
+};
+
+// Function to log device information using spdlog
+void logDeviceInfo(const okTDeviceInfo& devInfo) {
+    // Initialize the logger (log to file with basic file sink)
+    auto logger = spdlog::basic_logger_mt("device_logger", "device_info.log");
+
+    // Log all the device information
+    logger->info("deviceID    : {}", devInfo.deviceID);
+    logger->info("serialNumber: {}", devInfo.serialNumber);
+    logger->info("productName : {}", devInfo.productName);
+    logger->info("productID   : {}", devInfo.productID);
+    logger->info("deviceMajorVersion deviceMinorVersion   : {} {}", devInfo.deviceMajorVersion, devInfo.deviceMinorVersion);
+    logger->info("hostInterfaceMajorVersion hostInterfaceMinorVersion   : {} {}", devInfo.hostInterfaceMajorVersion, devInfo.hostInterfaceMinorVersion);
+    logger->info("wireWidth   : {}", devInfo.wireWidth);
+    logger->info("triggerWidth: {}", devInfo.triggerWidth);
+    logger->info("pipeWidth   : {}", devInfo.pipeWidth);
+    logger->info("registerAddressWidth   : {}", devInfo.registerAddressWidth);
+    logger->info("registerDataWidth   : {}", devInfo.registerDataWidth);
+    logger->info("pipeWidth   : {}", devInfo.pipeWidth);
+
+    // Map usbSpeed value to meaningful string
+    std::string usbSpeed;
+    switch (devInfo.usbSpeed) {
+        case 0: usbSpeed = "Unknown"; break;
+        case 1: usbSpeed = "FULL"; break;
+        case 2: usbSpeed = "HIGH"; break;
+        case 3: usbSpeed = "SUPER"; break;
+        default: usbSpeed = "Invalid";
+    }
+    logger->info("USBSpeed    : {}", usbSpeed);
+
+    // Map deviceInterface value to meaningful string
+    std::string deviceInterface;
+    switch (devInfo.deviceInterface) {
+        case 0: deviceInterface = "Unknown"; break;
+        case 1: deviceInterface = "USB2"; break;
+        case 2: deviceInterface = "PCIE"; break;
+        case 3: deviceInterface = "USB3"; break;
+        default: deviceInterface = "Invalid";
+    }
+    logger->info("okDeviceInterface: {}", deviceInterface);
+
+    // Map fpgaVendor value to meaningful string
+    std::string fpgaVendor;
+    switch (devInfo.fpgaVendor) {
+        case 0: fpgaVendor = "Unknown"; break;
+        case 1: fpgaVendor = "XILINX"; break;
+        case 2: fpgaVendor = "INTEL"; break;
+        default: fpgaVendor = "Invalid";
+    }
+    logger->info("fpgaVendor: {}", fpgaVendor);
+
+    // Ensure the log file is flushed
+    logger->flush();
+}
+
 // APIDs MUST be sorted in increasing numerical order
 const uint16_t USBInputSource::LUT_APID[USBInputSource::nAPID] = { 
   MEGSA_APID, MEGSB_APID, ESP_APID, MEGSP_APID, HK_APID 
@@ -20,7 +95,6 @@ void Sleep(int32_t milliSeconds) {
 }
 
 void extern processOnePacket(CCSDSReader& pktReader, const std::vector<uint8_t>& packet);
-
 
 // Generate a filename based on the current date and time
 std::string generateUSBRecordFilename() {
@@ -352,6 +426,9 @@ void USBInputSource::initializeGSE() {
 
     dev->GetDeviceInfo(&m_devInfo);
     
+    // Log the device information
+    logDeviceInfo(m_devInfo);
+
     // std:endl also forces a flush, so could impact performance
     //LogFileWriter::getInstance().logInfo("initializeGSE productName " + (m_devInfo.productName));
     std::cout << "Found a device: " << m_devInfo.productName << "\n"; //XEM7310-A75 
@@ -443,6 +520,9 @@ void USBInputSource::resetInterface(int32_t milliSeconds) {
     // Reset Space interface
     setGSERegister(0, 1);
     setGSERegister(0, 0);
+
+    LogFileWriter::getInstance().logWarning("USBInputSource::resetInterface called");
+
     Sleep(milliSeconds);
 }
 void USBInputSource::powerOnLED() {
@@ -503,7 +583,8 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
     // note 8/30/24 blockPipeOutStatus is 10000 (if hex then 65536)
     uint32_t milliSecondWaitTimeBetweenReads = 2;
     uint32_t numberOfCountersPerSecond = 1000 / milliSecondWaitTimeBetweenReads - 1;
-    for ( int32_t iloop=0; iloop < 200; ++iloop) {
+    while (true) {
+    //for ( int32_t iloop=0; iloop < 200; ++iloop) {
         //std::cout<< "Starting loop" <<std::endl;
         uint32_t waitCounter=0;
         while (isReceiveFIFOEmpty()) {
@@ -515,15 +596,24 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
             //std::cout<<"ReceiveFIFOEmpty: waiting"<<std::endl;
             Sleep(5); // 2 millisec - need to tune
         }
-        std::cout<<"CGProcRx Wait counter "<<waitCounter<<std::endl;
+        if (waitCounter > 100) {
+            std::cout<<"Warning: CGProcRx slow data transfer, waitCounter is high "<<waitCounter<<std::endl;
+            LogFileWriter::getInstance().logWarning("CGProxRx slow data transfer, waitCounter is high " + std::to_string(waitCounter));
+
+        }
         int32_t blockPipeOutStatus = readDataFromUSB();
         // returns number of bytes or <0 for errors
 	    if ( blockPipeOutStatus < 0)
 	    {
             std::cerr << "ERROR: USB Read Error" << std::endl;
+            LogFileWriter::getInstance().logError("CGProxRx blockPipeOutStatus Read error " + std::to_string(blockPipeOutStatus));
 		    return;
 	    }
-        std::cout << "CGProxRx blockPipeOutStatus bytes read "<<blockPipeOutStatus << std::endl; // says 10000, it is encoded as hex
+        if ( blockPipeOutStatus != 65536 ) {
+            std::cout << "ERROR: CGProxRx blockPipeOutStatus expected 65536 bytes read got "<<blockPipeOutStatus << std::endl;
+            LogFileWriter::getInstance().logError("CGProxRx blockPipeOutStatus expected 65536 bytes read got " + std::to_string(blockPipeOutStatus));
+        }
+
 
         // process the blocks of data
         //for (uint32_t blk = 0; blk <= 64; ++blk) {
@@ -552,18 +642,18 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
 			    		pktIdx = 0;
 			    		state = 1;
 			    		++ctrRxPkts;
-                        std::cout << "CGProxRx Found sync marker" << std::endl;
+                        //std::cout << "CGProxRx Found sync marker" << std::endl;
 			    	}
 			    	++blkIdx;
 			    	--nBlkLeft;
 			    	break;
 
     			case 1:
-                    std::cout << "CGProxRx Case 1a state " <<state << std::endl;
+                    //std::cout << "CGProxRx Case 1a state " <<state << std::endl;
     				// get APID index (MSB = 0, LSB = 1)
     				APID = (pBlk[blkIdx] << 8) & 0x700; //Alan used 0x300, 10 bits, APID is 11 bits;
     				APID |= ((pBlk[blkIdx] >> 8) & 0xFF);
-                    std::cout << "CGProcRx Case 1b apid:" <<APID<< std::endl;
+                    //std::cout << "CGProcRx Case 1b apid:" <<APID<< std::endl;
 
 
     				// find APID index
@@ -571,7 +661,7 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
 	    			{
 	    				if (LUT_APID[i] == APID)
 	    				{
-                            std::cout << "CGProxRx Case 1c - found apid" << APID <<" i="<<i<<std::endl;
+                            //std::cout << "CGProxRx Case 1c - found apid" << APID <<" i="<<i<<std::endl;
 	    					break;
 	    				}
 	    			}
@@ -579,7 +669,7 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
     				// APID is recognized
     				if (i < nAPID)
     				{
-                        std::cout << "CGProxRx Case 1d recognized apid" << std::endl;
+                        //std::cout << "CGProxRx Case 1d recognized apid" << std::endl;
     					APIDidx = i;
     					nPktLeft = LUT_PktLen[APIDidx];
 
@@ -588,7 +678,7 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
     					{
     						// remaining packet is less then data in block
     						nPktLeft &= 0xFF;
-                            std::cout << "CGProxRx Case 1dd -copying - state "<<state << std::endl;
+                            //std::cout << "CGProxRx Case 1dd -copying - state "<<state << std::endl;
     						memcpy(PktBuff, &pBlk[blkIdx], 4 * nPktLeft);
     						nBlkLeft -= nPktLeft;
     						blkIdx += nPktLeft;
@@ -600,7 +690,7 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
 		    			{
 		    				// packet data is longer than data remaining in block
 		    				nBlkLeft &= 0xFF;
-                            std::cout << "CGProxRx Case 1ddd -copying - state "<<state << std::endl;
+                            //std::cout << "CGProxRx Case 1ddd -copying - state "<<state << std::endl;
 		    				memcpy(PktBuff, &pBlk[blkIdx], 4 * nBlkLeft);
 		    				pktIdx += nBlkLeft;
 		    				nPktLeft -= nBlkLeft;
@@ -617,27 +707,27 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
 	    			break;
 
 	    		case 2:
-                    std::cout << "CGProxRx Case 1e -contination - state "<<state << std::endl;
+                    //std::cout << "CGProxRx Case 1e -contination - state "<<state << std::endl;
     				// continuation of packet into new blcok
 		    		pktIdx &= 0x7FF;
 		    		if (nPktLeft <= nBlkLeft)
 		    		{
 		    			// remaing packet data is less than data left in block
 		    			nPktLeft &= 0xFF;
-                        std::cout << "Case 1ee -contination copy - state "<<state << std::endl;
+                        //std::cout << "Case 1ee -contination copy - state "<<state << std::endl;
 		    			memcpy(&PktBuff[pktIdx], &pBlk[blkIdx], 4 * nPktLeft);
 		    			nBlkLeft -= nPktLeft;
 		    			blkIdx += nPktLeft;
 
     					state = 0;
-                        std::cout << "Case 1eee -call GSEProcessPacket - state " <<state<< std::endl;
+                        //std::cout << "Case 1eee -call GSEProcessPacket - state " <<state<< std::endl;
     					GSEProcessPacket(PktBuff, APID, usbReader);
     				}
     				else
     				{
     					// packet data is longer than data remaining in block
     					nBlkLeft &= 0xFF;
-                        std::cout << "Case 1f - memcpy - state " <<state<< std::endl;
+                        //std::cout << "Case 1f - memcpy - state " <<state<< std::endl;
     					memcpy(&PktBuff[pktIdx], &pBlk[blkIdx], 4 * nBlkLeft);
     					pktIdx += nBlkLeft;
     					nPktLeft -= nBlkLeft;
@@ -783,45 +873,32 @@ unsigned short USBInputSource::readGSERegister(int addr)
 
 // called from Alan's code, fill it out
 void USBInputSource::GSEProcessPacket(uint32_t *PktBuff, uint16_t APID, CCSDSReader& usbReader) {
-    // need a char * pointer to reinterpret the packet data
-    std::cout<<"GSEProcessPacket a"<<std::endl;
 
     // extract the pktlength in the byte reversed 32-bit array
     // for MEGS-A, PktBuff[1] is e106, which should be 06e1
     uint16_t packetLength = ((PktBuff[1] >> 8) & 0xFF) | ((PktBuff[1] << 8) & 0xFF00);
-    std::cout<<"packetLength "<<std::hex<<packetLength<<std::dec<<std::endl;
+
     // Calculate the total number of bytes
     uint16_t packetTotalBytes = 7 + packetLength; //size to copy, 6 byte hdr, CCSDS pktLen+1
-    std::cout<<"GSEProcessPacket b packetTotalBytes "<<packetTotalBytes<<std::endl;
-
-    // confirm packetLength
-
 
     std::vector<uint8_t> packetVector;
-    std::cout<<"GSEProcessPacket c"<<std::endl;
-    std::cout<<"GSEProcessPacket packetVector.size() " <<packetVector.size() <<std::endl;
 
     // Resize the vector to hold the bytes
     packetVector.resize(packetTotalBytes);
-    std::cout<<"GSEProcessPacket d"<<std::endl;
-    std::cout<<"GSEProcessPacket packetVector.size() " <<packetVector.size() <<std::endl;
+    //std::cout<<"GSEProcessPacket packetVector.size() " <<packetVector.size() <<std::endl;
 
     // Copy the data from the uint32_t array to the uint8_t vector
     std::memcpy(packetVector.data(), reinterpret_cast<uint8_t*>(PktBuff), packetTotalBytes);
-    std::cout<<"GSEProcessPacket packetVector.size() " <<packetVector.size() <<std::endl;
-    std::cout<<"GSEProcessPacket e"<<std::endl;
+    // packetVector.size() will be packetTotalBytes
 
     // write the packet to the record file
     if (!recordFileWriter->writeSyncAndPacketToRecordFile(packetVector)) {
         std::cerr << "ERROR: processPackets failed to write packet to record file." << std::endl;
         return;
     }
-    std::cout<<"GSEProcessPacket packetVector.size() " <<packetVector.size() <<std::endl;
-    std::cout<<"GSEProcessPacket f"<<std::endl;
 
     // send packetVector for packet processing
     processOnePacket(usbReader, packetVector);
-    std::cout<<"GSEProcessPacket f"<<std::endl;
 
     return;
 }
