@@ -31,6 +31,8 @@ public:
     // Close the file if it's open
     void close();
 
+    void flush();
+
     // Generate a filename based on the current date and time
     std::string generateRecordFilename();
 
