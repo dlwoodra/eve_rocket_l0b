@@ -27,10 +27,10 @@ bool CCSDSReader::findSyncMarker() {
 
   uint32_t buffer = 0;
   uint8_t onebyte = 0;
-  int bytecounter = 0;
+  uint32_t bytecounter = 0;
 
-  std::cout << "findSyncMarker" << std::endl;
- // read one byte at a time shifting 8 bits each iteration - endian-safe
+  //std::cout << "findSyncMarker" << std::endl;
+  // read one byte at a time shifting 8 bits each iteration - endian-safe
   while (buffer != SYNC_MARKER) {
     //std::cout << "findSyncMarker: calling read" << std::endl;
     if (source->read((&onebyte), sizeof(onebyte))) {
@@ -48,20 +48,20 @@ bool CCSDSReader::findSyncMarker() {
 
 // read the sync marker, packet header, and packet data
 bool CCSDSReader::readNextPacket(std::vector<uint8_t>& packet) {
-  std::cout << "readNextPacket" << std::endl;
+  //std::cout << "readNextPacket" << std::endl;
   if (!findSyncMarker()) {
     std::cout << "ERROR: CCSDSREADER::readNextPacket did not find sync marker " << std::endl;
     return false;
   }
 
-  std::cout << "readNextPacket calling readPacketHeader" << std::endl;
+  //std::cout << "readNextPacket calling readPacketHeader" << std::endl;
   std::vector<uint8_t> header(PACKET_HEADER_SIZE);
   if (!readPacketHeader(header)) {
     std::cout << "ERROR: CCSDSREADER::readNextPacket did not read the packet header " << std::endl;
     return false; // failed to read a packet header
   }
 
-  std::cout << "readNextPacket calling getPacketLength" << std::endl;
+  //std::cout << "readNextPacket calling getPacketLength" << std::endl;
 
   uint16_t packetLength = getPacketLength(header);
   if ((packetLength != STANDARD_MEGSAB_PACKET_LENGTH) && \
