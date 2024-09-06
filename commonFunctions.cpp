@@ -149,7 +149,7 @@ void processMegsAPacket(std::vector<uint8_t> payload,
     int8_t status=0;
     static int32_t previousSrcSeqCount = -1;
     static MEGS_IMAGE_REC megsStructure;
-    //const MEGS_IMAGE_REC megsStructureInit;
+    //const MEGS_IMAGE_REC megsStructureInit = {}; //initialized structure
     //struct MEGS_IMAGE_REC megsBStructure;
     int vcdu_impdu_prihdr_length = 20;
     uint8_t pktarr[STANDARD_MEGSAB_PACKET_LENGTH + vcdu_impdu_prihdr_length];
@@ -163,13 +163,6 @@ void processMegsAPacket(std::vector<uint8_t> payload,
 
     //std::cout<<"processMegsAPacket c " <<std::endl;
 
-    tai_sec = payloadToTAITimeSeconds(payload);
-    megsStructure.tai_time_seconds = tai_sec;
-    megsStructure.tai_time_subseconds = payloadToTAITimeSubseconds(payload);
-
-    tai_to_ydhms(tai_sec, &year, &doy, &sod, &hh, &mm, &ss);
-    std::cout << "called tai_to_ydhms " << year << " "<< doy << "-" << hh << ":" << mm << ":" << ss <<" . "<< megsStructure.tai_time_subseconds/65535 <<"\n";
-
     if (previousSrcSeqCount + 1 == sourceSequenceCounter) {
         if (sourceSequenceCounter != 0) {
             // continuing the same image
@@ -178,12 +171,31 @@ void processMegsAPacket(std::vector<uint8_t> payload,
             std::string logMsg = "MA starting new image first SrcSeqCounter: " + std::to_string(sourceSequenceCounter);
             LogFileWriter::getInstance().logInfo(logMsg);
             std::cout << "Info: " << logMsg << std::endl;
-            //TODO: reset packet counter
+
+            //reset megsStructure
             //megsStructure = megsStructureInit;
+            megsStructure = MEGS_IMAGE_REC{0}; // c++11 
+
+            // only assign the time from the first packet, the rest keep changing
+            tai_sec = payloadToTAITimeSeconds(payload);
+            megsStructure.tai_time_seconds = tai_sec;
+            megsStructure.tai_time_subseconds = payloadToTAITimeSubseconds(payload);
+
+            // assign current tai time to firstpkt_tai_time_seconds and subseconds
+            TimeInfo currentTime;
+            currentTime.updateNow();
+            megsStructure.firstpkt_tai_time_seconds = currentTime.getTAISeconds();
+            megsStructure.firstpkt_tai_time_subseconds = currentTime.getTAISubseconds();
+
+            tai_to_ydhms(tai_sec, &year, &doy, &sod, &hh, &mm, &ss);
+            std::cout << "called tai_to_ydhms " << year << " "<< doy << "-" << hh << ":" << mm << ":" << ss <<" . "<< megsStructure.tai_time_subseconds/65535 <<"\n";
         }
         previousSrcSeqCount = sourceSequenceCounter;
     }
 
+    // begin assigning data into megsStructure
+
+    // assing pixel values from the packet into the proper locations in the image
     int parityErrors = assemble_image(pktarr, &megsStructure, sourceSequenceCounter, &status);
     //std::cout << "called assemble_image" << "\n";
 
