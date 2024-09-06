@@ -42,8 +42,10 @@
 #define N_PKT_PER_IMAGE 		2395	// There are 2395 packets in each image
 #define MAX_MEGS_A_IMAGES_PER_FILE 	7		//	No more than 7 images per minute possible
 #define MAX_MEGS_B_IMAGES_PER_FILE 	7		//	No more than 7 images per minute possible
-#define MEGS_IMAGE_WIDTH 		2048	// The CCD images are 2048 x 1024 pixels
-#define MEGS_IMAGE_HEIGHT 		1024
+constexpr uint32_t MEGS_IMAGE_WIDTH = 2048;	// The CCD images are 2048 x 1024 pixels
+constexpr uint32_t MEGS_IMAGE_HEIGHT = 1024;
+//#define MEGS_IMAGE_WIDTH 		2048	// The CCD images are 2048 x 1024 pixels
+//#define MEGS_IMAGE_HEIGHT 		1024
 #define PHOTO_SAMPLES_PER_10SEC 	40		// ESP is sampled at 4 Hz
 #define Y_TOP 						0		// Image orientation
 #define Y_MIDDLE 					511		//  The middle row
@@ -426,9 +428,11 @@ struct MEGS_IMAGE_REC {
   uint32_t sod;
   uint32_t tai_time_seconds;
   uint32_t tai_time_subseconds;
+  uint32_t firstpkt_tai_time_seconds;
+  uint32_t firstpkt_tai_time_subseconds;
   uint16_t vcdu_count;
   uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT];
-} __attribute__ ((packed));
+}; // __attribute__ ((packed));
 
 extern struct MEGS_IMAGE_REC megs_image_rec;
 
@@ -441,12 +445,11 @@ struct TLM_ERRORS
 
 extern TLM_ERRORS tlm_errors;
 
-// Compression file rec
-struct FILECOMP {
-	char filename[128];
-};
-
-extern FILECOMP filecomp;
+//// Compression file rec
+//struct FILECOMP {
+//	char filename[128];
+//};
+//extern FILECOMP filecomp;
 
 // +++++++++++++++++  The procedure prototypes  ++++++++++++++++++
 
@@ -454,7 +457,7 @@ int assemble_image( uint8_t * vcdu,  MEGS_IMAGE_REC * ptr, uint16_t sourceSequen
 int	processPHOTOpacket(uint32_t *esp_time_seconds, uint32_t *esp_index, uint8_t *vcdu_data);
 //int	processSHKpacket(uint32_t *shk_time_seconds, int *shk_index, int *esp_index, uint8_t *vcdu_data, struct MEGS_IMAGE_REC *ptr_ma, struct MEGS_IMAGE_REC *ptr_mb);
 //inline void read_header( uint8_t *vcdu );
-inline int WHERE( uint32_t tai_time, int shk_index );
+//inline int WHERE( uint32_t tai_time, int shk_index );
 
 uint16_t max( uint16_t, uint16_t, uint16_t, uint16_t);
 
@@ -463,13 +466,13 @@ extern int tai_to_ydhms(uint32_t tai_in, uint16_t *year, uint16_t *doy,
       uint32_t *sod, uint16_t *hh, uint16_t *mm, uint16_t *ss);
 
 // Math and pointer helper procedures
-void realfft(float data [ ], unsigned long n, int isign);
-void four32(float data [ ], unsigned long nn, int isign);
+//void realfft(float data [ ], unsigned long n, int isign);
+//void four32(float data [ ], unsigned long nn, int isign);
 
-inline int 				byteswap16( uint16_t * p16bitdata, int sizeofarray );
-inline uint32_t 		halfwordswap( uint16_t * u16p );
-inline uint32_t 		halfword_no_swap( uint16_t * u16p );
-inline void 			wordswap( uint32_t * );
+//inline int 				byteswap16( uint16_t * p16bitdata, int sizeofarray );
+//inline uint32_t 		halfwordswap( uint16_t * u16p );
+//inline uint32_t 		halfword_no_swap( uint16_t * u16p );
+//inline void 			wordswap( uint32_t * );
 inline unsigned char 	getbit8( uint8_t, uint8_t );
 inline unsigned char 	getbit16( uint16_t, uint8_t );
 inline uint8_t 			bitswap8( uint8_t inbits );
@@ -480,9 +483,9 @@ inline uint16_t 		bitswap16( uint16_t inbits );
 //     ((((x) & 0xff000000) >> 24) | (((x) & 0x00ff0000) >>  8) |
 //      (((x) & 0x0000ff00) <<  8) | (((x) & 0x000000ff) << 24))
 
-void locatesam( uint16_t **image, int width, int height, int xstart, int xstop, int ystart, int ystop, int * xloc, int * yloc, int * radius );
+//void locatesam( uint16_t **image, int width, int height, int xstart, int xstop, int ystart, int ystop, int * xloc, int * yloc, int * radius );
 
-int fillimagedata(uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT]);
+//int fillimagedata(uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT]);
 
 int checkdir( char * filename );
 //int ParseCommandLineBool( char *cval, int argc, char *argv[] );
@@ -493,13 +496,13 @@ int checkdir( char * filename );
 // **********  Quicklook prototypes  *******************
 //void dumpshk( char * filename, int );
 //void dumpesp( char * filename );
-int plotspectra( uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT], char * filename, uint32_t tai_time_seconds, int mode, int termination_flag );
-int write_quicklook(char *, char *, uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT], int, uint8_t, struct MEGS_IMAGE_REC * rec, int pck_recvd );
-uint8_t write_megsa1(char *, uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT], uint8_t, char * );
-uint8_t write_megsa2(char *, uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT], uint8_t, char * );
-uint8_t write_megs_sam(char * , uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT], uint8_t, char * );
-uint8_t write_megsb1(char *, uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT], uint8_t, char * );
-int make_routine_plots(struct MEGS_IMAGE_REC *ma, struct MEGS_IMAGE_REC *mb, struct PHOTOMETER_PACKET photometer_data[512], struct SHK_PACKET shk_data[200], int p_counter);
+//int plotspectra( uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT], char * filename, uint32_t tai_time_seconds, int mode, int termination_flag );
+//int write_quicklook(char *, char *, uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT], int, uint8_t, struct MEGS_IMAGE_REC * rec, int pck_recvd );
+//uint8_t write_megsa1(char *, uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT], uint8_t, char * );
+//uint8_t write_megsa2(char *, uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT], uint8_t, char * );
+//uint8_t write_megs_sam(char * , uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT], uint8_t, char * );
+//uint8_t write_megsb1(char *, uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT], uint8_t, char * );
+//int make_routine_plots(struct MEGS_IMAGE_REC *ma, struct MEGS_IMAGE_REC *mb, struct PHOTOMETER_PACKET photometer_data[512], struct SHK_PACKET shk_data[200], int p_counter);
 
 
 #endif
