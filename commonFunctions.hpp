@@ -1,10 +1,10 @@
 #ifndef COMMONFUNCTIONS_H
 #define COMMONFUNCTIONS_H
 
+#include "eve_l0b.hpp" // absorbed eve_structures.hpp
 #include "CCSDSReader.hpp"
-#include "eve_megs_twoscomp.h"
-#include "eve_megs_pixel_parity.h"
-#include "eve_l0b.hpp"
+//#include "eve_megs_twoscomp.h"
+//#include "eve_megs_pixel_parity.h"
 #include "FITSWriter.hpp"
 #include "FileInputSource.hpp"
 #include "InputSource.hpp"
@@ -12,12 +12,12 @@
 #include "RecordFileWriter.hpp"
 #include "USBInputSource.hpp"
 
-#include <chrono>
-#include <cstdint>
-#include <fstream>
-#include <iostream>
+//#include <chrono> // included in RecordFileWriter.hpp
+//#include <cstdint> // included in CCSDSReader.hpp
+//#include <fstream> // included in CCSDSReader.hpp
+//#include <iostream> // included in CCSDSReader.hpp
 #include <string>
-#include <vector>
+//#include <vector> // included in CCSDSReader.hpp
 
 
 //prototypes
