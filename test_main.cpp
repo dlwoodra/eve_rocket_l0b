@@ -2,6 +2,7 @@
 #include "catch.hpp" 
 
 //#include "spdlog/spdlog.h" // fancy logging needs a main
+//#include "spdlog_pch.hpp" // precompiled binary
 
 #include "CCSDSReader.hpp"
 #include "commonFunctions.hpp"
