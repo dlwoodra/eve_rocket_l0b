@@ -1,4 +1,5 @@
 #include "FITSWriter.hpp"
+#include "commonFunctions.hpp"
 
 // Constructor
 FITSWriter::FITSWriter() {}
@@ -91,6 +92,13 @@ bool FITSWriter::writeDataToFITS(fitsfile* fptr, const std::vector<uint8_t>& dat
         return false;
     }
 
+    return true;
+}
+
+// write the megs rec to the FITS file
+bool FITSWriter::writeMegsAFITS( const MEGS_IMAGE_REC& megsStructure) {
+    std::cout<< "writing MEGS-A FITS file" <<std::endl;
+    LogFileWriter::getInstance().logInfo("writing MEGSA FITS file");
     return true;
 }
 
