@@ -6,25 +6,25 @@
 *  target is XEM7310-a75
 */
 
-#include "CCSDSReader.hpp"
+//#include "CCSDSReader.hpp" // included in RecordFileWriter.hpp
 #include "commonFunctions.hpp"
-#include "eve_megs_twoscomp.h"
-#include "eve_megs_pixel_parity.h"
-//#include "eve_l0b.hpp"
-#include "FITSWriter.hpp"
-#include "FileInputSource.hpp"
-#include "InputSource.hpp"
-#include "LogFileWriter.hpp"
-#include "RecordFileWriter.hpp"
-#include "USBInputSource.hpp"
+//#include "eve_megs_twoscomp.h" // included in commonFunctions.hpp
+//#include "eve_megs_pixel_parity.h" // included in commonFunctions.hpp
+#include "eve_l0b.hpp"
+//#include "FITSWriter.hpp"  // in commonFunctions.hpp
+//#include "FileInputSource.hpp" // in CCSDSReader.hpp
+//#include "InputSource.hpp" // in CCSDSReader.hpp
+//#include "LogFileWriter.hpp"  // included in commonFunctions.hpp
+//#include "RecordFileWriter.hpp" // in commonFunctions.hpp
+//#include "USBInputSource.hpp" // in commonFunctions.hpp
 
-#include <chrono>
-#include <csignal>
-#include <cstdint>
-#include <cstdlib>
-#include <fstream>
-#include <iostream>
-#include <vector>
+//#include <chrono> // included in RecordFileWRiter.hpp
+#include <csignal> // needed for SIGINT
+//#include <cstdint> // in CCSDSReader.hpp
+//#include <cstdlib> // in RecordFileWriter.hpp
+//#include <fstream> // in CCSDSReader.hpp
+//#include <iostream> // in CCSDSReader.hpp
+//#include <vector> // in CCSDSReader.hpp
 
 // prototypes
 void print_help();
