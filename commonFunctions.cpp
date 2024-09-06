@@ -1,6 +1,7 @@
 // commonFunctions.cpp
 
 #include "commonFunctions.hpp"
+//#include "eve_l0b.hpp" // included in commonFunctions.hpp
 
 
 // Check if the compiler supports __builtin_bswap32
@@ -147,7 +148,9 @@ void processMegsAPacket(std::vector<uint8_t> payload,
     uint32_t tai_sec;
     int8_t status=0;
     static int32_t previousSrcSeqCount = -1;
-    struct MEGS_IMAGE_REC megsImage;
+    static MEGS_IMAGE_REC megsStructure;
+    //const MEGS_IMAGE_REC megsStructureInit;
+    //struct MEGS_IMAGE_REC megsBStructure;
     int vcdu_impdu_prihdr_length = 20;
     uint8_t pktarr[STANDARD_MEGSAB_PACKET_LENGTH + vcdu_impdu_prihdr_length];
 
@@ -161,25 +164,27 @@ void processMegsAPacket(std::vector<uint8_t> payload,
     //std::cout<<"processMegsAPacket c " <<std::endl;
 
     tai_sec = payloadToTAITimeSeconds(payload);
-    megsImage.tai_time_seconds = tai_sec;
-    megsImage.tai_time_subseconds = payloadToTAITimeSubseconds(payload);
+    megsStructure.tai_time_seconds = tai_sec;
+    megsStructure.tai_time_subseconds = payloadToTAITimeSubseconds(payload);
 
     tai_to_ydhms(tai_sec, &year, &doy, &sod, &hh, &mm, &ss);
-    std::cout << "called tai_to_ydhms " << year << " "<< doy << "-" << hh << ":" << mm << ":" << ss <<" . "<< megsImage.tai_time_subseconds/65535 <<"\n";
+    std::cout << "called tai_to_ydhms " << year << " "<< doy << "-" << hh << ":" << mm << ":" << ss <<" . "<< megsStructure.tai_time_subseconds/65535 <<"\n";
 
-    //if (previousSrcSeqCount + 1 != sourceSequenceCounter) {
     if (previousSrcSeqCount + 1 == sourceSequenceCounter) {
-        // packet is from a new image
         if (sourceSequenceCounter != 0) {
             // continuing the same image
         } else {
+            // packet is from a new image
             std::string logMsg = "MA starting new image first SrcSeqCounter: " + std::to_string(sourceSequenceCounter);
             LogFileWriter::getInstance().logInfo(logMsg);
+            std::cout << "Info: " << logMsg << std::endl;
+            //TODO: reset packet counter
+            //megsStructure = megsStructureInit;
         }
         previousSrcSeqCount = sourceSequenceCounter;
     }
 
-    int parityErrors = assemble_image(pktarr, &megsImage, sourceSequenceCounter, &status);
+    int parityErrors = assemble_image(pktarr, &megsStructure, sourceSequenceCounter, &status);
     //std::cout << "called assemble_image" << "\n";
 
 
@@ -199,6 +204,9 @@ void processMegsAPacket(std::vector<uint8_t> payload,
         fitsFileWriter = std::unique_ptr<FITSWriter>(new FITSWriter());
         // the c++14 way fitsFileWriter = std::make_unique<FITSWriter>();
         if (fitsFileWriter) {
+            if (!fitsFileWriter->writeMegsAFITS( megsStructure )) {
+
+            }
         //  if (!fitsFileWriter->writePacketToFITS(packet, apid, timeStamp)) {
         //    std::cerr << "ERROR: Failed to write packet to FITS file." << std::endl;
         //    return;
