@@ -1,6 +1,7 @@
 #ifndef FITSWRITER_HPP
 #define FITSWRITER_HPP
 
+#include "eve_l0b.hpp" 
 #include <string>
 #include <vector>
 #include <memory>
@@ -34,12 +35,15 @@ public:
     // Write the packet data to the appropriate FITS file based on APID and timestamp
     bool writePacketToFITS(const std::vector<uint8_t>& packet, uint16_t apid, double timestamp);
 
+    bool writeMegsAFITS(const MEGS_IMAGE_REC& megsStructure);
+
 private:
     // Helper function to create a FITS filename based on APID and timestamp
     std::string createFITSFilename(uint16_t apid, double timestamp);
 
     // Helper function to initialize a FITS file
     bool initializeFITSFile(const std::string& filename);
+
 
     // Helper function to write data to a FITS file
     bool writeDataToFITS(fitsfile* fptr, const std::vector<uint8_t>& data);
