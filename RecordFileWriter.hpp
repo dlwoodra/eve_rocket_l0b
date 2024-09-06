@@ -2,15 +2,15 @@
 #define RECORD_FILE_WRITER_HPP
 
 #include "CCSDSReader.hpp"
-#include <cstdint>
+//#include <cstdint>  // in CCSDSReader.hpp
 #include <cstdlib> // used for getenv
 #include <chrono>
-#include <fstream>
+//#include <fstream>  // in CCSDSReader.hpp
 #include <iomanip>
-#include <iostream>
+//#include <iostream>  // in CCSDSReader.hpp
 #include <sstream>
 #include <string>
-#include <vector>
+//#include <vector>  // in CCSDSReader.hpp
 
 class RecordFileWriter {
 public:
