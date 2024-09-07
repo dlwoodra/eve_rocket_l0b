@@ -42,7 +42,7 @@ Date     Author          Change Id Description of Change
 #include "eve_megs_twoscomp.h"
 
 //int assemble_image( uint8_t * vcdu, struct MEGS_IMAGE_REC * ptr, uint16_t sourceSequenceCounter, int8_t *status)
-int assemble_image( uint8_t * vcdu, MEGS_IMAGE_REC * ptr, uint16_t sourceSequenceCounter, int8_t *status)
+int32_t assemble_image( uint8_t * vcdu, MEGS_IMAGE_REC * ptr, uint16_t sourceSequenceCounter, int8_t *status)
 {
   int   parityerrors = 0;
 
