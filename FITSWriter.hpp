@@ -42,7 +42,7 @@ private:
     std::string createFITSFilename(uint16_t apid, double timestamp);
 
     // Helper function to initialize a FITS file
-    bool initializeFITSFile(const std::string& filename);
+    bool initializeFITSImageFile(const std::string& filename, fitsfile*& fptr);
 
 
     // Helper function to write data to a FITS file
