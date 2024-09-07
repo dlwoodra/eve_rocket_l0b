@@ -5,17 +5,18 @@
 # note that this relies on precompiling spdlog_pch.hpp
 # use make spdlog_pch
 
+#openmp can be enabled with CXXFLAGS and LFLAGS, disable for now
 
 CXX = g++
 INCLUDE_PATH = -I/usr/local/include 
-CXXFLAGS = -std=c++11
+CXXFLAGS = -std=c++11 #-fopenmp
 PCH_FLAGS = -include spdlog_pch.hpp
 
 FAST_FLAGS = -O3 -funroll-loops -Wall
 TEST_FLAGS = -Wall
 DEBUG_FLAGS = -g -funroll-loops -Wall
 
-LFLAGS = -lcfitsio -lm -lspdlog -lfmt -lokFrontPanel
+LFLAGS = -lcfitsio -lm -lspdlog -lfmt -lokFrontPanel #-fopenmp
 LINKED_LIBS = -L/usr/local/lib -Wl,-rpath=/usr/local/lib 
 
 COMSRC = CCSDSReader.cpp RecordFileWriter.cpp USBInputSource.cpp \
