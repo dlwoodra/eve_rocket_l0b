@@ -84,7 +84,7 @@ std::string RecordFileWriter::generateRecordFilename() {
         return "";
     }
 
-    oss << std::put_time(&buf, "record_%Y_%j_%m_%d_%H_%M_%S") << ".rtlm";
+    oss << std::put_time(&buf, "record_%Y%j_%H%M%S") << ".rtlm";
 
     return oss.str();
 }
