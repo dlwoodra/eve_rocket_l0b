@@ -39,6 +39,16 @@ bool FITSWriter::initializeFITSImageFile(const std::string& filename, fitsfile*&
     //fitsfile* fptr;
     int status = 0;
 
+    // Check if the file already exists
+    struct stat buffer;
+    if (stat(filename.c_str(), &buffer) == 0) {
+        // File exists, so delete it
+        if (std::remove(filename.c_str()) != 0) {
+            std::cerr << "ERROR: Failed to delete existing FITS file: " << filename << std::endl;
+            return false;
+        }
+    }
+
     // Create a new FITS file
     if (fits_create_file(&fptr, filename.c_str(), &status)) {
         fits_report_error(stderr, status);
@@ -113,20 +123,74 @@ bool FITSWriter::writeMegsAFITS( const MEGS_IMAGE_REC& megsStructure) {
         return false;
     }
 
+    // Define the dimensions
+    //const uint32_t width = MEGS_IMAGE_WIDTH;
+    //const uint32_t height = MEGS_IMAGE_HEIGHT;
+
+    // Create a transposed buffer
+    //std::vector<uint16_t> transposedData(width * height);
+
+    //for (uint32_t y = 0; y < height; ++y) {
+    //    for (uint32_t x = 0; x < width; ++x) {
+    //        transposedData.at(x * height + y) = megsStructure.image[y][x];
+    //    }
+    //}
+
     LONGLONG fpixel = 1;
 
-    // Write the MEGS image to the FITS file
-    uint16_t* tempBuffer = new uint16_t[MEGS_IMAGE_WIDTH * MEGS_IMAGE_HEIGHT];
-    std::memcpy(tempBuffer, megsStructure.image, sizeof(uint16_t) * MEGS_IMAGE_WIDTH * MEGS_IMAGE_HEIGHT);
-    if (fits_write_img(fptr, TUSHORT, fpixel, MEGS_IMAGE_WIDTH * MEGS_IMAGE_HEIGHT, (void*)tempBuffer, &status)) {
-        fits_report_error(stderr, status);
-        std::ostringstream oss;
-        oss << "FitsWriter::wrieMegsAFITS: Failed to write image data to FITS file: " << filename;
-        LogFileWriter::getInstance().logError(oss.str());
-        delete[] tempBuffer;
+    // This method is transposed, need to transpose ths image
+    // const uint16_t (*image)[MEGS_IMAGE_HEIGHT] = megsStructure.image; // no transpose
+    // if (fits_write_img(fptr, TUSHORT, fpixel, MEGS_IMAGE_WIDTH * MEGS_IMAGE_HEIGHT, (void*)image, &status)) {
+    //     // Log the error
+    //     fits_report_error(stderr, status);
+    //     LogFileWriter::getInstance().logError("Failed to write image data to FITS file: " + filename);
+    //     fits_close_file(fptr, &status); // Ensure the file is closed even if writing fails
+    //     return false;
+    // }
+
+    ///////
+    // Single threaded transpose (safe)
+    // Define the dimensions
+    const uint32_t width = MEGS_IMAGE_WIDTH;
+    const uint32_t height = MEGS_IMAGE_HEIGHT;
+
+    // Create a transposed buffer
+     std::vector<uint16_t> transposedData(width * height);
+
+    // Transpose the data using parallel processing, enable this pragma
+    //#pragma omp parallel for
+
+    // Transpose the data
+    const uint16_t (*image)[height] = megsStructure.image;
+    for (uint32_t y = 0; y < height; ++y) {
+        for (uint32_t x = 0; x < width; ++x) {
+            transposedData[x * height + y] = image[y][x];
+        }
+    }
+    ///////
+
+     // Write the transposed data to the FITS file
+    if (fits_write_img(fptr, TUSHORT, fpixel, width * height, transposedData.data(), &status)) {
+        // Log the error
+        LogFileWriter::getInstance().logError("Failed to write image data to FITS file: " + filename);
+        fits_close_file(fptr, &status); // Ensure the file is closed even if writing fails
         return false;
     }
-    delete[] tempBuffer;
+   
+
+    // // Write the MEGS image to the FITS file
+    // uint16_t* tempBuffer = new uint16_t[MEGS_IMAGE_WIDTH * MEGS_IMAGE_HEIGHT];
+    // std::memcpy(tempBuffer, megsStructure.image, sizeof(uint16_t) * MEGS_IMAGE_WIDTH * MEGS_IMAGE_HEIGHT);
+    // if (fits_write_img(fptr, TUSHORT, fpixel, MEGS_IMAGE_WIDTH * MEGS_IMAGE_HEIGHT, (void*)tempBuffer, &status)) {
+    // //if (fits_write_img(fptr, TUSHORT, fpixel, MEGS_IMAGE_WIDTH * MEGS_IMAGE_HEIGHT, transposedData.data(), &status)) {
+    //     fits_report_error(stderr, status);
+    //     std::ostringstream oss;
+    //     oss << "FitsWriter::writeMegsAFITS: Failed to write image data to FITS file: " << filename;
+    //     LogFileWriter::getInstance().logError(oss.str());
+    //     delete[] tempBuffer;
+    //     return false;
+    // }
+    // delete[] tempBuffer;
 
     // add code here for a binary table
 
