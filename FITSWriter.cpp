@@ -12,7 +12,7 @@ FITSWriter::~FITSWriter() {
 // Function to create a FITS filename based on APID and timestamp
 std::string FITSWriter::createFITSFilename(uint16_t apid, double timestamp) {
     std::ostringstream oss;
-    oss << "APID_" << apid << "_";
+    //oss << "APID_" << apid << "_";
     
     // Convert timestamp to human-readable format (e.g., YYYYMMDD_HHMMSS)
     std::time_t t = static_cast<std::time_t>(timestamp);
@@ -29,14 +29,14 @@ std::string FITSWriter::createFITSFilename(uint16_t apid, double timestamp) {
         filename_prefix == "ESP_L0B_0_";
     } else {filename_prefix = "unknown_apid_";}
 
-    oss << filename_prefix << std::put_time(tm, "%Y%m%d_%H%M%S") << ".fit";
+    oss << filename_prefix << std::put_time(tm, "%Y%j_%H%M%S") << ".fit";
     
     return oss.str();
 }
 
 // Function to initialize a FITS file
-bool FITSWriter::initializeFITSFile(const std::string& filename) {
-    fitsfile* fptr;
+bool FITSWriter::initializeFITSImageFile(const std::string& filename, fitsfile*& fptr) {
+    //fitsfile* fptr;
     int status = 0;
 
     // Create a new FITS file
@@ -46,39 +46,36 @@ bool FITSWriter::initializeFITSFile(const std::string& filename) {
     }
 
     // Create a primary array image (e.g., 16-bit unsigned integer)
-    long naxes[2] = {2048, 1024}; // dimensions, can be adjusted as needed
+    long naxes[2] = {MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT}; // dimensions, can be adjusted as needed
     if (fits_create_img(fptr, USHORT_IMG, 2, naxes, &status)) {
         fits_report_error(stderr, status);
         return false;
     }
 
-    // Store the FITS file pointer in the map
-    //fitsFileMap.emplace(filename, std::unique_ptr<fitsfile, decltype(&fits_close_file)>(fptr, fits_close_file));
-    fitsFileMap.emplace(filename, std::unique_ptr<fitsfile, FITSFileDeleter>(fptr));
     return true;
 }
 
 // Function to write packet data to the appropriate FITS file based on APID and timestamp
-bool FITSWriter::writePacketToFITS(const std::vector<uint8_t>& packet, uint16_t apid, double timestamp) {
-    std::string filename = createFITSFilename(apid, timestamp);
+//bool FITSWriter::writePacketToFITS(const std::vector<uint8_t>& packet, uint16_t apid, double timestamp) {
+ //   std::string filename = createFITSFilename(apid, timestamp);
 
     // this line may not be needed
-    std::unordered_map<std::string, std::unique_ptr<fitsfile>> fitsFileMap;
+//    std::unordered_map<std::string, std::unique_ptr<fitsfile>> fitsFileMap;
 
     // Check if the FITS file already exists in the map
     //if (fitsFileMap.find(filename) == fitsFileMap.end()) {
-    if (fitsFileMap.find(filename) != fitsFileMap.end()) {
-        // If not, initialize the FITS file
-        if (!initializeFITSFile(filename)) {
-            std::cerr << "ERROR: Failed to initialize FITS file: " << filename << std::endl;
-            return false;
-        }
-    }
+    //if (fitsFileMap.find(filename) != fitsFileMap.end()) {
+    //    // If not, initialize the FITS file
+    //    if (!initializeFITSFile(filename)) {
+    //        std::cerr << "ERROR: Failed to initialize FITS file: " << filename << std::endl;
+     //       return false;
+    //    }
+    //}
 
     // Write the data to the FITS file
-    fitsfile* fptr = fitsFileMap[filename].get();
-    return writeDataToFITS(fptr, packet);
-}
+//    fitsfile* fptr = fitsFileMap[filename].get();
+//    return writeDataToFITS(fptr, packet);
+//}
 
 // Function to write data to a FITS file
 bool FITSWriter::writeDataToFITS(fitsfile* fptr, const std::vector<uint8_t>& data) {
@@ -97,8 +94,51 @@ bool FITSWriter::writeDataToFITS(fitsfile* fptr, const std::vector<uint8_t>& dat
 
 // write the megs rec to the FITS file
 bool FITSWriter::writeMegsAFITS( const MEGS_IMAGE_REC& megsStructure) {
+
     std::cout<< "writing MEGS-A FITS file" <<std::endl;
     LogFileWriter::getInstance().logInfo("writing MEGSA FITS file");
+
+    int32_t status = 0;
+
+    // Create a filename based on APID (assuming 601 for MEGS-A) and the timestamp
+    std::string filename = createFITSFilename(601, megsStructure.tai_time_seconds);
+
+    // Get the FITS file pointer
+    fitsfile* fptr = nullptr;
+
+    // Initialize the FITS file
+    if (!initializeFITSImageFile(filename, fptr)) {
+        std::cerr << "ERROR: Failed to initialize FITS file: " << filename << std::endl;
+        LogFileWriter::getInstance().logError("FitsWriter::writeMegsAFITS: Failed to initialize FITS file: " + filename);
+        return false;
+    }
+
+    LONGLONG fpixel = 1;
+
+    // Write the MEGS image to the FITS file
+    uint16_t* tempBuffer = new uint16_t[MEGS_IMAGE_WIDTH * MEGS_IMAGE_HEIGHT];
+    std::memcpy(tempBuffer, megsStructure.image, sizeof(uint16_t) * MEGS_IMAGE_WIDTH * MEGS_IMAGE_HEIGHT);
+    if (fits_write_img(fptr, TUSHORT, fpixel, MEGS_IMAGE_WIDTH * MEGS_IMAGE_HEIGHT, (void*)tempBuffer, &status)) {
+        fits_report_error(stderr, status);
+        std::ostringstream oss;
+        oss << "FitsWriter::wrieMegsAFITS: Failed to write image data to FITS file: " << filename;
+        LogFileWriter::getInstance().logError(oss.str());
+        delete[] tempBuffer;
+        return false;
+    }
+    delete[] tempBuffer;
+
+    // add code here for a binary table
+
+    // Close ths FITS file
+    if (fits_close_file(fptr, &status)){
+        fits_report_error(stderr, status);
+        return false;
+    }
+
+    std::cout << "FITSWriter::MegsAFITS successfully wrote"<<filename << std::endl;
+    LogFileWriter::getInstance().logInfo("FITSWriter::MegsAFITS successfully wrote " + filename);
+
     return true;
 }
 
