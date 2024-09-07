@@ -161,6 +161,10 @@ void processMegsAPacket(std::vector<uint8_t> payload,
     // copy from payload into pktarr starting at byte 20
     std::copy(payload.begin(), payload.end(), pktarr + vcdu_impdu_prihdr_length);
 
+    //******//
+    // need to compare payload.data() values against pktarr() values
+    //******//
+
     //std::cout<<"processMegsAPacket c " <<std::endl;
 
     if (previousSrcSeqCount + 1 == sourceSequenceCounter) {
