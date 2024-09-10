@@ -96,7 +96,7 @@ int main(int argc, char* argv[]) {
         if (fileReader.open()) {
             processPackets(fileReader, recordWriter, skipRecord);
         } else {
-            std::cerr << "Failed to open file." << std::endl;
+            std::cerr << "Failed to open file argument "<< filename << std::endl;
             return EXIT_FAILURE;  
         }
         fileReader.close();
@@ -145,6 +145,7 @@ void parseCommandLineArgs(int argc, char* argv[], std::string& filename, bool& s
         } else {
             LogFileWriter::getInstance().logError("Unknown command line option: " + arg);
             std::cerr << "Unknown option: " << arg << std::endl;
+            exit(EXIT_FAILURE);
         }
     }
 }
