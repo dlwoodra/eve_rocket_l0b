@@ -10,6 +10,13 @@
 CXX = g++
 INCLUDE_PATH = -I/usr/local/include 
 CXXFLAGS = -std=c++11 #-fopenmp
+
+# Check if SKIPPARITY is defined during compilation
+## active using make SKIPPARITY=1 target
+ifdef SKIPPARITY
+    CFLAGS += -DSKIPPARITY
+endif
+
 PCH_FLAGS = -include spdlog_pch.hpp
 
 FAST_FLAGS = -O3 -funroll-loops -Wall
