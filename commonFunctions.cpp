@@ -3,32 +3,6 @@
 #include "commonFunctions.hpp"
 //#include "eve_l0b.hpp" // included in commonFunctions.hpp
 
-
-// Check if the compiler supports __builtin_bswap32
-#if defined(__has_builtin)
-    #if __has_builtin(__builtin_bswap32)
-        #define HAS_BUILTIN_BSWAP32 1
-    #endif
-#elif defined(__GNUC__)
-    #if (__GNUC__ >= 4) // __builtin_bswap32 is supported since GCC 4.x
-        #define HAS_BUILTIN_BSWAP32 1
-    #endif
-#endif
-
-
-// Define a byte-swapping function
-inline uint32_t byteswap_32(uint32_t value) {
-#if defined(HAS_BUILTIN_BSWAP32)
-    return __builtin_bswap32(value);
-#else
-    // Fallback: manual byte swap using bit shifts
-    return ((value >> 24) & 0x000000FF) |
-           ((value >> 8)  & 0x0000FF00) |
-           ((value << 8)  & 0x00FF0000) |
-           ((value << 24) & 0xFF000000);
-#endif
-}
-
 // Function returns false if filename is empty
 bool isValidFilename(const std::string& filename) {
     return !filename.empty();
@@ -41,7 +15,8 @@ void processPackets(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& r
 
     std::cout << "entered processPackets" << std::endl;
     while (pktReader.readNextPacket(packet)) {
-        std::cout << "processPackets counter " << counter++ << std::endl;
+        counter++;
+        //std::cout << "processPackets counter " << counter << std::endl;
 
         // Record packet if required
         // c++ guarantees evaluation order from left to right to support short-circuit evaluation
@@ -117,10 +92,28 @@ uint32_t payloadToTAITimeSeconds(const std::vector<uint8_t>& payload) {
         throw std::invalid_argument("Payload must contain at least 4 bytes.");
     }
 
-    return (static_cast<uint32_t>(payload[0]) << 24) |
+    std::cout << "Payload TAI Seconds bytes in hex:" << std::endl;
+    for (int i = 0; i < 4; ++i) {
+        std::cout << "Byte " << i << ": 0x" 
+                  << std::hex << std::setfill('0') << std::setw(2) 
+                  << static_cast<int>(payload[i]) << std::dec << std::endl;
+    }
+    uint32_t tai = (static_cast<uint32_t>(payload[3]) << 24) |
+           (static_cast<uint32_t>(payload[2]) << 16) |
+           (static_cast<uint32_t>(payload[1]) << 8)  |
+           static_cast<uint32_t>(payload[0]);
+    uint32_t reversedtai = (static_cast<uint32_t>(payload[0]) << 24) |
            (static_cast<uint32_t>(payload[1]) << 16) |
            (static_cast<uint32_t>(payload[2]) << 8)  |
            static_cast<uint32_t>(payload[3]);
+
+    std::cout << "payloadToTAITimeSeconds calculated " << tai << std::endl;
+    std::cout << "payloadToTAITimeSeconds reversed calculated " << reversedtai << std::endl;
+        // Print the combined 32-bit value in hex
+    std::cout << "Combined 32-bit value from the TAI bytes: 0x" 
+              << std::hex << std::setfill('0') << std::setw(8) 
+              << tai << std::dec << std::endl;
+    return tai;
 }
 
 uint32_t payloadToTAITimeSubseconds(const std::vector<uint8_t>& payload) {
@@ -146,67 +139,108 @@ void processMegsAPacket(std::vector<uint8_t> payload,
     uint16_t year, doy, hh, mm, ss;
     uint32_t sod;
     uint32_t tai_sec;
+    static uint16_t processedPacketCounter=0;
     int8_t status=0;
+    static bool testPattern;
     static int32_t previousSrcSeqCount = -1;
-    static MEGS_IMAGE_REC megsStructure;
-    //const MEGS_IMAGE_REC megsStructureInit = {}; //initialized structure
-    //struct MEGS_IMAGE_REC megsBStructure;
-    int vcdu_impdu_prihdr_length = 20;
-    uint8_t pktarr[STANDARD_MEGSAB_PACKET_LENGTH + vcdu_impdu_prihdr_length];
+    static MEGS_IMAGE_REC oneMEGSStructure;
+    int vcdu_offset_to_sec_hdr = 20; // 6 bytes from packet start to timestamp, 8 byte IMPDU hdr, 6 byte CVCDU hdr is 20
 
-    //std::cout<<"processMegsAPacket b " <<std::endl;
+    std::cout << "processMegsAPacket 1 " << oneMEGSStructure.vcdu_count << " im00"<<" "<<oneMEGSStructure.image[0][0] <<" "<< oneMEGSStructure.image[1][0] << " "<<oneMEGSStructure.image[2][0] <<" "<<oneMEGSStructure.image[3][0] <<"\n";
+
+
+    // payload starts at secondary header
+    // 6-byte VCDU header, 8-byte IMPDU header, 6-byte primary packet header
+    // data to copy starts at secondary header, includes 8-byte timestamp, 2 byte mode, then 2-byte pixel pairs (1752 bytes except for last packet)
+
+    uint8_t vcdu[STANDARD_MEGSAB_PACKET_LENGTH + vcdu_offset_to_sec_hdr] = {0};
 
     // vcdu has 14 bytes before the packet start (vcdu=6, impdu=8)
     // pkthdr=6 bytes before the payload starts at the 2nd hdr timestamp
-    // copy from payload into pktarr starting at byte 20
-    std::copy(payload.begin(), payload.end(), pktarr + vcdu_impdu_prihdr_length);
+    // copy from payload into vcdu starting at byte 20 from the start of sync, 16 from start of VCDU
+    std::copy(payload.begin(), payload.end(), vcdu + vcdu_offset_to_sec_hdr);
 
-    //******//
-    // need to compare payload.data() values against pktarr() values
-    //******//
+    // vcdu should look like a fake VCDU, with garbage before the timestamp
+    // and it does, just without the primary header, impdu hdr, and vcdu hdr
 
-    //std::cout<<"processMegsAPacket c " <<std::endl;
+    //VERIFIED THE COPY IS CORRECT, payload and vcdu are consistent
+    //std::cout<<"vcdu modified"<<std::endl;
+    //printBytesToStdOut(vcdu,0,48);
+    //printBytesToStdOut(payload.data(),0,48);
+    //exit(EXIT_FAILURE);
 
-    if (previousSrcSeqCount + 1 == sourceSequenceCounter) {
-        if (sourceSequenceCounter != 0) {
-            // continuing the same image
-        } else {
-            // packet is from a new image
-            std::string logMsg = "MA starting new image first SrcSeqCounter: " + std::to_string(sourceSequenceCounter);
-            LogFileWriter::getInstance().logInfo(logMsg);
-            std::cout << "Info: " << logMsg << std::endl;
+    //std::ostringstream oss;
+    //oss << "MA SSC " << std::to_string(sourceSequenceCounter) << " pix";
+    // //first 8 bytes of data (2 pixel pairs)
+    //for (int i = 10; i <= 17; ++i) {
+    //    oss << " " << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(payload.data()[i]);
+    //}
+    //oss << " ...";
+    // //last 8 bytes of data (2 pixel pairs)
+    //size_t dataSize = payload.size();
+    //for (size_t i = dataSize-8; i<dataSize; ++i) {
+    //    oss << " " << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(payload.data()[i]);
+    //}
 
-            //reset megsStructure
-            //megsStructure = megsStructureInit;
-            megsStructure = MEGS_IMAGE_REC{0}; // c++11 
+    //LogFileWriter::getInstance().logInfo(oss.str());
 
-            // only assign the time from the first packet, the rest keep changing
-            tai_sec = payloadToTAITimeSeconds(payload);
-            megsStructure.tai_time_seconds = tai_sec;
-            megsStructure.tai_time_subseconds = payloadToTAITimeSubseconds(payload);
 
-            // assign current tai time to firstpkt_tai_time_seconds and subseconds
-            TimeInfo currentTime;
-            currentTime.updateNow();
-            megsStructure.firstpkt_tai_time_seconds = currentTime.getTAISeconds();
-            megsStructure.firstpkt_tai_time_subseconds = currentTime.getTAISubseconds();
+    if ((previousSrcSeqCount == -1) || (sourceSequenceCounter == 0) || 
+        (sourceSequenceCounter <= previousSrcSeqCount)) {
+        // packet is from a new image
+        std::string logMsg = "MA starting new image first SrcSeqCounter: " + std::to_string(sourceSequenceCounter);
+        LogFileWriter::getInstance().logInfo(logMsg);
+        std::cout << "Info: " << logMsg << std::endl;
 
-            tai_to_ydhms(tai_sec, &year, &doy, &sod, &hh, &mm, &ss);
-            std::cout << "called tai_to_ydhms " << year << " "<< doy << "-" << hh << ":" << mm << ":" << ss <<" . "<< megsStructure.tai_time_subseconds/65535 <<"\n";
+        //reset oneMEGSStructure
+        oneMEGSStructure = MEGS_IMAGE_REC{0}; // c++11 
+
+        testPattern = false; // default is not a test pattern
+        if ((vcdu[34] == 0) && (vcdu[35] == 2) && (vcdu[36] == 0) && (vcdu[37] == 1)) {
+            testPattern = true; // use vcdu[34]==0 vcdu[35]=2 vcdu[36]=0 vcdu[37]=1 to identify TP (first 2 pixesl are bad so skip 30-33)
+            std::cout << "processMegsAPacket identified a test pattern" <<std::endl;
         }
-        previousSrcSeqCount = sourceSequenceCounter;
-    }
 
-    // begin assigning data into megsStructure
+        // only assign the time from the first packet, the rest keep changing
+        tai_sec = payloadToTAITimeSeconds(payload);
+        oneMEGSStructure.tai_time_seconds = tai_sec;
+        oneMEGSStructure.tai_time_subseconds = payloadToTAITimeSubseconds(payload);
+
+        // assign current tai time to firstpkt_tai_time_seconds and subseconds
+        TimeInfo currentTime;
+        currentTime.updateNow();
+        oneMEGSStructure.firstpkt_tai_time_seconds = currentTime.getTAISeconds();
+        oneMEGSStructure.firstpkt_tai_time_subseconds = currentTime.getTAISubseconds();
+
+        tai_to_ydhms(tai_sec, &year, &doy, &sod, &hh, &mm, &ss);
+        std::cout << "processMegsAPacket called tai_to_ydhms " << year << " "<< doy << "-" << hh << ":" << mm << ":" << ss <<" . "<< oneMEGSStructure.tai_time_subseconds/65535 <<"\n";
+
+        processedPacketCounter=1;
+    }
+    previousSrcSeqCount = sourceSequenceCounter;
+
+    // begin assigning data into oneMEGSStructure
 
     // assing pixel values from the packet into the proper locations in the image
-    int parityErrors = assemble_image(pktarr, &megsStructure, sourceSequenceCounter, &status);
-    //std::cout << "called assemble_image" << "\n";
+    int parityErrors = assemble_image(vcdu, &oneMEGSStructure, sourceSequenceCounter, testPattern, &status);
+    for (int row=0; row<8; row+=2) {
+        std::cout << "processMegsAPacket R"<< row <<" vcdu_count " << oneMEGSStructure.vcdu_count << " im "<<oneMEGSStructure.image[0][row] <<" "<< oneMEGSStructure.image[1][row] << " "<<oneMEGSStructure.image[2][row] <<" "<<oneMEGSStructure.image[3][row] <<"\n";
+    }
+    for (int row=1023; row>1017; row-=2) {
+        std::cout << "processMegsAPacket R"<< row <<" vcdu_count " << oneMEGSStructure.vcdu_count << " im "<<oneMEGSStructure.image[0][row] <<" "<< oneMEGSStructure.image[1][row] << " "<<oneMEGSStructure.image[2][row] <<" "<<oneMEGSStructure.image[3][row] <<"\n";
+    }
+    std::cout << "processMegsAPacket C0 0-3" <<" im "<<oneMEGSStructure.image[0][0] <<" "<< oneMEGSStructure.image[1][0] << " "<<oneMEGSStructure.image[2][0] <<" "<<oneMEGSStructure.image[3][0] <<"\n";
+    std::cout << "processMegsAPacket C0 510-513" <<" im "<<oneMEGSStructure.image[510][0] <<" "<< oneMEGSStructure.image[511][0] << " "<<oneMEGSStructure.image[512][0] <<" "<<oneMEGSStructure.image[512][0] <<"\n";
+
+
+    //std::cout << "processMegsAPacket called assemble_image R0 vcdu_count " << oneMEGSStructure.vcdu_count << " im00"<<" "<<oneMEGSStructure.image[0][0] <<" "<< oneMEGSStructure.image[1][0] << " "<<oneMEGSStructure.image[2][0] <<" "<<oneMEGSStructure.image[3][0] <<"\n";
+    //std::cout << "processMegsAPacket called assemble_image R1 vcdu_count " << oneMEGSStructure.vcdu_count << " im01"<<" "<<oneMEGSStructure.image[0][1] <<" "<< oneMEGSStructure.image[1][1] << " "<<oneMEGSStructure.image[2][1] <<" "<<oneMEGSStructure.image[3][1] <<"\n";
+    //std::cout << "processMegsAPacket called assemble_image R2 vcdu_count " << oneMEGSStructure.vcdu_count << " im02"<<" "<<oneMEGSStructure.image[0][2] <<" "<< oneMEGSStructure.image[1][2] << " "<<oneMEGSStructure.image[2][2] <<" "<<oneMEGSStructure.image[3][2] <<"\n";
 
 
     if ( parityErrors > 0 ) {
         LogFileWriter::getInstance().logError("MA parity errors: "+ std::to_string(parityErrors));
-        std::cout << "assemble_image returned parity errors: " << parityErrors << "\n";
+        std::cout << "processMegsAPacket - assemble_image returned parity errors: " << parityErrors << " ssc:"<<sourceSequenceCounter<<"\n";
     }
 
     if ( sourceSequenceCounter == 2394) {
@@ -215,20 +249,27 @@ void processMegsAPacket(std::vector<uint8_t> payload,
 
         // may need to run this in another thread
 
+        //std::cout<<"processMegsAPacket image 2047*1022"<<std::endl;
+        //printUint16ToStdOut(oneMEGSStructure.image[2047*1022], MEGS_IMAGE_WIDTH, 10);
+
+
         // Write packet data to a FITS file if applicable
         std::unique_ptr<FITSWriter> fitsFileWriter;
         fitsFileWriter = std::unique_ptr<FITSWriter>(new FITSWriter());
         // the c++14 way fitsFileWriter = std::make_unique<FITSWriter>();
+        std::cout << "processMegsAPacket number of packets: " << processedPacketCounter << std::endl;
         if (fitsFileWriter) {
-            if (!fitsFileWriter->writeMegsAFITS( megsStructure )) {
+            std::cout << "processMegsAPacket: tai_time_seconds = " << oneMEGSStructure.tai_time_seconds << std::endl;
 
+            if (!fitsFileWriter->writeMegsAFITS( oneMEGSStructure )) {
+                LogFileWriter::getInstance().logInfo("writeMegsAFITS write error");
+                std::cout << "ERROR: writeMegsAFITS returned an error" << std::endl;
             }
-        //  if (!fitsFileWriter->writePacketToFITS(packet, apid, timeStamp)) {
-        //    std::cerr << "ERROR: Failed to write packet to FITS file." << std::endl;
-        //    return;
-        //  }
+            // reset the structure immediately after writing
+            oneMEGSStructure = MEGS_IMAGE_REC{0}; // c++11 
         }
     }
+    processedPacketCounter++; // count packets processed
 
 }
 
@@ -255,4 +296,19 @@ void printBytesToStdOut(const uint8_t* array, uint32_t start, uint32_t end) {
         std::cout << std::setw(2) << static_cast<int>(array[i]) << " ";
     }
     std::cout << std::dec << std::endl; // Reset to decimal output
+}
+
+// Function to print the first 'count' elements of a uint16_t array in hexadecimal
+void printUint16ToStdOut(const uint16_t* image, size_t size, size_t count) {
+    // Ensure the array has at least 'count' elements, or print as many as available
+    size_t limit = std::min(size, count);
+
+    // Print each element in hex with leading zeros and a width of 4
+    std::cout << "printUint16ToStdOut hex " << ":" << std::setw(4) << std::setfill('0') << std::hex;
+    for (size_t i = 0; i < limit; ++i) {
+        std::cout << " " << image[i];
+    }
+
+    // Reset output to decimal format (optional)
+    std::cout << std::dec << std::endl;
 }
