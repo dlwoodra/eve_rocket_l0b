@@ -453,7 +453,7 @@ extern TLM_ERRORS tlm_errors;
 
 // +++++++++++++++++  The procedure prototypes  ++++++++++++++++++
 
-int assemble_image( uint8_t * vcdu,  MEGS_IMAGE_REC * ptr, uint16_t sourceSequenceCounter, int8_t *status);
+int assemble_image( uint8_t * vcdu,  MEGS_IMAGE_REC * ptr, uint16_t sourceSequenceCounter, bool testPattern, int8_t *status);
 int	processPHOTOpacket(uint32_t *esp_time_seconds, uint32_t *esp_index, uint8_t *vcdu_data);
 //int	processSHKpacket(uint32_t *shk_time_seconds, int *shk_index, int *esp_index, uint8_t *vcdu_data, struct MEGS_IMAGE_REC *ptr_ma, struct MEGS_IMAGE_REC *ptr_mb);
 //inline void read_header( uint8_t *vcdu );
