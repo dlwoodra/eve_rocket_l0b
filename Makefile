@@ -5,11 +5,11 @@
 # note that this relies on precompiling spdlog_pch.hpp
 # use make spdlog_pch
 
-#openmp can be enabled with CXXFLAGS and LFLAGS, disable for now
+#openmp is enabled with CXXFLAGS and LFLAGS
 
 CXX = g++
 INCLUDE_PATH = -I/usr/local/include 
-CXXFLAGS = -std=c++11 #-fopenmp
+CXXFLAGS = -std=c++11 -fopenmp
 
 # Check if SKIPPARITY is defined during compilation
 ## active using make SKIPPARITY=1 target
@@ -19,11 +19,11 @@ endif
 
 PCH_FLAGS = -include spdlog_pch.hpp
 
-FAST_FLAGS = -O3 -funroll-loops -Wall
+FAST_FLAGS = -O3 -Wall
 TEST_FLAGS = -Wall
-DEBUG_FLAGS = -g -funroll-loops -Wall
+DEBUG_FLAGS = -g -Wall
 
-LFLAGS = -lcfitsio -lm -lspdlog -lfmt -lokFrontPanel #-fopenmp
+LFLAGS = -lcfitsio -lm -lspdlog -lfmt -lokFrontPanel -fopenmp
 LINKED_LIBS = -L/usr/local/lib -Wl,-rpath=/usr/local/lib 
 
 COMSRC = CCSDSReader.cpp RecordFileWriter.cpp USBInputSource.cpp \
