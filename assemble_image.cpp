@@ -37,171 +37,148 @@ Date     Author          Change Id Description of Change
 08/17/24 Don Woodraska   2         Modified for David's rocket FPGA to support SURF
 ************************************************************/
 
+#include "byteswap.hpp"
+#include "commonFunctions.hpp"
 #include "eve_l0b.hpp"
 #include "eve_megs_pixel_parity.h"
 #include "eve_megs_twoscomp.h"
+#include <iostream>
+#include <iomanip>
 
-//int assemble_image( uint8_t * vcdu, struct MEGS_IMAGE_REC * ptr, uint16_t sourceSequenceCounter, int8_t *status)
-int32_t assemble_image( uint8_t * vcdu, MEGS_IMAGE_REC * ptr, uint16_t sourceSequenceCounter, int8_t *status)
+int32_t assemble_image( uint8_t * vcdu, MEGS_IMAGE_REC * ptr, uint16_t sourceSequenceCounter, bool testPattern, int8_t *status)
 {
-  int   parityerrors = 0;
+  int parityerrors = 0;
 
-  static uint8_t topmode, bottommode;
+  //constexpr uint8_t topmode = 0, bottommode = 1;
 
-  uint16_t parity=0;
-  uint16_t src_seq = sourceSequenceCounter;
-  uint16_t * u16p = (uint16_t *) vcdu;  // 16 bit pointer to data
-  uint16_t MEGS_IMAGE_WIDTH_SHIFT=11;
-  uint16_t MEGS_IMAGE_HEIGHT_LESS1=MEGS_IMAGE_HEIGHT-1, MEGS_IMAGE_WIDTH_LESS1=MEGS_IMAGE_WIDTH-1;
-  unsigned short pix_val;
-  uint32_t src_seq_times_pixels_per_half_vcdu;  
+  uint16_t expectedparity=0;
+  uint16_t pixelparity=0;
+  uint32_t src_seq = sourceSequenceCounter;
+  constexpr uint32_t MEGS_IMAGE_WIDTH_SHIFT=11; // number of bits to shift
+  constexpr uint32_t MEGS_IMAGE_HEIGHT_LESS1 = MEGS_IMAGE_HEIGHT - 1;
+  constexpr uint32_t MEGS_IMAGE_WIDTH_LESS1 = MEGS_IMAGE_WIDTH - 1;
+  uint16_t pix_val14;
+  const uint32_t src_seq_times_pixels_per_half_vcdu = sourceSequenceCounter * PIXELS_PER_HALF_VCDU;
 
-  uint32_t j, jrel, ki, kj, kk;
-  uint32_t halfj;
-  //static uint32_t istestpattern, not_istestpattern;
-  static uint32_t not_tp2043;
+  int32_t xpos, ypos, kk;
+  uint32_t not_testpattern;
+  uint32_t not_tp2043;
 
-  //src_seq    = u16p[8] & 0x3fff;           // Sequence number is an arg
-  src_seq_times_pixels_per_half_vcdu = src_seq*PIXELS_PER_HALF_VCDU;
+  //src_seq_times_pixels_per_half_vcdu = src_seq*PIXELS_PER_HALF_VCDU;
 
   // if megs_image_rec has vcdu_count=0, then assign all header info
-  if (ptr->vcdu_count == 0)
-    {
-      // fixed at TLBR, or readoutmode=1
-      topmode    = 0; //getbit8( vcdu[28], 4 );      // topmode
-      bottommode = 1; //getbit8( vcdu[28], 5 );      // bottom mode
+  // if (ptr->vcdu_count == 0)
+  //   {
+  //   }
 
-      /* time hi */
-      //ptr->tai_time_seconds = ps_headers.tai_time_seconds;
-          
-      // time lo 
-      //ptr->tai_time_subseconds = ps_headers.tai_time_subseconds;
+  not_testpattern = static_cast<uint32_t>(!testPattern);
+  not_tp2043 = not_testpattern * 2044; /* 2047 - 4 compensates for virtual column insertion */
 
-      // int_time (DN units, so seconds=DN*10)
-      //ptr->integration_time = vcdu[29];
+  // print the byte in the vcdu
+  if (sourceSequenceCounter == 0) {
+    std::cout << "assemble_image: first vcdu in image to assemble " << std::endl;
+    printBytesToStdOut(vcdu, 30, 60);
+  }
 
-      // Validity bit
-      //ptr->valid = getbit8( vcdu[28], 0 );
-
-      // Ram bank
-      //ptr->ram_bank = getbit8( vcdu[28], 1 );
-
-      // Integration warning
-      //ptr->int_time_warn = getbit8( vcdu[28], 3 );
-
-      // Reverse clock
-      //ptr->reverse_clock = getbit8( vcdu[28], 6 );
-
-      // hw and sw Test bits
-      //ptr->hw_test = getbit8( vcdu[28], 2 );
-      //ptr->sw_test = getbit8( vcdu[28], 7 );
-
-      // readout_mode
-      //ptr->readout_mode = ( topmode << 1 ) + bottommode;
-// ********* Modify to only check parity for hardware test patterns *************
-      //istestpattern = (ptr->hw_test) + (ptr->sw_test);
-      //not_istestpattern = (istestpattern + 1) & 0x1;
-      //not_tp2043 = not_istestpattern * 2044; /* 2047 - 4 compensates for dark pixel insertion */
-// ********* Modify to only check parity for hardware test patterns *************
-    }
-    else
-    {
-    	//if( (ptr->hw_test != getbit8( vcdu[28], 2 )) || (ptr->hw_test != getbit8( vcdu[28], 2)) )
-    	//{
-   		//	printf("Mode changed to/from test pattern\n" );
-    	//	if(ptr->valid == getbit8( vcdu[28], 0))
-    	//	{
-    	//		printf("Mode changed to/from test pattern and valid bit is stil set\n" );
-    	//	}
-    	//}
-    }
-
+  // pixel data begins 30 bytes from the start of the VCDU
 
   // Loop over 875 pixel pairs in packet
-  for (j = 30; j <= 1780; j += 2)
+  for (int32_t j = 30; j <= 1780; j += 2) 
+  {
+
+    // The valid range of byte offsets into the VCDU
+    // This check is for the last partial packet (#2394) which has 16 bytes.
+    if ((src_seq == 2394) && (j >= 46)) // 30+16
     {
-      jrel = (int) ((j - 30)>>1); // the pixel number offset in the vcdu
-      // when combined with the src_seq number, a pixel can be determined
-
-      halfj = j>>1;
-      // The valid range of byte offsets into the VCDU, DO NOT EXCEED
-      // This check is for the last partial packet (#2394) which has 16 bytes.
-      if ((src_seq == 2394) && (j >= 46)) 
-        {
-          break;
-        }
-
-      uint16_t pixval16 = u16p[halfj];
-      pix_val = pixval16 & 0x3FFF;
-
-      // Only check parity if NOT a test pattern
-      //  and image is marked valid
-      //if( (istestpattern == 0) && ((ptr->valid) == 1) )
-      // for the Rocket, always calculate parity and 2s comp
-      if( true )
-      {
-          /* now perform parity check for each pixel */
-          /* if a pixel passes parity check, copy the vcdu pixel data to the image */
-          /*  ODD-PARITY ON 14 LSBs */
-
-      // for David's new rocketFPGA, do both parity and 2s complement
-// #ifndef SKIPPARITY
-          parity = odd_parity_15bit_table[pixval16 & 0x7FFF];
-// #endif
-          // Decode (2's complement) the 14 bit (with sign) pixel value
-          pix_val = twoscomp_table[pixval16 & 0x3FFF];
-      }
-      else
-      {
-    	  parity = ( u16p[halfj] >> 15 ) & 0x01;
-      }
-
-      // parity is parity bit + start bit OR if a test pattern
-#ifndef SKIPPARITY
-      if( parity ==  (( u16p[halfj] >> 15 ) & 0x01) )
-#else
-      if( true )
-#endif
-      {
-          /* parity check passed, assign pix_val to proper location in image */
-          /*  is the pixel from the top (even) or bottom half of the CCD? */
-          if ((jrel & 0x1) == 0)
-            {
-              /* j is even, so pixel is in top half */
-              
-              kk = (src_seq_times_pixels_per_half_vcdu) + ((jrel) >> 1);
-              kj = (int) (kk >> MEGS_IMAGE_WIDTH_SHIFT);
-              /* ki = (int) (kk & MEGS_IMAGE_WIDTH_LESS1);  the old simple way */
-              ki = (int) ((kk + not_tp2043) & MEGS_IMAGE_WIDTH_LESS1); 
-              if ( topmode == 1)
-                {
-                  ki = (int) MEGS_IMAGE_WIDTH_LESS1 - ki; /* the old simple way */
-                }
-            }
-          else 
-            {
-              /* j is odd, so pixel is in bottom half */
-              kk = (int) src_seq_times_pixels_per_half_vcdu + ((jrel-1) >> 1);
-              kj = (int) MEGS_IMAGE_HEIGHT_LESS1 - (int) (kk >> MEGS_IMAGE_WIDTH_SHIFT);
-              /* ki = (int) (kk & MEGS_IMAGE_WIDTH_LESS1); //assumes left */
-              ki = (int) ((kk + not_tp2043) & MEGS_IMAGE_WIDTH_LESS1); //assumes left
-              if ( bottommode == 1)
-                {
-                  ki = (int) MEGS_IMAGE_WIDTH_LESS1 - ki;
-                }
-            }
-          
-          // Insert the pixel value into the image in memory            
-          ptr->image[ki][kj] = (unsigned short) pix_val;
-        }
-      else
-        {
-#ifndef SKIPPARITY
-          parityerrors ++;
-          *status = W_INVALID_PARITY;
-#endif
-        }
+      break;
     }
+
+    // 16-bits allocated to each pixel, top msb is parity, second is framestart, lsb 14 bits are twos comp encoded data
+    uint16_t pixval16 = (uint16_t (vcdu[j] << 8) & 0xFF00) | (uint16_t (vcdu[j+1]));
+
+    // rocket fpga messes up the first 2 pixels, then its OK
+    // ff ff aa aa 00 02 00 01 00 04 00 02 00 06 00 03
+    pix_val14 = pixval16 & 0x3FFF; // 14 bits of data
+
+    // debugging
+    if ((sourceSequenceCounter == 0) && (j < 60))  {
+      std::cout << "assemble_image pixval16: 0x" << std::hex << std::setw(4) << std::setfill('0') << pixval16 << std::dec <<std::endl;
+    } // These values are correct values for the 16-bit pixels
+
+    // Only do twos comp for ccd data (not test patterns)
+    if( not_testpattern )
+    {
+      // for David's new rocketFPGA, do both parity and 2s complement
+      // Decode (2's complement) the 14 bit (with sign) pixel value
+      uint16_t tcval = uint16_t (twoscomp_table[pix_val14]);
+      pix_val14 = tcval; 
+    }
+
+#ifndef SKIPPARITY
+    // Always check parity for the rocket
+    // parity is in msb
+    pixelparity = ( pixval16 >> 15 ) & 0x01;
+    expectedparity = odd_parity_15bit_table[pixval16 & 0x7FFF];
+
+    if( expectedparity != pixelparity ) 
+    {
+      parityerrors++;
+      *status = W_INVALID_PARITY;
+#endif
+    }
+
+    // assemble regardless of whether the parity check fails
+      
+    uint32_t jrel = ((j - 30)>>1); // the pixel number offset in the vcdu
+    // when combined with the src_seq number, a pixel location can be determined
+    // jrel is the pixel index 0,1,2... where evens are top and odds are bottom
+    // jrel spans from 0 to 875
+
+    // assign pix_val14 to proper x,y or xpos,ypos location in image
+    // find whether the jrel pixel is from the top (even) or bottom (odd) half of the CCD
+    if ((jrel & 0x1) == 0)
+    {
+      /* jrel is even, so pixel is in top half */
+              
+      kk = int32_t (src_seq_times_pixels_per_half_vcdu) + int32_t ((jrel) >> 1);
+      ypos = int32_t (kk >> MEGS_IMAGE_WIDTH_SHIFT);
+      xpos = (int32_t (kk + not_tp2043) & MEGS_IMAGE_WIDTH_LESS1); 
+      // for the mode is fixed topmode=0 always
+      // if ( topmode == 1)
+      // {
+      //   xpos = MEGS_IMAGE_WIDTH_LESS1 - xpos; /* the old simple way */
+      // }
+    }
+      else 
+    {
+      /* jrel is odd, so pixel is in bottom half */
+
+      kk = int32_t (src_seq_times_pixels_per_half_vcdu) + (int32_t (jrel-1) >> 1);
+      ypos = int32_t (MEGS_IMAGE_HEIGHT_LESS1) - (int32_t) (kk >> MEGS_IMAGE_WIDTH_SHIFT);
+      xpos = (int32_t (kk + not_tp2043) & MEGS_IMAGE_WIDTH_LESS1); //assumes left
+      //if ( bottommode == 1) // always true
+      //{
+        xpos = MEGS_IMAGE_WIDTH_LESS1 - xpos; 
+      //}
+    }
+          
+    // Insert the pixel value into the image in memory            
+    ptr->image[xpos][ypos] = (uint16_t) pix_val14;
+
+    // if (src_seq == 0) {
+    //   std::cout << "x,y: " << xpos << "," << ypos << " im: " << ptr->image[xpos][ypos] <<std::endl;
+    //   // confirms that data are being loaded into the correct locations
+    //   if (j == 48) {
+    //     // shows ffff, aaaa, 0002, 0001 , 0004, 0002, so the pattern looks correct
+    //     std::cout << "assemble_image - first 10 pixels in row 0"<<std::endl;
+    //     printUint16ToStdOut(ptr->image[0], MEGS_IMAGE_WIDTH, 10);
+    //   }
+    // }    
+
+  } //endfor
+         
+  //std::cout << "assemble_image : " << ptr->image[0][0] <<" "<< ptr->image[1][0] <<" "<< ptr->image[2][0] <<" "<< ptr->image[3][0]<<std::endl;
+
   // increment vcdu counter for assembling the image
   ptr->vcdu_count++;
   *status = NOERROR;
