@@ -209,11 +209,13 @@ void processMegsAPacket(std::vector<uint8_t> payload,
         // assign current tai time to firstpkt_tai_time_seconds and subseconds
         TimeInfo currentTime;
         currentTime.updateNow();
-        oneMEGSStructure.firstpkt_tai_time_seconds = currentTime.getTAISeconds();
-        oneMEGSStructure.firstpkt_tai_time_subseconds = currentTime.getTAISubseconds();
+        oneMEGSStructure.rec_tai_seconds = currentTime.getTAISeconds();
+        oneMEGSStructure.rec_tai_subseconds = currentTime.getTAISubseconds();
 
         tai_to_ydhms(tai_sec, &year, &doy, &sod, &hh, &mm, &ss);
         std::cout << "processMegsAPacket called tai_to_ydhms " << year << " "<< doy << "-" << hh << ":" << mm << ":" << ss <<" . "<< oneMEGSStructure.tai_time_subseconds/65535 <<"\n";
+        oneMEGSStructure.sod = sod;
+        oneMEGSStructure.yyyydoy = year*1000 + doy;
 
         processedPacketCounter=1;
     }
@@ -223,14 +225,15 @@ void processMegsAPacket(std::vector<uint8_t> payload,
 
     // assing pixel values from the packet into the proper locations in the image
     int parityErrors = assemble_image(vcdu, &oneMEGSStructure, sourceSequenceCounter, testPattern, &status);
-    for (int row=0; row<8; row+=2) {
-        std::cout << "processMegsAPacket R"<< row <<" vcdu_count " << oneMEGSStructure.vcdu_count << " im "<<oneMEGSStructure.image[0][row] <<" "<< oneMEGSStructure.image[1][row] << " "<<oneMEGSStructure.image[2][row] <<" "<<oneMEGSStructure.image[3][row] <<"\n";
-    }
-    for (int row=1023; row>1017; row-=2) {
-        std::cout << "processMegsAPacket R"<< row <<" vcdu_count " << oneMEGSStructure.vcdu_count << " im "<<oneMEGSStructure.image[0][row] <<" "<< oneMEGSStructure.image[1][row] << " "<<oneMEGSStructure.image[2][row] <<" "<<oneMEGSStructure.image[3][row] <<"\n";
-    }
-    std::cout << "processMegsAPacket C0 0-3" <<" im "<<oneMEGSStructure.image[0][0] <<" "<< oneMEGSStructure.image[1][0] << " "<<oneMEGSStructure.image[2][0] <<" "<<oneMEGSStructure.image[3][0] <<"\n";
-    std::cout << "processMegsAPacket C0 510-513" <<" im "<<oneMEGSStructure.image[510][0] <<" "<< oneMEGSStructure.image[511][0] << " "<<oneMEGSStructure.image[512][0] <<" "<<oneMEGSStructure.image[512][0] <<"\n";
+
+    // for (int row=0; row<8; row+=2) {
+    //     std::cout << "processMegsAPacket R"<< row <<" vcdu_count " << oneMEGSStructure.vcdu_count << " im "<<oneMEGSStructure.image[0][row] <<" "<< oneMEGSStructure.image[1][row] << " "<<oneMEGSStructure.image[2][row] <<" "<<oneMEGSStructure.image[3][row] <<"\n";
+    // }
+    // for (int row=1023; row>1017; row-=2) {
+    //     std::cout << "processMegsAPacket R"<< row <<" vcdu_count " << oneMEGSStructure.vcdu_count << " im "<<oneMEGSStructure.image[0][row] <<" "<< oneMEGSStructure.image[1][row] << " "<<oneMEGSStructure.image[2][row] <<" "<<oneMEGSStructure.image[3][row] <<"\n";
+    // }
+    // std::cout << "processMegsAPacket C0 0-3" <<" im "<<oneMEGSStructure.image[0][0] <<" "<< oneMEGSStructure.image[1][0] << " "<<oneMEGSStructure.image[2][0] <<" "<<oneMEGSStructure.image[3][0] <<"\n";
+    // std::cout << "processMegsAPacket C0 510-513" <<" im "<<oneMEGSStructure.image[510][0] <<" "<< oneMEGSStructure.image[511][0] << " "<<oneMEGSStructure.image[512][0] <<" "<<oneMEGSStructure.image[512][0] <<"\n";
 
 
     //std::cout << "processMegsAPacket called assemble_image R0 vcdu_count " << oneMEGSStructure.vcdu_count << " im00"<<" "<<oneMEGSStructure.image[0][0] <<" "<< oneMEGSStructure.image[1][0] << " "<<oneMEGSStructure.image[2][0] <<" "<<oneMEGSStructure.image[3][0] <<"\n";
