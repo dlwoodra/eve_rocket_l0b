@@ -113,18 +113,18 @@ bool FITSWriter::writeDataToFITS(fitsfile* fptr, const std::vector<uint8_t>& dat
 // write the megs rec to the FITS file
 bool FITSWriter::writeMegsAFITS( const MEGS_IMAGE_REC& megsStructure) {
 
-    std::cout << "writeMegsAFITS: tai_time_seconds = " << megsStructure.tai_time_seconds << std::endl;
+    //std::cout << "writeMegsAFITS: tai_time_seconds = " << megsStructure.tai_time_seconds << std::endl;
 
     std::cout<< "writing MEGS-A FITS file" <<std::endl;
     LogFileWriter::getInstance().logInfo("writing MEGSA FITS file");
 
-    std::cout << "writeMegsAFITS 1 vcdu_count " << megsStructure.vcdu_count << " im00"<<" "<<megsStructure.image[0][0] <<" "<< megsStructure.image[1][0] << " "<<megsStructure.image[2][0] <<" "<<megsStructure.image[3][0] <<"\n";
+    //std::cout << "writeMegsAFITS 1 vcdu_count " << megsStructure.vcdu_count << " im00"<<" "<<megsStructure.image[0][0] <<" "<< megsStructure.image[1][0] << " "<<megsStructure.image[2][0] <<" "<<megsStructure.image[3][0] <<"\n";
 
     int32_t status = 0;
 
     // Create a filename based on APID (assuming 601 for MEGS-A) and the timestamp
     std::string filename = createFITSFilename(601, megsStructure.tai_time_seconds);
-    std::cout << "writeMegsAFITS 2 vcdu_count " << megsStructure.vcdu_count << " im00"<<" "<<megsStructure.image[0][0] <<" "<< megsStructure.image[1][0] << " "<<megsStructure.image[2][0] <<" "<<megsStructure.image[3][0] <<"\n";
+    //std::cout << "writeMegsAFITS 2 vcdu_count " << megsStructure.vcdu_count << " im00"<<" "<<megsStructure.image[0][0] <<" "<< megsStructure.image[1][0] << " "<<megsStructure.image[2][0] <<" "<<megsStructure.image[3][0] <<"\n";
 
     // Get the FITS file pointer
     fitsfile* fptr = nullptr;
@@ -136,30 +136,7 @@ bool FITSWriter::writeMegsAFITS( const MEGS_IMAGE_REC& megsStructure) {
         return false;
     }
 
-    // Define the dimensions
-    //const uint32_t width = MEGS_IMAGE_WIDTH;
-    //const uint32_t height = MEGS_IMAGE_HEIGHT;
-
-    // Create a transposed buffer
-    //std::vector<uint16_t> transposedData(width * height);
-
-    //for (uint32_t y = 0; y < height; ++y) {
-    //    for (uint32_t x = 0; x < width; ++x) {
-    //        transposedData.at(x * height + y) = megsStructure.image[y][x];
-    //    }
-    //}
-
     LONGLONG fpixel = 1;
-
-    // This method is transposed, need to transpose ths image
-    // const uint16_t (*image)[MEGS_IMAGE_HEIGHT] = megsStructure.image; // no transpose
-    // if (fits_write_img(fptr, TUSHORT, fpixel, MEGS_IMAGE_WIDTH * MEGS_IMAGE_HEIGHT, (void*)image, &status)) {
-    //     // Log the error
-    //     fits_report_error(stderr, status);
-    //     LogFileWriter::getInstance().logError("Failed to write image data to FITS file: " + filename);
-    //     fits_close_file(fptr, &status); // Ensure the file is closed even if writing fails
-    //     return false;
-    // }
 
     // Define the dimensions
     const uint32_t width = MEGS_IMAGE_WIDTH;
@@ -188,21 +165,27 @@ bool FITSWriter::writeMegsAFITS( const MEGS_IMAGE_REC& megsStructure) {
         fits_report_error(stderr, status);
         return false;
     }
-	fits_write_key(fptr, TUINT, "sod", (void *)&megsStructure.sod, "Seconds in day", &status);
+	fits_write_key(fptr, TUINT, "sod", (void *)&megsStructure.sod, "UTC Seconds of day of first packet", &status);
     if (status != 0) {
         fits_report_error(stderr, status);
         return false;
     }
-	fits_write_key(fptr, TUINT, "doy", (void *)&megsStructure.yyyydoy, "Year - Day of year", &status);
+	fits_write_key(fptr, TUINT, "ydoy", (void *)&megsStructure.yyyydoy, "7-digit UTC Year and Day of year", &status);
     if (status != 0) {
         fits_report_error(stderr, status);
         return false;
     }
-	fits_write_key(fptr, TUINT, "tai_time", (void *)&megsStructure.tai_time_seconds, "tai time", &status);
+	fits_write_key(fptr, TUINT, "tai_time", (void *)&megsStructure.tai_time_seconds, "tai seconds from first packet", &status);
     if (status != 0) {
         fits_report_error(stderr, status);
         return false;
     }
+    fits_write_key(fptr, TUINT, "rec_tai", (void *)&megsStructure.rec_tai_seconds , "computer receive time in tai seconds", &status);
+    if (status != 0) {
+        fits_report_error(stderr, status);
+        return false;
+    }
+
     //TODO: deal with filename
 	//char tlm_filename[128];
 	//char *lastslash = strrchr(filenames[0], '/'); // Search for the LAST '/' in the path	
@@ -227,7 +210,7 @@ bool FITSWriter::writeMegsAFITS( const MEGS_IMAGE_REC& megsStructure) {
     }
    
     // add code here for a binary table
-    //status = 0; // You must ALWAYS set the status value to zero before calling ANY fits routine
+    status = 0; // You must ALWAYS set the status value to zero before calling ANY fits routine
 
     //fits_create_tbl(fptr, BINARY_TBL, 0, columns, colnames, fields, unitnames, extname, &status);
 
