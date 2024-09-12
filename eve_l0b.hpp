@@ -428,8 +428,8 @@ struct MEGS_IMAGE_REC {
   uint32_t sod;
   uint32_t tai_time_seconds;
   uint32_t tai_time_subseconds;
-  uint32_t firstpkt_tai_time_seconds;
-  uint32_t firstpkt_tai_time_subseconds;
+  uint32_t rec_tai_seconds;
+  uint32_t rec_tai_subseconds;
   uint16_t vcdu_count;
   uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT];
 }; // __attribute__ ((packed));
