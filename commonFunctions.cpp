@@ -8,6 +8,7 @@ bool isValidFilename(const std::string& filename) {
     return !filename.empty();
 }
 
+
 // reads a packet and writes it to the recordfile
 void processPackets(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& recordWriter, bool skipRecord) {
     std::vector<uint8_t> packet;
@@ -139,6 +140,8 @@ void processMegsAPacket(std::vector<uint8_t> payload,
     uint16_t year, doy, hh, mm, ss;
     uint32_t sod;
     uint32_t tai_sec;
+    static std::string iso8601;
+
     static uint16_t processedPacketCounter=0;
     int8_t status=0;
     static bool testPattern;
@@ -146,7 +149,7 @@ void processMegsAPacket(std::vector<uint8_t> payload,
     static MEGS_IMAGE_REC oneMEGSStructure;
     int vcdu_offset_to_sec_hdr = 20; // 6 bytes from packet start to timestamp, 8 byte IMPDU hdr, 6 byte CVCDU hdr is 20
 
-    std::cout << "processMegsAPacket 1 " << oneMEGSStructure.vcdu_count << " im00"<<" "<<oneMEGSStructure.image[0][0] <<" "<< oneMEGSStructure.image[1][0] << " "<<oneMEGSStructure.image[2][0] <<" "<<oneMEGSStructure.image[3][0] <<"\n";
+    //std::cout << "processMegsAPacket 1 " << oneMEGSStructure.vcdu_count << " im00"<<" "<<oneMEGSStructure.image[0][0] <<" "<< oneMEGSStructure.image[1][0] << " "<<oneMEGSStructure.image[2][0] <<" "<<oneMEGSStructure.image[3][0] <<"\n";
 
 
     // payload starts at secondary header
@@ -212,10 +215,12 @@ void processMegsAPacket(std::vector<uint8_t> payload,
         oneMEGSStructure.rec_tai_seconds = currentTime.getTAISeconds();
         oneMEGSStructure.rec_tai_subseconds = currentTime.getTAISubseconds();
 
-        tai_to_ydhms(tai_sec, &year, &doy, &sod, &hh, &mm, &ss);
+        tai_to_ydhms(tai_sec, &year, &doy, &sod, &hh, &mm, &ss, iso8601);
         std::cout << "processMegsAPacket called tai_to_ydhms " << year << " "<< doy << "-" << hh << ":" << mm << ":" << ss <<" . "<< oneMEGSStructure.tai_time_subseconds/65535 <<"\n";
-        oneMEGSStructure.sod = sod;
-        oneMEGSStructure.yyyydoy = year*1000 + doy;
+        oneMEGSStructure.sod = (uint32_t) sod;
+        oneMEGSStructure.yyyydoy = (uint32_t) year*1000 + doy;
+        oneMEGSStructure.iso8601 = iso8601;
+        std::cout<<"writeMegsAFITS iso "<<iso8601<<std::endl;
 
         processedPacketCounter=1;
     }
@@ -299,6 +304,15 @@ void printBytesToStdOut(const uint8_t* array, uint32_t start, uint32_t end) {
         std::cout << std::setw(2) << static_cast<int>(array[i]) << " ";
     }
     std::cout << std::dec << std::endl; // Reset to decimal output
+}
+
+void printBytes(const void* ptr, size_t size) {
+    const uint8_t* bytePtr = reinterpret_cast<const uint8_t*>(ptr);
+    for (size_t i = 0; i < size; ++i) {
+        std::cout << std::hex << std::setw(2) << std::setfill('0')
+                  << static_cast<int>(bytePtr[i]) << " ";
+    }
+    std::cout << std::dec << std::endl;
 }
 
 // Function to print the first 'count' elements of a uint16_t array in hexadecimal
