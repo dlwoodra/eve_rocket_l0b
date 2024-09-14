@@ -20,6 +20,8 @@
 #include <wchar.h>
 #include <cstdint>
 
+#define MEGSP_INTEGRATIONS_PER_PACKET 4
+
 #define BAD_PIXEL 16384 			// 2^14	- Image fill value
 
 #define n_bytes_per_syncmarker 4		// The sync marker is 4 bytes
@@ -98,9 +100,6 @@ constexpr uint32_t MEGS_IMAGE_HEIGHT = 1024;
 
 // FITS Errors
 #define E_FITS_IO			401			// Error Reading/Writing Fits file
-
-// The time - Time of first packet in file
-//extern uint32_t starttime;
 
 //  Storage for file names on command line
 //char filenames[2][MAX_STRING_LENGTH];		
@@ -324,19 +323,24 @@ extern struct PHOTOMETER_PACKET photometer_data[512];	// In 2 minutes there are 
 
 struct MEGSP_PACKET
 {
-	uint8_t		ESP_xfer_cnt;
-	uint8_t		MP_mode;
-	bool		MP_V_ref;
-	bool		MP_valid;
-	uint16_t	MP_lya;
-	uint16_t	MP_dark;
-	uint16_t	resolver;
-	float  		mp_temperature;
-	uint32_t 	tai_time_seconds;  
-	uint32_t 	tai_time_subseconds;
-} __attribute__ ((packed));
+  //uint8_t		ESP_xfer_cnt;
+  //uint8_t		MP_mode;
+  //bool		MP_V_ref;
+  //bool		MP_valid;
+  uint32_t yyyydoy;
+  uint32_t sod;
+  uint32_t tai_time_seconds;
+  uint32_t tai_time_subseconds;
+  uint32_t rec_tai_seconds;
+  uint32_t rec_tai_subseconds;
+  uint16_t MP_lya[MEGSP_INTEGRATIONS_PER_PACKET];
+  uint16_t MP_dark[MEGSP_INTEGRATIONS_PER_PACKET];
+  //uint16_t	resolver;
+  //float  		mp_temperature;
+  std::string iso8601;
+}; // __attribute__ ((packed));
 
-extern struct MEGSP_PACKET megsp_data[512];
+extern struct MEGSP_PACKET megsp_data;
 
 // struct DARK_STRUCT
 // {
