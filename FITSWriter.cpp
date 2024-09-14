@@ -5,9 +5,7 @@
 FITSWriter::FITSWriter() {}
 
 // Destructor
-FITSWriter::~FITSWriter() {
-    closeAllFITSFiles();
-}
+FITSWriter::~FITSWriter() {}
 
 // Function to create a FITS filename based on APID and timestamp
 std::string FITSWriter::createFITSFilename(uint16_t apid, double tai_seconds) {
@@ -424,27 +422,17 @@ bool FITSWriter::writeMegsFITS(const MEGS_IMAGE_REC& megsStructure, uint16_t api
 
 // MEGS-A wrapper function to the common writeMegsFITS
 bool FITSWriter::writeMegsAFITS( const MEGS_IMAGE_REC& megsStructure) {
-    return writeMegsFITS(megsStructure, 601, "MEGSA_TABLE");
+    return writeMegsFITS(megsStructure, MEGSA_APID, "MEGSA_TABLE");
 }
 
 // MEGS-B wrapper function to the common writeMegsFITS
 bool FITSWriter::writeMegsBFITS( const MEGS_IMAGE_REC& megsStructure) {
-    return writeMegsFITS(megsStructure, 602, "MEGSB_TABLE");
+    return writeMegsFITS(megsStructure, MEGSB_APID, "MEGSB_TABLE");
 }
 
-
-// Function to close all open FITS files
-void FITSWriter::closeAllFITSFiles() {
-    for (auto& kv : fitsFileMap) {
-        if (kv.second) {
-            int status = 0;
-            fits_close_file(kv.second.get(), &status);
-            if (status) {
-                fits_report_error(stderr, status);
-            }
-        }
-    }
-    fitsFileMap.clear();
+// MEGS-P 
+bool FITSWriter::writeMegsPFITS( const MEGSP_PACKET& megsPStructure) {
+    return 0;
+    //return writeMegsFITS(megsPStructure, MEGSP_APID, "MEGSP_TABLE");
 }
-
 
