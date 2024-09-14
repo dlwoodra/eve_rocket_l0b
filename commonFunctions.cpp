@@ -283,7 +283,108 @@ void processMegsAPacket(std::vector<uint8_t> payload,
 
 void processMegsBPacket(std::vector<uint8_t> payload, 
     uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp) {
+
+    LogFileWriter::getInstance().logInfo("processMegsBPacket");
+
+    // insert pixels into image
+
+    uint16_t year, doy, hh, mm, ss;
+    uint32_t sod;
+    uint32_t tai_sec;
+    static std::string iso8601;
+
+    static uint16_t processedPacketCounter=0;
+    int8_t status=0;
+    static bool testPattern;
+    static int32_t previousSrcSeqCount = -1;
+    static MEGS_IMAGE_REC oneMEGSStructure;
+    int vcdu_offset_to_sec_hdr = 20; // 6 bytes from packet start to timestamp, 8 byte IMPDU hdr, 6 byte CVCDU hdr is 20
+
+    // payload starts at secondary header
+    // 6-byte VCDU header, 8-byte IMPDU header, 6-byte primary packet header
+    // data to copy starts at secondary header, includes 8-byte timestamp, 2 byte mode, then 2-byte pixel pairs (1752 bytes except for last packet)
+
+    uint8_t vcdu[STANDARD_MEGSAB_PACKET_LENGTH + vcdu_offset_to_sec_hdr] = {0};
+
+    // vcdu has 14 bytes before the packet start (vcdu=6, impdu=8)
+    // pkthdr=6 bytes before the payload starts at the 2nd hdr timestamp
+    // copy from payload into vcdu starting at byte 20 from the start of sync, 16 from start of VCDU
+    std::copy(payload.begin(), payload.end(), vcdu + vcdu_offset_to_sec_hdr);
+
+    if ((previousSrcSeqCount == -1) || (sourceSequenceCounter == 0) || 
+        (sourceSequenceCounter <= previousSrcSeqCount)) {
+        // packet is from a new image
+        std::string logMsg = "MB starting new image first SrcSeqCounter: " + std::to_string(sourceSequenceCounter);
+        LogFileWriter::getInstance().logInfo(logMsg);
+        std::cout << "Info: " << logMsg << std::endl;
+
+        //reset oneMEGSStructure
+        oneMEGSStructure = MEGS_IMAGE_REC{0}; // c++11 
+
+        testPattern = false; // default is not a test pattern
+        if ((vcdu[34] == 0) && (vcdu[35] == 2) && (vcdu[36] == 0) && (vcdu[37] == 1)) {
+            testPattern = true; // use vcdu[34]==0 vcdu[35]=2 vcdu[36]=0 vcdu[37]=1 to identify TP (first 2 pixesl are bad so skip 30-33)
+            std::cout << "processMegsBPacket identified a test pattern" <<std::endl;
+        }
+
+        // only assign the time from the first packet, the rest keep changing
+        tai_sec = payloadToTAITimeSeconds(payload);
+        oneMEGSStructure.tai_time_seconds = tai_sec;
+        oneMEGSStructure.tai_time_subseconds = payloadToTAITimeSubseconds(payload);
+
+        // assign current tai time to firstpkt_tai_time_seconds and subseconds
+        TimeInfo currentTime;
+        currentTime.updateNow();
+        oneMEGSStructure.rec_tai_seconds = currentTime.getTAISeconds();
+        oneMEGSStructure.rec_tai_subseconds = currentTime.getTAISubseconds();
+
+        tai_to_ydhms(tai_sec, &year, &doy, &sod, &hh, &mm, &ss, iso8601);
+        std::cout << "processMegsBPacket called tai_to_ydhms " << year << " "<< doy << "-" << hh << ":" << mm << ":" << ss <<" . "<< oneMEGSStructure.tai_time_subseconds/65535 <<"\n";
+        oneMEGSStructure.sod = (uint32_t) sod;
+        oneMEGSStructure.yyyydoy = (uint32_t) year*1000 + doy;
+        oneMEGSStructure.iso8601 = iso8601;
+        std::cout<<"writeMegsBFITS iso "<<iso8601<<std::endl;
+
+        processedPacketCounter=1;
+    }
+    previousSrcSeqCount = sourceSequenceCounter;
+
+    // begin assigning data into oneMEGSStructure
+
+    // assing pixel values from the packet into the proper locations in the image
+    int parityErrors = assemble_image(vcdu, &oneMEGSStructure, sourceSequenceCounter, testPattern, &status);
+
+    if ( parityErrors > 0 ) {
+        LogFileWriter::getInstance().logError("MB parity errors: "+ std::to_string(parityErrors));
+        std::cout << "processMegsBPacket - assemble_image returned parity errors: " << parityErrors << " ssc:"<<sourceSequenceCounter<<"\n";
+    }
+
+    if ( sourceSequenceCounter == 2394) {
+        std::cout<<"end of MEGS-B at 2394"<<"\n";
+        LogFileWriter::getInstance().logInfo("end of MEGS-B image ssc=2394");
+
+        // may need to run this in another thread
+
+        // Write packet data to a FITS file if applicable
+        std::unique_ptr<FITSWriter> fitsFileWriter;
+        fitsFileWriter = std::unique_ptr<FITSWriter>(new FITSWriter());
+        // the c++14 way fitsFileWriter = std::make_unique<FITSWriter>();
+        std::cout << "processMegsBPacket number of packets: " << processedPacketCounter << std::endl;
+        if (fitsFileWriter) {
+            std::cout << "procesMegsBPacket: tai_time_seconds = " << oneMEGSStructure.tai_time_seconds << std::endl;
+
+            if (!fitsFileWriter->writeMegsBFITS( oneMEGSStructure )) {
+                LogFileWriter::getInstance().logInfo("writeMegsBFITS write error");
+                std::cout << "ERROR: writeMegsBFITS returned an error" << std::endl;
+            }
+            // reset the structure immediately after writing
+            oneMEGSStructure = MEGS_IMAGE_REC{0}; // c++11 
+        }
+    }
+    processedPacketCounter++; // count packets processed
+
 }
+
 void processMegsPPacket(std::vector<uint8_t> payload, 
     uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp) {
 }
