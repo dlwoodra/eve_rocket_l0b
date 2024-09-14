@@ -95,6 +95,14 @@ bool FITSWriter::initializeFITSImageFile(const std::string& filename, fitsfile*&
 //    return writeDataToFITS(fptr, packet);
 //}
 
+// Error handling function
+void checkFitsStatus(int status) {
+    if (status) {
+        fits_report_error(stderr, status);
+        exit(status);
+    }
+}
+
 // Function to write data to a FITS file
 bool FITSWriter::writeDataToFITS(fitsfile* fptr, const std::vector<uint8_t>& data) {
     int status = 0;
@@ -110,6 +118,210 @@ bool FITSWriter::writeDataToFITS(fitsfile* fptr, const std::vector<uint8_t>& dat
     return true;
 }
 
+// Helper function to convert vector of strings to array of char pointers
+std::vector<char*> convertToCharPtrArray(const std::vector<std::string>& vec) {
+    std::vector<char*> charArray(vec.size());
+    for (size_t i = 0; i < vec.size(); ++i) {
+        charArray[i] = const_cast<char*>(vec[i].c_str());
+    }
+    return charArray;
+}
+
+// Helper function to convert a single string to array of char pointers
+std::vector<char*> convertTypesToCharPtrArray(const std::string& types) {
+    std::vector<char*> typeArray(types.size());
+    for (size_t i = 0; i < types.size(); ++i) {
+        typeArray[i] = new char[2];  // Allocate space for single char + null terminator
+        typeArray[i][0] = types[i];
+        typeArray[i][1] = '\0';  // Null terminator
+    }
+    return typeArray;
+}
+
+std::vector<char*> convertTypesToTFormPtrArray(const std::string& types) {
+    std::vector<char*> tFormArray(types.size());
+    for (size_t i = 0; i < types.size(); ++i) {
+        tFormArray[i] = new char[4];  // Allocate space for 3 chars + null terminator
+        if (types[i] != 'A') {
+            tFormArray[i][0] = '1';
+            tFormArray[i][1] = types[i];
+            tFormArray[i][2] = '\0';
+        } else {
+            tFormArray[i][0] = '1';
+            tFormArray[i][0] = '6';
+            tFormArray[i][2] = 'A';
+            tFormArray[i][3] = '\0';
+        }
+    }
+    return tFormArray;
+}
+
+// Convert std::vector<std::string> to char**
+char** vectorToCharArray(const std::vector<std::string>& vec) {
+    char** arr = new char*[vec.size()];
+    for (size_t i = 0; i < vec.size(); ++i) {
+        arr[i] = new char[vec[i].size() + 1];
+        std::strcpy(arr[i], vec[i].c_str());
+    }
+    return arr;
+}
+
+// Free memory allocated for char**
+void freeCharArray(char** arr, size_t size) {
+    for (size_t i = 0; i < size; ++i) {
+        delete[] arr[i];
+    }
+    delete[] arr;
+}
+
+// Function to write a binary table to a FITS file
+int writeBinaryTable(const std::string& filename, const void* data, int columns,
+                     const std::vector<std::string>& names, 
+                    std::string& types,
+                     const std::vector<std::string>& units, 
+                     bool useUnits, const std::string& extname) {
+    int status = 0;  // CFITSIO status value
+    fitsfile* fptr = nullptr;  // Pointer to the FITS file
+
+    std::cout << "writeBinaryTable data 1"<<std::endl;
+    //printBytes(data, 26 ); //shows 26 bytes - same as writeMegsAFITS
+
+    // Lock file mechanism
+    std::string lockfile = filename + ".lock";
+    if (access(lockfile.c_str(), F_OK) == 0) {
+        sleep(0.01);
+        if (access(lockfile.c_str(), F_OK) == 0) {
+            return -1;  // File is locked
+        }
+    } else {
+        FILE* flock = fopen(lockfile.c_str(), "w");
+        if (flock) {
+            fprintf(flock, "File locked by L0B\n");
+            fclose(flock);
+        }
+    }
+
+    // Convert column names and units to char* arrays
+    std::vector<char*> colnames = convertToCharPtrArray(names);
+    std::vector<char*> unitnames;
+    if (useUnits) {
+        unitnames = convertToCharPtrArray(units);
+    }
+
+    // Convert types to char* array
+    std::vector<char*> typeArray = convertTypesToCharPtrArray(types); // "U,V, etc"
+    std::vector<char*> tFormArray = convertTypesToTFormPtrArray(types); // "1U,1V, etc"
+
+    std::cout<<"writeBinaryTable sizeof(tFormArray) " <<sizeof(tFormArray.data())<< std::endl;
+    printBytes(tFormArray.data(), sizeof(tFormArray.data()));
+
+    // Open or create FITS file
+    if (fits_open_file(&fptr, filename.c_str(), READWRITE, &status)) {
+        if (fits_create_file(&fptr, filename.c_str(), &status)) {
+            checkFitsStatus(status);
+        } else {
+            // Create binary table HDU if file already exists
+            if (useUnits) {
+                // args         file, BINTABL,nrows, tfields,           ttype,            tform,            tunit,         extname, &status
+                //fits_create_tbl(fptr, BINARY_TBL, 0, columns, colnames.data(), typeArray.data(), unitnames.data(), extname.c_str(), &status);
+                fits_create_tbl(fptr, BINARY_TBL, 0, columns, colnames.data(), tFormArray.data(), unitnames.data(), extname.c_str(), &status);
+            } else {
+                fits_create_tbl(fptr, BINARY_TBL, 0, columns, colnames.data(), tFormArray.data(), nullptr, extname.c_str(), &status);
+            }
+            checkFitsStatus(status);
+        }
+    } else {
+        // Move to the existing binary table HDU
+        char* extname_cstr = const_cast<char*>(extname.c_str());
+        fits_movnam_hdu(fptr, BINARY_TBL, extname_cstr, 0, &status);
+        if (status) {
+            status = 0;
+            if (useUnits) {
+                fits_create_tbl(fptr, BINARY_TBL, 0, columns, colnames.data(), tFormArray.data(), unitnames.data(), extname.c_str(), &status);
+            } else {
+                fits_create_tbl(fptr, BINARY_TBL, 0, columns, colnames.data(), tFormArray.data(), nullptr, extname.c_str(), &status);
+            }
+            checkFitsStatus(status);
+        }
+    }
+
+    // Write data to the table
+    long firstrow = 1;
+    long firstelem = 1;
+    const char* pdata = static_cast<const char*>(data);
+
+    std::vector<int> typeCode = {TBYTE, TSBYTE, TSHORT, TUSHORT, TUINT, TULONG, TINT, TUINT, TBIT, TFLOAT, TDOUBLE};
+
+    for (int i = 0; i < columns; ++i) {
+
+        int colType = 0;
+        int colTypeSize = 1; //bytes
+        if (types[i] == 'B') {
+            colType = TBYTE;        // unsigned byte
+            colTypeSize = 1;
+        } else if (types[i] == 'S') {
+            colType = TSBYTE;  // signed byte
+            colTypeSize = 1;
+        } else if (types[i] == 'X') {
+            colType = TBIT;
+            colTypeSize = 1;
+        } else if (types[i] == 'L') {
+            colType = TLOGICAL;
+            colTypeSize = 1;
+        } else if (types[i] == 'A') {
+            colType = TSTRING; // chars
+            colTypeSize = 16;
+        } else if (types[i] == 'I') {
+            colType = TSHORT;  // int16
+            colTypeSize = 2;
+        } else if (types[i] == 'J') {
+            colType = TINT;    // int32
+            colTypeSize = 4;
+        } else if (types[i] == 'K') {
+            colType = TLONG;   // int64
+            colTypeSize = 8;
+        } else if (types[i] == 'E') {
+            colType = TFLOAT;  // 32-bit float
+            colTypeSize = 4;
+        } else if (types[i] == 'D') {
+            colType = TDOUBLE; // 64-bit complex
+            colTypeSize = 8;
+        } else if (types[i] == 'U') {
+            colType = TUSHORT; // uint16
+            colTypeSize = 2;
+        } else if (types[i] == 'V') {
+            colType = TUINT;  // uint32 (TULONG if 64-bit)
+            //types[i] = 'U';
+            colTypeSize = 4;
+        } else {
+            std::cerr << "Unknown type code: " << types[i] << std::endl;
+            return -1;
+        }
+
+        std::cout << "coltype: " << colType << " " << std::hex << *pdata << std::dec<<std::endl;
+
+        //int colType = typeCode[i];  // Map typeCode to CFITSIO type code
+        fits_write_col(fptr, colType, i + 1, firstrow, firstelem, 1, (void*)pdata, &status);
+        checkFitsStatus(status);
+
+        //pdata += sizeof(uint8_t);  // Adjust based on the type of data
+        pdata += colTypeSize;
+    }
+
+    // Close the FITS file
+    fits_close_file(fptr, &status);
+    checkFitsStatus(status);
+
+    // Remove lock file
+    remove(lockfile.c_str());
+
+    // Free allocated memory
+    //freeCharArray(colnames, colnames.size());
+    //freeCharArray(typeArray, typeArray.size());
+
+    return 0;
+}
+
 // write the megs rec to the FITS file
 bool FITSWriter::writeMegsAFITS( const MEGS_IMAGE_REC& megsStructure) {
 
@@ -118,13 +330,10 @@ bool FITSWriter::writeMegsAFITS( const MEGS_IMAGE_REC& megsStructure) {
     std::cout<< "writing MEGS-A FITS file" <<std::endl;
     LogFileWriter::getInstance().logInfo("writing MEGSA FITS file");
 
-    //std::cout << "writeMegsAFITS 1 vcdu_count " << megsStructure.vcdu_count << " im00"<<" "<<megsStructure.image[0][0] <<" "<< megsStructure.image[1][0] << " "<<megsStructure.image[2][0] <<" "<<megsStructure.image[3][0] <<"\n";
-
     int32_t status = 0;
 
     // Create a filename based on APID (assuming 601 for MEGS-A) and the timestamp
     std::string filename = createFITSFilename(601, megsStructure.tai_time_seconds);
-    //std::cout << "writeMegsAFITS 2 vcdu_count " << megsStructure.vcdu_count << " im00"<<" "<<megsStructure.image[0][0] <<" "<< megsStructure.image[1][0] << " "<<megsStructure.image[2][0] <<" "<<megsStructure.image[3][0] <<"\n";
 
     // Get the FITS file pointer
     fitsfile* fptr = nullptr;
@@ -161,44 +370,31 @@ bool FITSWriter::writeMegsAFITS( const MEGS_IMAGE_REC& megsStructure) {
 
 	//  Fill a header with important information
 	fits_write_key_str(fptr, "EXTNAME", "MEGS_IMAGE", "Extension Name", &status);
-    if (status != 0) {
-        fits_report_error(stderr, status);
-        return false;
-    }
+    checkFitsStatus(status);
+
 	fits_write_key(fptr, TUINT, "sod", (void *)&megsStructure.sod, "UTC Seconds of day of first packet", &status);
-    if (status != 0) {
-        fits_report_error(stderr, status);
-        return false;
-    }
+    checkFitsStatus(status);
+
 	fits_write_key(fptr, TUINT, "ydoy", (void *)&megsStructure.yyyydoy, "7-digit UTC Year and Day of year", &status);
-    if (status != 0) {
-        fits_report_error(stderr, status);
-        return false;
-    }
+    checkFitsStatus(status);
+
 	fits_write_key(fptr, TUINT, "tai_time", (void *)&megsStructure.tai_time_seconds, "tai seconds from first packet", &status);
-    if (status != 0) {
-        fits_report_error(stderr, status);
-        return false;
-    }
+    checkFitsStatus(status);
+
     fits_write_key(fptr, TUINT, "rec_tai", (void *)&megsStructure.rec_tai_seconds , "computer receive time in tai seconds", &status);
-    if (status != 0) {
-        fits_report_error(stderr, status);
-        return false;
-    }
+    checkFitsStatus(status);
 
-    //TODO: deal with filename
-	//char tlm_filename[128];
-	//char *lastslash = strrchr(filenames[0], '/'); // Search for the LAST '/' in the path	
-	//lastslash ++; // Increment the pointer to '/' by one which is the first char in the file name
-	//strncpy(tlm_filename, lastslash, 47); //  44 is tlm file name length including the . but no extension
-    //	tlm_filename[47] = '\0';
+    //std::cout<<"writeMegsAFITS iso8601 "<<megsStructure.iso8601<<std::endl;
+	fits_write_key(fptr, TSTRING, "DATE-BEG", const_cast<char*>((megsStructure.iso8601).c_str()), "UTC from first packet", &status);
+    checkFitsStatus(status);
 
-	//fits_write_history(fptr, tlm_filename, &status);
-    //if (status != 0) {
-    //    fits_report_error(stderr, status);
-    //    return false;
-    //}
+    float solarnet=0.5;
+	fits_write_key(fptr, TFLOAT, "SOLARNET", (void *)&solarnet, "Partially SOLARNET compliant", &status);
+    checkFitsStatus(status);
 
+    int obs_hdu=1;
+	fits_write_key(fptr, TUINT, "OBS_HDU", (void *)&obs_hdu, "Partially SOLARNET compliant", &status);
+    checkFitsStatus(status);
 
      // Write the transposed data to the FITS file
     status = 0;
@@ -209,18 +405,81 @@ bool FITSWriter::writeMegsAFITS( const MEGS_IMAGE_REC& megsStructure) {
         return false;
     }
    
-    // add code here for a binary table
     status = 0; // You must ALWAYS set the status value to zero before calling ANY fits routine
 
+    // Close ths FITS file
+    fits_close_file(fptr, &status);
+    checkFitsStatus(status);
+
+    // add code here for a binary table
+
+    // old way
     //fits_create_tbl(fptr, BINARY_TBL, 0, columns, colnames, fields, unitnames, extname, &status);
 
+    // Define column names
+    std::vector<std::string> columnNames = {
+        "YYYYDOY", "SOD", "TAI_TIME_SECONDS", "TAI_TIME_SUBSECONDS",
+        "REC_TAI_SECONDS", "REC_TAI_SUBSECONDS", "VCDU_COUNT"
+    };
 
-    // Close ths FITS file
-    if (fits_close_file(fptr, &status)){
-        fits_report_error(stderr, status);
-        return false;
+    // Define column types (corresponding to FITS types)
+    std::vector<std::string> columnTypes = {
+        "V", "V", "V", "V", 
+        "V", "V", "U"
+    };
+    // Convert column types to a single joined string
+    std::string typesString = "";
+    for (const auto& type : columnTypes) {
+        typesString += type;
     }
 
+    // Units in this case
+    std::vector<std::string> columnUnits {
+        "DATE", "s", "s", "s", 
+        "s", "s", "count"
+    };
+
+    // Define extension name
+    std::string extname = "MEGSA_TABLE";
+
+    //copy data
+    struct DataRow {
+        uint32_t yyyydoy;
+        uint32_t sod;
+        uint32_t tai_time_seconds;
+        uint32_t tai_time_subseconds;
+        uint32_t rec_tai_seconds;
+        uint32_t rec_tai_subseconds;
+        uint16_t vcdu_count;
+    } __attribute__((packed));
+
+    // Allocate memory for one row of data
+    std::vector<uint8_t> data(sizeof(DataRow));
+    DataRow row = { megsStructure.yyyydoy, 
+        megsStructure.sod, 
+        megsStructure.tai_time_seconds, 
+        megsStructure.tai_time_subseconds,
+        megsStructure.rec_tai_seconds, 
+        megsStructure.rec_tai_subseconds, 
+        megsStructure.vcdu_count
+        };
+    // Copy the data into the vector
+    memcpy(data.data(), &row, sizeof(DataRow)); // without packing sizeof(DataRow) is 2 bytes larger due to padding
+    std::cout<<"writeMegsAFITS 4: sizeof(DataRow) "<< sizeof(DataRow)<<" sizeof(data.data()) "<< sizeof(data.data()) <<std::endl;    
+    printBytesToStdOut(data.data(),0,sizeof(DataRow)-1);
+    printBytes(&row, sizeof(row)); //shows 26 bytes
+
+    int result = writeBinaryTable(
+        filename,           // FITS file name
+        data.data(),        // Pointer to loaded data
+        columnNames.size(), // Number of columns (7)
+        columnNames,        // Column names
+        typesString,        // Column FITS types
+        columnUnits,        // Column Units
+        true,               // Use Units
+        extname.c_str()     // Extension name
+        );
+    std::cout << "writeBinaryTable result: " << result << std::endl;
     std::cout << "FITSWriter::MegsAFITS successfully wrote "<<filename << std::endl;
     LogFileWriter::getInstance().logInfo("FITSWriter::MegsAFITS successfully wrote " + filename);
 
