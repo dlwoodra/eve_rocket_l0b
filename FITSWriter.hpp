@@ -33,9 +33,11 @@ public:
     ~FITSWriter();
 
     // Write the packet data to the appropriate FITS file based on APID and timestamp
-    bool writePacketToFITS(const std::vector<uint8_t>& packet, uint16_t apid, double timestamp);
+    //bool writePacketToFITS(const std::vector<uint8_t>& packet, uint16_t apid, double timestamp);
 
+    bool writeMegsFITS(const MEGS_IMAGE_REC& megsStructure, uint16_t apid, const std::string& extname);
     bool writeMegsAFITS(const MEGS_IMAGE_REC& megsStructure);
+    bool writeMegsBFITS(const MEGS_IMAGE_REC& megsStructure);
 
 private:
     // Helper function to create a FITS filename based on APID and timestamp
@@ -48,9 +50,6 @@ private:
     // Helper function to write data to a FITS file
     bool writeDataToFITS(fitsfile* fptr, const std::vector<uint8_t>& data);
 
-    // Map to store FITS file pointers for each APID
-    //std::unordered_map<uint16_t, std::unique_ptr<fitsfile, decltype(&fits_close_file)>> fitsFileMap;
-    
     // Map to store FITS file pointers for each APID
     std::unordered_map<std::string, std::unique_ptr<fitsfile, FITSFileDeleter>> fitsFileMap;
 
