@@ -49,8 +49,6 @@ int32_t assemble_image( uint8_t * vcdu, MEGS_IMAGE_REC * ptr, uint16_t sourceSeq
 {
   int parityerrors = 0;
 
-  //constexpr uint8_t topmode = 0, bottommode = 1;
-
   uint16_t expectedparity=0;
   uint16_t pixelparity=0;
   uint32_t src_seq = sourceSequenceCounter;
@@ -63,13 +61,6 @@ int32_t assemble_image( uint8_t * vcdu, MEGS_IMAGE_REC * ptr, uint16_t sourceSeq
   int32_t xpos, ypos, kk;
   uint32_t not_testpattern;
   uint32_t not_tp2043;
-
-  //src_seq_times_pixels_per_half_vcdu = src_seq*PIXELS_PER_HALF_VCDU;
-
-  // if megs_image_rec has vcdu_count=0, then assign all header info
-  // if (ptr->vcdu_count == 0)
-  //   {
-  //   }
 
   not_testpattern = static_cast<uint32_t>(!testPattern);
   not_tp2043 = not_testpattern * 2044; /* 2047 - 4 compensates for virtual column insertion */
@@ -99,11 +90,6 @@ int32_t assemble_image( uint8_t * vcdu, MEGS_IMAGE_REC * ptr, uint16_t sourceSeq
     // rocket fpga messes up the first 2 pixels, then its OK
     // ff ff aa aa 00 02 00 01 00 04 00 02 00 06 00 03
     pix_val14 = pixval16 & 0x3FFF; // 14 bits of data
-
-    // debugging
-    // if ((sourceSequenceCounter == 0) && (j < 60))  {
-    //   std::cout << "assemble_image pixval16: 0x" << std::hex << std::setw(4) << std::setfill('0') << pixval16 << std::dec <<std::endl;
-    // } // These values are correct values for the 16-bit pixels
 
     // Only do twos comp for ccd data (not test patterns)
     if( not_testpattern )
@@ -165,20 +151,8 @@ int32_t assemble_image( uint8_t * vcdu, MEGS_IMAGE_REC * ptr, uint16_t sourceSeq
     // Insert the pixel value into the image in memory            
     ptr->image[xpos][ypos] = (uint16_t) pix_val14;
 
-    // if (src_seq == 0) {
-    //   std::cout << "x,y: " << xpos << "," << ypos << " im: " << ptr->image[xpos][ypos] <<std::endl;
-    //   // confirms that data are being loaded into the correct locations
-    //   if (j == 48) {
-    //     // shows ffff, aaaa, 0002, 0001 , 0004, 0002, so the pattern looks correct
-    //     std::cout << "assemble_image - first 10 pixels in row 0"<<std::endl;
-    //     printUint16ToStdOut(ptr->image[0], MEGS_IMAGE_WIDTH, 10);
-    //   }
-    // }    
-
   } //endfor
          
-  //std::cout << "assemble_image : " << ptr->image[0][0] <<" "<< ptr->image[1][0] <<" "<< ptr->image[2][0] <<" "<< ptr->image[3][0]<<std::endl;
-
   // increment vcdu counter for assembling the image
   ptr->vcdu_count++;
   *status = NOERROR;
