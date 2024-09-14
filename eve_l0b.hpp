@@ -431,6 +431,7 @@ struct MEGS_IMAGE_REC {
   uint32_t rec_tai_seconds;
   uint32_t rec_tai_subseconds;
   uint16_t vcdu_count;
+  std::string iso8601;
   uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT];
 }; // __attribute__ ((packed));
 
@@ -463,7 +464,7 @@ uint16_t max( uint16_t, uint16_t, uint16_t, uint16_t);
 
 void checkstring( char * teststring );
 extern int tai_to_ydhms(uint32_t tai_in, uint16_t *year, uint16_t *doy, 
-      uint32_t *sod, uint16_t *hh, uint16_t *mm, uint16_t *ss);
+      uint32_t *sod, uint16_t *hh, uint16_t *mm, uint16_t *ss, std::string& iso8601);
 
 // Math and pointer helper procedures
 //void realfft(float data [ ], unsigned long n, int isign);
