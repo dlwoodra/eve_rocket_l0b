@@ -38,6 +38,8 @@ public:
     bool writeMegsFITS(const MEGS_IMAGE_REC& megsStructure, uint16_t apid, const std::string& extname);
     bool writeMegsAFITS(const MEGS_IMAGE_REC& megsStructure);
     bool writeMegsBFITS(const MEGS_IMAGE_REC& megsStructure);
+    
+    bool writeMegsPFITS(const MEGSP_PACKET& megsPStructure);
 
 private:
     // Helper function to create a FITS filename based on APID and timestamp
