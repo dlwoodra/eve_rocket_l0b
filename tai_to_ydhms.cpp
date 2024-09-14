@@ -5,6 +5,35 @@ constexpr uint32_t startdoy = 1;
 constexpr uint32_t j2000_tai = 1325376000;
 constexpr uint32_t relative_tai = j2000_tai + (86400 * (365 * 5 + 2));
 
+// Function to convert the given time components to an ISO 8601 string
+std::string toISO8601(int year, int dayOfYear, int hour, int minute, int second) {
+    // Create a tm struct to hold the date
+    std::tm tm = {};
+    tm.tm_year = year - 1900;  // Year since 1900
+    tm.tm_mday = dayOfYear;    // Temporary, will be adjusted below
+    tm.tm_hour = hour;
+    tm.tm_min = minute;
+    tm.tm_sec = second;
+
+    // Set the month and day correctly based on day of the year
+    std::mktime(&tm); // Normalize the date/time
+
+    // Create an ostringstream to build the ISO 8601 string
+    std::ostringstream oss;
+    
+    // Add the year, month, and day in ISO 8601 format
+    oss << std::setfill('0') << std::setw(4) << year << "-";
+    oss << std::setfill('0') << std::setw(2) << tm.tm_mon + 1 << "-"; // tm_mon is 0-based, so add 1
+    oss << std::setfill('0') << std::setw(2) << tm.tm_mday << "T";
+    
+    // Add the time part (hour, minute, second)
+    oss << std::setfill('0') << std::setw(2) << tm.tm_hour << ":";
+    oss << std::setfill('0') << std::setw(2) << tm.tm_min << ":";
+    oss << std::setfill('0') << std::setw(2) << tm.tm_sec;
+    
+    return oss.str();
+}
+
 inline int get_leap_seconds(uint32_t tai_local, uint32_t* leap_sec_local) {
     // Function to get leap seconds
     // should read tai-utc.dat, refer to         
@@ -12,7 +41,7 @@ inline int get_leap_seconds(uint32_t tai_local, uint32_t* leap_sec_local) {
     return 0;
 }
 
-int tai_to_ydhms(uint32_t tai_in, uint16_t* year, uint16_t* doy, uint32_t* sod, uint16_t* hh, uint16_t* mm, uint16_t* ss) {
+int tai_to_ydhms(uint32_t tai_in, uint16_t* year, uint16_t* doy, uint32_t* sod, uint16_t* hh, uint16_t* mm, uint16_t* ss, std::string& iso8601) {
     uint32_t jepoch_tai = j2000_tai;
     uint16_t npyear = 2000;
     uint32_t leap_sec = 32; //for year 2000
@@ -55,6 +84,9 @@ int tai_to_ydhms(uint32_t tai_in, uint16_t* year, uint16_t* doy, uint32_t* sod, 
     *ss = (uint16_t) ((*sod) % 60);
     *mm = (uint16_t) (((*sod)/60) % 60);
     *hh = (uint16_t) ((*sod)/3600);
+
+    iso8601 = toISO8601(npyear, dayofyear, *hh, *mm, *ss);
+    std::cout<<"tai_to_ydhms - iso "<<iso8601<<std::endl;
 
     return 0;
 }
