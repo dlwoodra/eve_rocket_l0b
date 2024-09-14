@@ -177,7 +177,7 @@ void freeCharArray(char** arr, size_t size) {
 // Function to write a binary table to a FITS file
 int writeBinaryTable(const std::string& filename, const void* data, int columns,
                      const std::vector<std::string>& names, 
-                    std::string& types,
+                    const std::string& types,
                      const std::vector<std::string>& units, 
                      bool useUnits, const std::string& extname) {
     int status = 0;  // CFITSIO status value
@@ -223,7 +223,6 @@ int writeBinaryTable(const std::string& filename, const void* data, int columns,
             // Create binary table HDU if file already exists
             if (useUnits) {
                 // args         file, BINTABL,nrows, tfields,           ttype,            tform,            tunit,         extname, &status
-                //fits_create_tbl(fptr, BINARY_TBL, 0, columns, colnames.data(), typeArray.data(), unitnames.data(), extname.c_str(), &status);
                 fits_create_tbl(fptr, BINARY_TBL, 0, columns, colnames.data(), tFormArray.data(), unitnames.data(), extname.c_str(), &status);
             } else {
                 fits_create_tbl(fptr, BINARY_TBL, 0, columns, colnames.data(), tFormArray.data(), nullptr, extname.c_str(), &status);
@@ -322,125 +321,68 @@ int writeBinaryTable(const std::string& filename, const void* data, int columns,
     return 0;
 }
 
-// write the megs rec to the FITS file
-bool FITSWriter::writeMegsAFITS( const MEGS_IMAGE_REC& megsStructure) {
-
-    //std::cout << "writeMegsAFITS: tai_time_seconds = " << megsStructure.tai_time_seconds << std::endl;
-
-    std::cout<< "writing MEGS-A FITS file" <<std::endl;
-    LogFileWriter::getInstance().logInfo("writing MEGSA FITS file");
-
-    int32_t status = 0;
-
-    // Create a filename based on APID (assuming 601 for MEGS-A) and the timestamp
-    std::string filename = createFITSFilename(601, megsStructure.tai_time_seconds);
-
-    // Get the FITS file pointer
-    fitsfile* fptr = nullptr;
-
-    // Initialize the FITS file
-    if (!initializeFITSImageFile(filename, fptr)) {
-        std::cerr << "ERROR: Failed to initialize FITS file: " << filename << std::endl;
-        LogFileWriter::getInstance().logError("FitsWriter::writeMegsAFITS: Failed to initialize FITS file: " + filename);
-        return false;
-    }
-
-    LONGLONG fpixel = 1;
-
-    // Define the dimensions
+std::vector<uint16_t> transposeImage(const uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT]) {
     const uint32_t width = MEGS_IMAGE_WIDTH;
     const uint32_t height = MEGS_IMAGE_HEIGHT;
-
-    std::cout<<"writeMegsAFITS orig image"<<std::endl;
-    printUint16ToStdOut(megsStructure.image[0], MEGS_IMAGE_WIDTH, 10);
-    std::cout << "writeMegsAFITS 3 vcdu_count " << megsStructure.vcdu_count << " im00"<<" "<<megsStructure.image[0][0] <<" "<< megsStructure.image[1][0] << " "<<megsStructure.image[2][0] <<" "<<megsStructure.image[3][0] <<"\n";
-
-    // Create a 1d buffer to hold the transposed data
     std::vector<uint16_t> transposedData(width * height);
 
-    // Transpose the data using parallel processing, enable this pragma
     #pragma omp parallel for
-    // Transpose the data
     for (uint32_t y = 0; y < height; ++y) {
         for (uint32_t x = 0; x < width; ++x) {
-            // this way is flipped vertically
-            transposedData[x + (y * width)] = megsStructure.image[x][y];
+            transposedData[x + (y * width)] = image[x][y];
         }
     }
 
-	//  Fill a header with important information
-	fits_write_key_str(fptr, "EXTNAME", "MEGS_IMAGE", "Extension Name", &status);
+    return transposedData;
+}
+
+bool writeFITSHeader(fitsfile* fptr, const MEGS_IMAGE_REC& megsStructure, int32_t& status) {
+    fits_write_key_str(fptr, "EXTNAME", "MEGS_IMAGE", "Extension Name", &status);
     checkFitsStatus(status);
 
-	fits_write_key(fptr, TUINT, "sod", (void *)&megsStructure.sod, "UTC Seconds of day of first packet", &status);
+    fits_write_key(fptr, TUINT, "sod", (void *)&megsStructure.sod, "UTC Seconds of day of first packet", &status);
     checkFitsStatus(status);
 
-	fits_write_key(fptr, TUINT, "ydoy", (void *)&megsStructure.yyyydoy, "7-digit UTC Year and Day of year", &status);
+    fits_write_key(fptr, TUINT, "ydoy", (void *)&megsStructure.yyyydoy, "7-digit UTC Year and Day of year", &status);
     checkFitsStatus(status);
 
-	fits_write_key(fptr, TUINT, "tai_time", (void *)&megsStructure.tai_time_seconds, "tai seconds from first packet", &status);
+    fits_write_key(fptr, TUINT, "tai_time", (void *)&megsStructure.tai_time_seconds, "tai seconds from first packet", &status);
     checkFitsStatus(status);
 
-    fits_write_key(fptr, TUINT, "rec_tai", (void *)&megsStructure.rec_tai_seconds , "computer receive time in tai seconds", &status);
+    fits_write_key(fptr, TUINT, "rec_tai", (void *)&megsStructure.rec_tai_seconds, "computer receive time in tai seconds", &status);
     checkFitsStatus(status);
 
-    //std::cout<<"writeMegsAFITS iso8601 "<<megsStructure.iso8601<<std::endl;
-	fits_write_key(fptr, TSTRING, "DATE-BEG", const_cast<char*>((megsStructure.iso8601).c_str()), "UTC from first packet", &status);
+    fits_write_key(fptr, TSTRING, "DATE-BEG", const_cast<char*>((megsStructure.iso8601).c_str()), "UTC from first packet", &status);
     checkFitsStatus(status);
 
-    float solarnet=0.5;
-	fits_write_key(fptr, TFLOAT, "SOLARNET", (void *)&solarnet, "Partially SOLARNET compliant", &status);
+    float solarnet = 0.5;
+    fits_write_key(fptr, TFLOAT, "SOLARNET", &solarnet, "Partially SOLARNET compliant", &status);
     checkFitsStatus(status);
 
-    int obs_hdu=1;
-	fits_write_key(fptr, TUINT, "OBS_HDU", (void *)&obs_hdu, "Partially SOLARNET compliant", &status);
+    int obs_hdu = 1;
+    fits_write_key(fptr, TUINT, "OBS_HDU", &obs_hdu, "Partially SOLARNET compliant", &status);
     checkFitsStatus(status);
 
-     // Write the transposed data to the FITS file
-    status = 0;
-    if (fits_write_img(fptr, TUSHORT, fpixel, width * height, transposedData.data(), &status)) {
-        // Log the error
-        LogFileWriter::getInstance().logError("Failed to write image data to FITS file: " + filename);
-        fits_close_file(fptr, &status); // Ensure the file is closed even if writing fails
-        return false;
-    }
-   
-    status = 0; // You must ALWAYS set the status value to zero before calling ANY fits routine
+    return (status == 0);
+}
 
-    // Close ths FITS file
-    fits_close_file(fptr, &status);
-    checkFitsStatus(status);
-
-    // add code here for a binary table
-
-    // old way
-    //fits_create_tbl(fptr, BINARY_TBL, 0, columns, colnames, fields, unitnames, extname, &status);
-
-    // Define column names
+int writeFITSBinaryTable(
+    const std::string& filename,
+    const MEGS_IMAGE_REC& megsStructure,
+    const std::string& extname,
+    uint16_t apid
+) {
     std::vector<std::string> columnNames = {
         "YYYYDOY", "SOD", "TAI_TIME_SECONDS", "TAI_TIME_SUBSECONDS",
         "REC_TAI_SECONDS", "REC_TAI_SUBSECONDS", "VCDU_COUNT"
     };
 
-    // Define column types (corresponding to FITS types)
-    std::vector<std::string> columnTypes = {
-        "V", "V", "V", "V", 
-        "V", "V", "U"
-    };
-    // Convert column types to a single joined string
-    std::string typesString = "";
+    std::vector<std::string> columnTypes = {"V", "V", "V", "V", "V", "V", "U"};
+    std::string combinedColumnTypes;    
     for (const auto& type : columnTypes) {
-        typesString += type;
+        combinedColumnTypes += type;  // Concatenate each string in columnTypes
     }
-
-    // Units in this case
-    std::vector<std::string> columnUnits {
-        "DATE", "s", "s", "s", 
-        "s", "s", "count"
-    };
-
-    // Define extension name
-    std::string extname = "MEGSA_TABLE";
+    std::vector<std::string> columnUnits = {"DATE", "s", "s", "s", "s", "s", "count"};
 
     //copy data
     struct DataRow {
@@ -453,38 +395,232 @@ bool FITSWriter::writeMegsAFITS( const MEGS_IMAGE_REC& megsStructure) {
         uint16_t vcdu_count;
     } __attribute__((packed));
 
-    // Allocate memory for one row of data
-    std::vector<uint8_t> data(sizeof(DataRow));
-    DataRow row = { megsStructure.yyyydoy, 
-        megsStructure.sod, 
-        megsStructure.tai_time_seconds, 
-        megsStructure.tai_time_subseconds,
-        megsStructure.rec_tai_seconds, 
-        megsStructure.rec_tai_subseconds, 
-        megsStructure.vcdu_count
-        };
-    // Copy the data into the vector
-    memcpy(data.data(), &row, sizeof(DataRow)); // without packing sizeof(DataRow) is 2 bytes larger due to padding
-    std::cout<<"writeMegsAFITS 4: sizeof(DataRow) "<< sizeof(DataRow)<<" sizeof(data.data()) "<< sizeof(data.data()) <<std::endl;    
-    printBytesToStdOut(data.data(),0,sizeof(DataRow)-1);
-    printBytes(&row, sizeof(row)); //shows 26 bytes
+    DataRow row = {
+        megsStructure.yyyydoy, megsStructure.sod, megsStructure.tai_time_seconds,
+        megsStructure.tai_time_subseconds, megsStructure.rec_tai_seconds,
+        megsStructure.rec_tai_subseconds, megsStructure.vcdu_count
+    };
 
-    int result = writeBinaryTable(
-        filename,           // FITS file name
-        data.data(),        // Pointer to loaded data
-        columnNames.size(), // Number of columns (7)
-        columnNames,        // Column names
-        typesString,        // Column FITS types
-        columnUnits,        // Column Units
-        true,               // Use Units
-        extname.c_str()     // Extension name
-        );
-    std::cout << "writeBinaryTable result: " << result << std::endl;
-    std::cout << "FITSWriter::MegsAFITS successfully wrote "<<filename << std::endl;
-    LogFileWriter::getInstance().logInfo("FITSWriter::MegsAFITS successfully wrote " + filename);
+    std::vector<uint8_t> data(sizeof(DataRow));
+    memcpy(data.data(), &row, sizeof(DataRow));
+
+    return writeBinaryTable(
+        filename, data.data(), columnNames.size(), columnNames,
+        combinedColumnTypes, columnUnits, true, extname.c_str()
+    );
+}
+
+bool FITSWriter::writeMegsFITS(const MEGS_IMAGE_REC& megsStructure, uint16_t apid, const std::string& extname) {
+    std::cout << "writing MEGS FITS file for APID: " << apid << std::endl;
+    LogFileWriter::getInstance().logInfo("writing MEGS FITS file");
+
+    int32_t status = 0;
+    std::string filename = createFITSFilename(apid, megsStructure.tai_time_seconds);
+
+    fitsfile* fptr = nullptr;
+    if (!initializeFITSImageFile(filename, fptr)) {
+        std::cerr << "ERROR: Failed to initialize FITS file: " << filename << std::endl;
+        LogFileWriter::getInstance().logError("FITSWriter::writeMegsFITS: Failed to initialize FITS file: " + filename);
+        return false;
+    }
+
+    if (!writeFITSHeader(fptr, megsStructure, status)) {
+        return false;
+    }
+
+    std::vector<uint16_t> transposedData = transposeImage(megsStructure.image);
+
+    LONGLONG fpixel = 1;
+    if (fits_write_img(fptr, TUSHORT, fpixel, transposedData.size(), transposedData.data(), &status)) {
+        LogFileWriter::getInstance().logError("Failed to write image data to FITS file: " + filename);
+        fits_close_file(fptr, &status);
+        return false;
+    }
+
+    fits_close_file(fptr, &status);
+    checkFitsStatus(status);
+
+    int result = writeFITSBinaryTable(filename, megsStructure, extname, apid);
+    if (result != 0) {
+        std::cerr << "Failed to write binary table to FITS file: " << filename << std::endl;
+        return false;
+    }
+
+    std::cout << "FITSWriter::writeMegsFITS successfully wrote " << filename << std::endl;
+    LogFileWriter::getInstance().logInfo("FITSWriter::writeMegsFITS successfully wrote " + filename);
 
     return true;
 }
+
+// write the megs rec to the FITS file
+bool FITSWriter::writeMegsAFITS( const MEGS_IMAGE_REC& megsStructure) {
+    return writeMegsFITS(megsStructure, 601, "MEGSA_TABLE");
+}
+
+//     //std::cout << "writeMegsAFITS: tai_time_seconds = " << megsStructure.tai_time_seconds << std::endl;
+
+//     std::cout<< "writing MEGS-A FITS file" <<std::endl;
+//     LogFileWriter::getInstance().logInfo("writing MEGSA FITS file");
+
+//     int32_t status = 0;
+
+//     // Create a filename based on APID (assuming 601 for MEGS-A) and the timestamp
+//     std::string filename = createFITSFilename(601, megsStructure.tai_time_seconds);
+
+//     // Get the FITS file pointer
+//     fitsfile* fptr = nullptr;
+
+//     // Initialize the FITS file
+//     if (!initializeFITSImageFile(filename, fptr)) {
+//         std::cerr << "ERROR: Failed to initialize FITS file: " << filename << std::endl;
+//         LogFileWriter::getInstance().logError("FitsWriter::writeMegsAFITS: Failed to initialize FITS file: " + filename);
+//         return false;
+//     }
+
+//     LONGLONG fpixel = 1;
+
+//     // Define the dimensions
+//     const uint32_t width = MEGS_IMAGE_WIDTH;
+//     const uint32_t height = MEGS_IMAGE_HEIGHT;
+
+//     std::cout<<"writeMegsAFITS orig image"<<std::endl;
+//     printUint16ToStdOut(megsStructure.image[0], MEGS_IMAGE_WIDTH, 10);
+//     std::cout << "writeMegsAFITS 3 vcdu_count " << megsStructure.vcdu_count << " im00"<<" "<<megsStructure.image[0][0] <<" "<< megsStructure.image[1][0] << " "<<megsStructure.image[2][0] <<" "<<megsStructure.image[3][0] <<"\n";
+
+//     // Create a 1d buffer to hold the transposed data
+//     std::vector<uint16_t> transposedData(width * height);
+
+//     // Transpose the data using parallel processing, enable this pragma
+//     #pragma omp parallel for
+//     // Transpose the data
+//     for (uint32_t y = 0; y < height; ++y) {
+//         for (uint32_t x = 0; x < width; ++x) {
+//             // this way is flipped vertically
+//             transposedData[x + (y * width)] = megsStructure.image[x][y];
+//         }
+//     }
+// 	//  Fill a header with important information
+// 	fits_write_key_str(fptr, "EXTNAME", "MEGS_IMAGE", "Extension Name", &status);
+//     checkFitsStatus(status);
+
+// 	fits_write_key(fptr, TUINT, "sod", (void *)&megsStructure.sod, "UTC Seconds of day of first packet", &status);
+//     checkFitsStatus(status);
+
+// 	fits_write_key(fptr, TUINT, "ydoy", (void *)&megsStructure.yyyydoy, "7-digit UTC Year and Day of year", &status);
+//     checkFitsStatus(status);
+
+// 	fits_write_key(fptr, TUINT, "tai_time", (void *)&megsStructure.tai_time_seconds, "tai seconds from first packet", &status);
+//     checkFitsStatus(status);
+
+//     fits_write_key(fptr, TUINT, "rec_tai", (void *)&megsStructure.rec_tai_seconds , "computer receive time in tai seconds", &status);
+//     checkFitsStatus(status);
+
+//     //std::cout<<"writeMegsAFITS iso8601 "<<megsStructure.iso8601<<std::endl;
+// 	fits_write_key(fptr, TSTRING, "DATE-BEG", const_cast<char*>((megsStructure.iso8601).c_str()), "UTC from first packet", &status);
+//     checkFitsStatus(status);
+
+//     float solarnet=0.5;
+// 	fits_write_key(fptr, TFLOAT, "SOLARNET", (void *)&solarnet, "Partially SOLARNET compliant", &status);
+//     checkFitsStatus(status);
+
+//     int obs_hdu=1;
+// 	fits_write_key(fptr, TUINT, "OBS_HDU", (void *)&obs_hdu, "Partially SOLARNET compliant", &status);
+//     checkFitsStatus(status);
+
+//      // Write the transposed data to the FITS file
+//     status = 0;
+//     if (fits_write_img(fptr, TUSHORT, fpixel, width * height, transposedData.data(), &status)) {
+//         // Log the error
+//         LogFileWriter::getInstance().logError("Failed to write image data to FITS file: " + filename);
+//         fits_close_file(fptr, &status); // Ensure the file is closed even if writing fails
+//         return false;
+//     }
+   
+//     status = 0; // You must ALWAYS set the status value to zero before calling ANY fits routine
+
+//     // Close ths FITS file
+//     fits_close_file(fptr, &status);
+//     checkFitsStatus(status);
+
+//     // add code here for a binary table
+
+
+//     // Define column names
+//     std::vector<std::string> columnNames = {
+//         "YYYYDOY", "SOD", "TAI_TIME_SECONDS", "TAI_TIME_SUBSECONDS",
+//         "REC_TAI_SECONDS", "REC_TAI_SUBSECONDS", "VCDU_COUNT"
+//     };
+
+//     // Define column types (corresponding to FITS types)
+//     std::vector<std::string> columnTypes = {
+//         "V", "V", "V", "V", 
+//         "V", "V", "U"
+//     };
+//     // Convert column types to a single joined string
+//     std::string typesString = "";
+//     for (const auto& type : columnTypes) {
+//         typesString += type;
+//     }
+
+//     // Units in this case
+//     std::vector<std::string> columnUnits {
+//         "DATE", "s", "s", "s", 
+//         "s", "s", "count"
+//     };
+
+//     // Define extension name
+//     std::string extname = "MEGSA_TABLE";
+
+//     //copy data
+//     struct DataRow {
+//         uint32_t yyyydoy;
+//         uint32_t sod;
+//         uint32_t tai_time_seconds;
+//         uint32_t tai_time_subseconds;
+//         uint32_t rec_tai_seconds;
+//         uint32_t rec_tai_subseconds;
+//         uint16_t vcdu_count;
+//     } __attribute__((packed));
+
+//     // Allocate memory for one row of data
+//     std::vector<uint8_t> data(sizeof(DataRow));
+//     DataRow row = { megsStructure.yyyydoy, 
+//         megsStructure.sod, 
+//         megsStructure.tai_time_seconds, 
+//         megsStructure.tai_time_subseconds,
+//         megsStructure.rec_tai_seconds, 
+//         megsStructure.rec_tai_subseconds, 
+//         megsStructure.vcdu_count
+//         };
+//     // Copy the data into the vector
+//     memcpy(data.data(), &row, sizeof(DataRow)); // without packing sizeof(DataRow) is 2 bytes larger due to padding
+//     std::cout<<"writeMegsBFITS 4: sizeof(DataRow) "<< sizeof(DataRow)<<" sizeof(data.data()) "<< sizeof(data.data()) <<std::endl;    
+//     printBytesToStdOut(data.data(),0,sizeof(DataRow)-1);
+//     printBytes(&row, sizeof(row)); //shows 26 bytes
+
+//     int result = writeBinaryTable(
+//         filename,           // FITS file name
+//         data.data(),        // Pointer to loaded data
+//         columnNames.size(), // Number of columns (7)
+//         columnNames,        // Column names
+//         typesString,        // Column FITS types
+//         columnUnits,        // Column Units
+//         true,               // Use Units
+//         extname.c_str()     // Extension name
+//         );
+//     std::cout << "writeBinaryTable result: " << result << std::endl;
+//     std::cout << "FITSWriter::MegsBFITS successfully wrote "<<filename << std::endl;
+//     LogFileWriter::getInstance().logInfo("FITSWriter::MegsBFITS successfully wrote " + filename);
+
+//     return true;
+
+// }
+
+// write the megs rec to the FITS file
+bool FITSWriter::writeMegsBFITS( const MEGS_IMAGE_REC& megsStructure) {
+    return writeMegsFITS(megsStructure, 602, "MEGSB_TABLE");
+}
+
 
 // Function to close all open FITS files
 void FITSWriter::closeAllFITSFiles() {
@@ -501,86 +637,3 @@ void FITSWriter::closeAllFITSFiles() {
 }
 
 
-//#include <fitsio.h>
-//#include <iostream>
-//#include <vector>
-//#include <cstdint>
-//#include <string>
-//#include <chrono>
-//#include <iomanip>
-//#include <sstream>
-
-//class FITSWriter {
-//public:
-//    FITSWriter();
-//    ~FITSWriter();
-
-//    bool writePacketToFITS(const std::vector<uint8_t>& packet, uint16_t apid, double timeStamp);
-
-//private:
-//    int status;
-
-//    std::string createFilename(uint16_t apid, double timeStamp);
- //   void createAndWriteFITSFile(const std::string& filename, const std::vector<uint8_t>& packet, double timeStamp);
-//};
-
-//FITSWriter::FITSWriter() : status(0) {}
-
-//FITSWriter::~FITSWriter() {}
-
-//std::string FITSWriter::createFilename(uint16_t apid, double timeStamp) {
- //   // Get current time
- //   auto now = std::chrono::system_clock::now();
- //   auto time_t_now = std::chrono::system_clock::to_time_t(now);
- //   auto tm_now = *std::localtime(&time_t_now);
-
-    // Create a stringstream to format the filename
- //   std::stringstream ss;
- //   ss << "APID_" << apid << "_";
- //   ss << std::put_time(&tm_now, "%Y_%j_%H_%M_%S"); // Year_DayOfYear_Hour_Minute_Second
- //   ss << "_" << static_cast<int>(timeStamp) << ".fits";
-
-//    return ss.str();
-//}
-
-//void FITSWriter::createAndWriteFITSFile(const std::string& filename, const std::vector<uint8_t>& packet, double timeStamp) {
-//    fitsfile* fptr;
-//    fits_create_file(&fptr, filename.c_str(), &status);
-//    if (status) {
-//        fits_report_error(stderr, status);
-//        exit(EXIT_FAILURE);
-//    }
-
-//    long naxes[2] = { packet.size(), 1 };  // Example for a 1D array
-//    fits_create_img(fptr, BYTE_IMG, 1, naxes, &status);
-//    if (status) {
-//        fits_report_error(stderr, status);
-//        exit(EXIT_FAILURE);
-//    }
-
- //   long fpixel = 1; // starting pixel
- //   fits_write_img(fptr, TBYTE, fpixel, packet.size(), const_cast<uint8_t*>(packet.data()), &status);
- //   if (status) {
- //       fits_report_error(stderr, status);
- //       exit(EXIT_FAILURE);
- //   }
-
-    // Add timestamp or other metadata to the header if needed
-//    fits_update_key(fptr, TDOUBLE, "TIMESTAMP", &timeStamp, "Packet timestamp", &status);
-//    if (status) {
-//        fits_report_error(stderr, status);
-//        exit(EXIT_FAILURE);
-//    }
-
-//    fits_close_file(fptr, &status);
-//    if (status) {
-//        fits_report_error(stderr, status);
-//        exit(EXIT_FAILURE);
-//    }
-//}
-
-//bool FITSWriter::writePacketToFITS(const std::vector<uint8_t>& packet, uint16_t apid, double timeStamp) {
-//    std::string filename = createFilename(apid, timeStamp);
-//    createAndWriteFITSFile(filename, packet, timeStamp);
-//    return true;
-//}
