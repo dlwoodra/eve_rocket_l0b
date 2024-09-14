@@ -101,9 +101,9 @@ int32_t assemble_image( uint8_t * vcdu, MEGS_IMAGE_REC * ptr, uint16_t sourceSeq
     pix_val14 = pixval16 & 0x3FFF; // 14 bits of data
 
     // debugging
-    if ((sourceSequenceCounter == 0) && (j < 60))  {
-      std::cout << "assemble_image pixval16: 0x" << std::hex << std::setw(4) << std::setfill('0') << pixval16 << std::dec <<std::endl;
-    } // These values are correct values for the 16-bit pixels
+    // if ((sourceSequenceCounter == 0) && (j < 60))  {
+    //   std::cout << "assemble_image pixval16: 0x" << std::hex << std::setw(4) << std::setfill('0') << pixval16 << std::dec <<std::endl;
+    // } // These values are correct values for the 16-bit pixels
 
     // Only do twos comp for ccd data (not test patterns)
     if( not_testpattern )
@@ -124,8 +124,8 @@ int32_t assemble_image( uint8_t * vcdu, MEGS_IMAGE_REC * ptr, uint16_t sourceSeq
     {
       parityerrors++;
       *status = W_INVALID_PARITY;
-#endif
     }
+#endif
 
     // assemble regardless of whether the parity check fails
       
