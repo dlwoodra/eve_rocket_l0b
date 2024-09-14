@@ -37,6 +37,7 @@ void processESPPacket(std::vector<uint8_t> payload,
 void processHKPacket(std::vector<uint8_t> payload, 
     uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp);
 
+void printBytes(const void* ptr, size_t size);
 void printBytesToStdOut(const uint8_t* array, uint32_t start, uint32_t end);
 void printUint16ToStdOut(const uint16_t* image, size_t size, size_t count);
 
