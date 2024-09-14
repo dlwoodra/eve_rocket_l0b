@@ -387,7 +387,52 @@ void processMegsBPacket(std::vector<uint8_t> payload,
 
 void processMegsPPacket(std::vector<uint8_t> payload, 
     uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp) {
+
+    MEGSP_PACKET oneMEGSPStructure = {0};
+    uint16_t year, doy, hh, mm, ss;
+    uint32_t sod;
+    static std::string iso8601;
+
+    uint32_t tai_sec = payloadToTAITimeSeconds(payload);
+    oneMEGSPStructure.tai_time_seconds = tai_sec;
+    oneMEGSPStructure.tai_time_subseconds = payloadToTAITimeSubseconds(payload);
+
+    // assign current tai time to firstpkt_tai_time_seconds and subseconds
+    TimeInfo currentTime;
+    currentTime.updateNow();
+    oneMEGSPStructure.rec_tai_seconds = currentTime.getTAISeconds();
+    oneMEGSPStructure.rec_tai_subseconds = currentTime.getTAISubseconds();
+
+    tai_to_ydhms(tai_sec, &year, &doy, &sod, &hh, &mm, &ss, iso8601);
+    std::cout << "processMegsPPacket called tai_to_ydhms " << year << " "<< doy << "-" << hh << ":" << mm << ":" << ss <<" . "<< oneMEGSPStructure.tai_time_subseconds/65535 <<"\n";
+    oneMEGSPStructure.sod = (uint32_t) sod;
+    oneMEGSPStructure.yyyydoy = (uint32_t) year*1000 + doy;
+    oneMEGSPStructure.iso8601 = iso8601;
+    std::cout<<"writeMegsPFITS iso "<<iso8601<<std::endl;
+
+    int firstbyteoffset = 10;
+    for (int i=0; i<MEGSP_INTEGRATIONS_PER_PACKET; ++i) {
+        int incr = (i*4) + firstbyteoffset;
+        oneMEGSPStructure.MP_lya[i] = (uint16_t (payload[incr]) << 8) | (uint16_t (payload[incr + 1]));
+        oneMEGSPStructure.MP_dark[i] = (uint16_t (payload[incr+2]) << 8) | (uint16_t (payload[incr+3]));
+    }
+
+    // Write packet data to a FITS file if applicable
+    std::unique_ptr<FITSWriter> fitsFileWriter;
+    fitsFileWriter = std::unique_ptr<FITSWriter>(new FITSWriter());
+    // the c++14 way fitsFileWriter = std::make_unique<FITSWriter>();
+    if (fitsFileWriter) {
+        std::cout << "procesMegsBPacket: tai_time_seconds = " << oneMEGSPStructure.tai_time_seconds << std::endl;
+
+        if (!fitsFileWriter->writeMegsPFITS( oneMEGSPStructure )) {
+            LogFileWriter::getInstance().logInfo("writeMegsPFITS write error");
+            std::cout << "ERROR: writeMegsPFITS returned an error" << std::endl;
+        }
+        // reset the structure immediately after writing
+        //oneMEGSPStructure = MEGS_IMAGE_REC{0}; // c++11 
+    }
 }
+
 void processESPPacket(std::vector<uint8_t> payload, 
     uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp) {
 }
