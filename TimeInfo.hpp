@@ -1,10 +1,11 @@
 #ifndef TIME_INFO_HPP
 #define TIME_INFO_HPP
 
-#include <iostream>
 #include <chrono>
 #include <ctime>
 #include <iomanip>
+#include <iostream>
+#include <sstream>
 
 constexpr double TAI_LEAP_SECONDS = 37.0; //update as needed
 
