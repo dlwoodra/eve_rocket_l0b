@@ -61,13 +61,6 @@ bool FITSWriter::initializeFITSFile(const std::string& filename, fitsfile*& fptr
         return false;
     }
 
-    // // Create a primary array image (e.g., 16-bit unsigned integer)
-    // long naxes[2] = {MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT}; // dimensions, can be adjusted as needed
-    // if (fits_create_img(fptr, USHORT_IMG, 2, naxes, &status)) {
-    //     fits_report_error(stderr, status);
-    //     return false;
-    // }
-
     return true;
 }
 
@@ -114,20 +107,21 @@ std::vector<char*> convertTypesToCharPtrArray(const std::string& types) {
     return typeArray;
 }
 
-std::vector<char*> convertTypesToTFormPtrArray(const std::string& types) {
+std::vector<char*> convertTypesToTFormPtrArray(const std::string& types, const std::vector<int>& lengths) {
     std::vector<char*> tFormArray(types.size());
     for (size_t i = 0; i < types.size(); ++i) {
-        tFormArray[i] = new char[4];  // Allocate space for 3 chars + null terminator
-        if (types[i] != 'A') {
-            tFormArray[i][0] = '1';
-            tFormArray[i][1] = types[i];
-            tFormArray[i][2] = '\0';
-        } else {
-            tFormArray[i][0] = '1';
-            tFormArray[i][0] = '6';
-            tFormArray[i][2] = 'A';
-            tFormArray[i][3] = '\0';
-        }
+        tFormArray[i] = new char[10];  // Allocate space for 9 chars + null terminator
+        sprintf(tFormArray[i], "%d%c", lengths[i], types[i]);
+        //if (types[i] != 'A') {
+            //tFormArray[i][0] = '1';
+            //tFormArray[i][1] = types[i];
+            //tFormArray[i][2] = '\0';
+        //} else {
+        //    tFormArray[i][0] = '1';
+        //    tFormArray[i][0] = '6';
+        //    tFormArray[i][2] = 'A';
+        //    tFormArray[i][3] = '\0';
+        //}
     }
     return tFormArray;
 }
@@ -145,6 +139,7 @@ int writeBinaryTable(const std::string& filename,
         int columns,
         const std::vector<std::string>& names, 
         const std::string& types,
+        const std::vector<int>& columnLengths,
         const std::vector<std::string>& units, 
         bool useUnits, const std::string& extname) {
 
@@ -178,7 +173,7 @@ int writeBinaryTable(const std::string& filename,
 
     // Convert types to char* array
     std::vector<char*> typeArray = convertTypesToCharPtrArray(types); // "U,V, etc"
-    std::vector<char*> tFormArray = convertTypesToTFormPtrArray(types); // "1U,1V, etc"
+    std::vector<char*> tFormArray = convertTypesToTFormPtrArray(types, columnLengths); // "1U,1V, etc"
 
     std::cout<<"writeBinaryTable sizeof(tFormArray) " <<sizeof(tFormArray.data())<< std::endl;
     printBytes(tFormArray.data(), sizeof(tFormArray.data()));
@@ -264,7 +259,7 @@ int writeBinaryTable(const std::string& filename,
 
         std::cout << "coltype: " << colType << " " << std::hex << *pdata << std::dec<<std::endl;
 
-        fits_write_col(fptr, colType, i + 1, firstrow, firstelem, 1, (void*)pdata, &status);
+        fits_write_col(fptr, colType, i + 1, firstrow, firstelem, columnLengths[i], (void*)pdata, &status);
         checkFitsStatus(status);
 
         pdata += colTypeSize; // Adjusts based on the type of data
@@ -344,6 +339,7 @@ int writeMegsFITSBinaryTable(
     };
 
     std::vector<std::string> columnTypes = {"V", "V", "V", "V", "V", "V", "U"};
+    std::vector<int> columnLengths = {1,1,1,1,1,1,1};
     std::string combinedColumnTypes;    
     for (const auto& type : columnTypes) {
         combinedColumnTypes += type;  // Concatenate each string in columnTypes
@@ -372,7 +368,7 @@ int writeMegsFITSBinaryTable(
 
     return writeBinaryTable(
         filename, data.data(), columnNames.size(), columnNames,
-        combinedColumnTypes, columnUnits, true, extname.c_str()
+        combinedColumnTypes, columnLengths, columnUnits, true, extname.c_str()
     );
 }
 
@@ -457,7 +453,9 @@ int writeMegsPFITSBinaryTable(const std::string& filename,
         combinedColumnTypes += type;  // Concatenate each string in columnTypes
     }
     std::vector<std::string> columnUnits = {"DATE", "s", "s", "s", "s", "s", "count","count"};
- 
+
+    std::vector<int> columnLengths = {1,1,1,1,1,1,MEGSP_INTEGRATIONS_PER_FILE, MEGSP_INTEGRATIONS_PER_FILE};
+
     //copy data
     struct DataRow {
         uint32_t yyyydoy;
@@ -487,7 +485,7 @@ int writeMegsPFITSBinaryTable(const std::string& filename,
 
     return writeBinaryTable(
         filename, data.data(), columnNames.size(), columnNames,
-        combinedColumnTypes, columnUnits, true, extname.c_str()
+        combinedColumnTypes, columnLengths, columnUnits, true, extname.c_str()
     );
 }
 
