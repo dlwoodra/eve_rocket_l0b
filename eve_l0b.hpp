@@ -20,7 +20,10 @@
 #include <wchar.h>
 #include <cstdint>
 
-#define MEGSP_INTEGRATIONS_PER_PACKET 4
+constexpr int32_t MEGSP_INTEGRATIONS_PER_PACKET = 4;
+constexpr int32_t SECONDS_PER_MEGSP_FILE = 10;
+constexpr int32_t MEGSP_PACKETS_PER_FILE = SECONDS_PER_MEGSP_FILE;
+constexpr int32_t MEGSP_INTEGRATIONS_PER_FILE = MEGSP_INTEGRATIONS_PER_PACKET * SECONDS_PER_MEGSP_FILE;
 
 #define BAD_PIXEL 16384 			// 2^14	- Image fill value
 
@@ -46,8 +49,7 @@
 #define MAX_MEGS_B_IMAGES_PER_FILE 	7		//	No more than 7 images per minute possible
 constexpr uint32_t MEGS_IMAGE_WIDTH = 2048;	// The CCD images are 2048 x 1024 pixels
 constexpr uint32_t MEGS_IMAGE_HEIGHT = 1024;
-//#define MEGS_IMAGE_WIDTH 		2048	// The CCD images are 2048 x 1024 pixels
-//#define MEGS_IMAGE_HEIGHT 		1024
+
 #define PHOTO_SAMPLES_PER_10SEC 	40		// ESP is sampled at 4 Hz
 #define Y_TOP 						0		// Image orientation
 #define Y_MIDDLE 					511		//  The middle row
@@ -333,8 +335,8 @@ struct MEGSP_PACKET
   uint32_t tai_time_subseconds;
   uint32_t rec_tai_seconds;
   uint32_t rec_tai_subseconds;
-  uint16_t MP_lya[MEGSP_INTEGRATIONS_PER_PACKET];
-  uint16_t MP_dark[MEGSP_INTEGRATIONS_PER_PACKET];
+  uint16_t MP_lya[MEGSP_INTEGRATIONS_PER_FILE];
+  uint16_t MP_dark[MEGSP_INTEGRATIONS_PER_FILE];
   //uint16_t	resolver;
   //float  		mp_temperature;
   std::string iso8601;
