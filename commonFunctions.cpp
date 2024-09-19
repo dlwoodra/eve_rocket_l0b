@@ -92,12 +92,13 @@ uint32_t payloadToTAITimeSeconds(const std::vector<uint8_t>& payload) {
         throw std::invalid_argument("Payload must contain at least 4 bytes.");
     }
 
-    std::cout << "Payload TAI Seconds bytes in hex:" << std::endl;
-    for (int i = 0; i < 4; ++i) {
-        std::cout << "Byte " << i << ": 0x" 
-                  << std::hex << std::setfill('0') << std::setw(2) 
-                  << static_cast<int>(payload[i]) << std::dec << std::endl;
-    }
+    //std::cout << "Payload TAI Seconds bytes in hex:" << std::endl;
+    //for (int i = 0; i < 4; ++i) {
+    //    std::cout << "Byte " << i << ": 0x" 
+    //              << std::hex << std::setfill('0') << std::setw(2) 
+    //              << static_cast<int>(payload[i]) << std::dec << std::endl;
+    //}
+
     uint32_t tai = (static_cast<uint32_t>(payload[3]) << 24) |
            (static_cast<uint32_t>(payload[2]) << 16) |
            (static_cast<uint32_t>(payload[1]) << 8)  |
@@ -110,7 +111,7 @@ uint32_t payloadToTAITimeSeconds(const std::vector<uint8_t>& payload) {
     std::cout << "payloadToTAITimeSeconds calculated " << tai << std::endl;
     std::cout << "payloadToTAITimeSeconds reversed calculated " << reversedtai << std::endl;
         // Print the combined 32-bit value in hex
-    std::cout << "Combined 32-bit value from the TAI bytes: 0x" 
+    std::cout << "payloadToTAITimeSeconds TAI bytes: 0x" 
               << std::hex << std::setfill('0') << std::setw(8) 
               << tai << std::dec << std::endl;
     return tai;
@@ -431,7 +432,7 @@ void processMegsPPacket(std::vector<uint8_t> payload,
         oneMEGSPStructure.MP_lya[index] = (uint16_t (payload[incr]) << 8) | (uint16_t (payload[incr + 1]));
         oneMEGSPStructure.MP_dark[index] = (uint16_t (payload[incr+2]) << 8) | (uint16_t (payload[incr+3]));
     }
-    
+
     processedPacketCounter++;
     std::cout<<"processMegsPPacket processedPacketCounter "<< processedPacketCounter << std::endl;
 
@@ -449,6 +450,9 @@ void processMegsPPacket(std::vector<uint8_t> payload,
                 LogFileWriter::getInstance().logInfo("writeMegsPFITS write error");
                 std::cout << "ERROR: writeMegsPFITS returned an error" << std::endl;
             }
+            std::cout<<"processMegsPPacket 3 MP_lya values" << std::endl;
+            printBytes(oneMEGSPStructure.MP_lya,39);
+
             processedPacketCounter = 0;
             // reset the structure immediately after writing
             oneMEGSPStructure = MEGSP_PACKET{0}; // c++11 
