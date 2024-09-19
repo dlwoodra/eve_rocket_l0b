@@ -8,7 +8,6 @@ bool isValidFilename(const std::string& filename) {
     return !filename.empty();
 }
 
-
 // reads a packet and writes it to the recordfile
 void processPackets(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& recordWriter, bool skipRecord) {
     std::vector<uint8_t> packet;
@@ -127,6 +126,33 @@ uint32_t payloadToTAITimeSubseconds(const std::vector<uint8_t>& payload) {
            (static_cast<uint32_t>(payload[5]) << 16);
 }
 
+// use template to allow any of the data structures to have the time variables populated
+template <typename T>
+void populateStructureTimes(T& oneStructure, const std::vector<uint8_t>& payload) {
+    uint32_t tai_sec = payloadToTAITimeSeconds(payload);
+    oneStructure.tai_time_seconds = tai_sec;
+    oneStructure.tai_time_subseconds = payloadToTAITimeSubseconds(payload);
+
+    // assign current tai time to firstpkt_tai_time_seconds and subseconds
+    TimeInfo currentTime;
+    currentTime.updateNow();
+    oneStructure.rec_tai_seconds = currentTime.getTAISeconds();
+    oneStructure.rec_tai_subseconds = currentTime.getTAISubseconds();
+
+    uint16_t year, doy, hh, mm, ss;
+    uint32_t sod;
+    std::string iso8601;
+
+    tai_to_ydhms(tai_sec, &year, &doy, &sod, &hh, &mm, &ss, iso8601);
+    std::cout << "populateStructureTimes called tai_to_ydhms " << year << " "<< doy << "-" << hh << ":" << mm << ":" << ss <<" . "<< oneStructure.tai_time_subseconds / 65535 << "\n";
+    
+    oneStructure.sod = (uint32_t)sod;
+    oneStructure.yyyydoy = (uint32_t)(year * 1000 + doy);
+    oneStructure.iso8601 = iso8601;
+    
+    std::cout << "structure iso time " << iso8601 << std::endl;
+}
+
 // the payload starts with the secondary header timestamp
 void processMegsAPacket(std::vector<uint8_t> payload, 
     uint16_t sourceSequenceCounter, uint16_t packetLength, 
@@ -222,7 +248,7 @@ void processMegsAPacket(std::vector<uint8_t> payload,
         oneMEGSStructure.iso8601 = iso8601;
         std::cout<<"writeMegsAFITS iso "<<iso8601<<std::endl;
 
-        processedPacketCounter=1;
+        processedPacketCounter=0;
     }
     previousSrcSeqCount = sourceSequenceCounter;
 
@@ -240,16 +266,15 @@ void processMegsAPacket(std::vector<uint8_t> payload,
     // std::cout << "processMegsAPacket C0 0-3" <<" im "<<oneMEGSStructure.image[0][0] <<" "<< oneMEGSStructure.image[1][0] << " "<<oneMEGSStructure.image[2][0] <<" "<<oneMEGSStructure.image[3][0] <<"\n";
     // std::cout << "processMegsAPacket C0 510-513" <<" im "<<oneMEGSStructure.image[510][0] <<" "<< oneMEGSStructure.image[511][0] << " "<<oneMEGSStructure.image[512][0] <<" "<<oneMEGSStructure.image[512][0] <<"\n";
 
-
     //std::cout << "processMegsAPacket called assemble_image R0 vcdu_count " << oneMEGSStructure.vcdu_count << " im00"<<" "<<oneMEGSStructure.image[0][0] <<" "<< oneMEGSStructure.image[1][0] << " "<<oneMEGSStructure.image[2][0] <<" "<<oneMEGSStructure.image[3][0] <<"\n";
     //std::cout << "processMegsAPacket called assemble_image R1 vcdu_count " << oneMEGSStructure.vcdu_count << " im01"<<" "<<oneMEGSStructure.image[0][1] <<" "<< oneMEGSStructure.image[1][1] << " "<<oneMEGSStructure.image[2][1] <<" "<<oneMEGSStructure.image[3][1] <<"\n";
     //std::cout << "processMegsAPacket called assemble_image R2 vcdu_count " << oneMEGSStructure.vcdu_count << " im02"<<" "<<oneMEGSStructure.image[0][2] <<" "<< oneMEGSStructure.image[1][2] << " "<<oneMEGSStructure.image[2][2] <<" "<<oneMEGSStructure.image[3][2] <<"\n";
-
 
     if ( parityErrors > 0 ) {
         LogFileWriter::getInstance().logError("MA parity errors: "+ std::to_string(parityErrors));
         std::cout << "processMegsAPacket - assemble_image returned parity errors: " << parityErrors << " ssc:"<<sourceSequenceCounter<<"\n";
     }
+    processedPacketCounter++; // count packets processed
 
     if ( sourceSequenceCounter == 2394) {
         std::cout<<"end of MEGS-A at 2394"<<"\n";
@@ -259,7 +284,6 @@ void processMegsAPacket(std::vector<uint8_t> payload,
 
         //std::cout<<"processMegsAPacket image 2047*1022"<<std::endl;
         //printUint16ToStdOut(oneMEGSStructure.image[2047*1022], MEGS_IMAGE_WIDTH, 10);
-
 
         // Write packet data to a FITS file if applicable
         std::unique_ptr<FITSWriter> fitsFileWriter;
@@ -273,12 +297,11 @@ void processMegsAPacket(std::vector<uint8_t> payload,
                 LogFileWriter::getInstance().logInfo("writeMegsAFITS write error");
                 std::cout << "ERROR: writeMegsAFITS returned an error" << std::endl;
             }
+            processedPacketCounter=0;
             // reset the structure immediately after writing
             oneMEGSStructure = MEGS_IMAGE_REC{0}; // c++11 
         }
     }
-    processedPacketCounter++; // count packets processed
-
 }
 
 void processMegsBPacket(std::vector<uint8_t> payload, 
@@ -345,7 +368,7 @@ void processMegsBPacket(std::vector<uint8_t> payload,
         oneMEGSStructure.iso8601 = iso8601;
         std::cout<<"writeMegsBFITS iso "<<iso8601<<std::endl;
 
-        processedPacketCounter=1;
+        processedPacketCounter=0;
     }
     previousSrcSeqCount = sourceSequenceCounter;
 
@@ -358,6 +381,8 @@ void processMegsBPacket(std::vector<uint8_t> payload,
         LogFileWriter::getInstance().logError("MB parity errors: "+ std::to_string(parityErrors));
         std::cout << "processMegsBPacket - assemble_image returned parity errors: " << parityErrors << " ssc:"<<sourceSequenceCounter<<"\n";
     }
+
+    processedPacketCounter++; // count packets processed
 
     if ( sourceSequenceCounter == 2394) {
         std::cout<<"end of MEGS-B at 2394"<<"\n";
@@ -377,59 +402,57 @@ void processMegsBPacket(std::vector<uint8_t> payload,
                 LogFileWriter::getInstance().logInfo("writeMegsBFITS write error");
                 std::cout << "ERROR: writeMegsBFITS returned an error" << std::endl;
             }
+            processedPacketCounter = 0;
             // reset the structure immediately after writing
             oneMEGSStructure = MEGS_IMAGE_REC{0}; // c++11 
         }
     }
-    processedPacketCounter++; // count packets processed
-
 }
 
+// MEGS-P packet
 void processMegsPPacket(std::vector<uint8_t> payload, 
     uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp) {
 
     MEGSP_PACKET oneMEGSPStructure = {0};
-    uint16_t year, doy, hh, mm, ss;
-    uint32_t sod;
-    static std::string iso8601;
+    static uint16_t processedPacketCounter=0;
 
-    uint32_t tai_sec = payloadToTAITimeSeconds(payload);
-    oneMEGSPStructure.tai_time_seconds = tai_sec;
-    oneMEGSPStructure.tai_time_subseconds = payloadToTAITimeSubseconds(payload);
+    std::cout<<"processMegsPPacket 1" << std::endl;
 
-    // assign current tai time to firstpkt_tai_time_seconds and subseconds
-    TimeInfo currentTime;
-    currentTime.updateNow();
-    oneMEGSPStructure.rec_tai_seconds = currentTime.getTAISeconds();
-    oneMEGSPStructure.rec_tai_subseconds = currentTime.getTAISubseconds();
-
-    tai_to_ydhms(tai_sec, &year, &doy, &sod, &hh, &mm, &ss, iso8601);
-    std::cout << "processMegsPPacket called tai_to_ydhms " << year << " "<< doy << "-" << hh << ":" << mm << ":" << ss <<" . "<< oneMEGSPStructure.tai_time_subseconds/65535 <<"\n";
-    oneMEGSPStructure.sod = (uint32_t) sod;
-    oneMEGSPStructure.yyyydoy = (uint32_t) year*1000 + doy;
-    oneMEGSPStructure.iso8601 = iso8601;
-    std::cout<<"writeMegsPFITS iso "<<iso8601<<std::endl;
+    populateStructureTimes(oneMEGSPStructure, payload);
+    std::cout<<"processMegsPPacket 2" << std::endl;
 
     int firstbyteoffset = 10;
+    //int NUM_MEGSP_DIODES = 2;
+    int packetoffset = processedPacketCounter * MEGSP_PACKETS_PER_FILE;
+    std::cout<<"processMegsPPacket packetoffset "<< packetoffset << std::endl;
     for (int i=0; i<MEGSP_INTEGRATIONS_PER_PACKET; ++i) {
         int incr = (i*4) + firstbyteoffset;
-        oneMEGSPStructure.MP_lya[i] = (uint16_t (payload[incr]) << 8) | (uint16_t (payload[incr + 1]));
-        oneMEGSPStructure.MP_dark[i] = (uint16_t (payload[incr+2]) << 8) | (uint16_t (payload[incr+3]));
+        int index = packetoffset + i;
+        oneMEGSPStructure.MP_lya[index] = (uint16_t (payload[incr]) << 8) | (uint16_t (payload[incr + 1]));
+        oneMEGSPStructure.MP_dark[index] = (uint16_t (payload[incr+2]) << 8) | (uint16_t (payload[incr+3]));
     }
+    
+    processedPacketCounter++;
+    std::cout<<"processMegsPPacket processedPacketCounter "<< processedPacketCounter << std::endl;
 
     // Write packet data to a FITS file if applicable
     std::unique_ptr<FITSWriter> fitsFileWriter;
     fitsFileWriter = std::unique_ptr<FITSWriter>(new FITSWriter());
     // the c++14 way fitsFileWriter = std::make_unique<FITSWriter>();
-    if (fitsFileWriter) {
-        std::cout << "procesMegsBPacket: tai_time_seconds = " << oneMEGSPStructure.tai_time_seconds << std::endl;
 
-        if (!fitsFileWriter->writeMegsPFITS( oneMEGSPStructure )) {
-            LogFileWriter::getInstance().logInfo("writeMegsPFITS write error");
-            std::cout << "ERROR: writeMegsPFITS returned an error" << std::endl;
+    // ONLY WRITE WHEN STRUCTURE IS FULL
+    if ( processedPacketCounter == MEGSP_PACKETS_PER_FILE ) {
+        if (fitsFileWriter) {
+            std::cout << "procesMegsPPacket: tai_time_seconds = " << oneMEGSPStructure.tai_time_seconds << std::endl;
+
+            if (!fitsFileWriter->writeMegsPFITS( oneMEGSPStructure )) {
+                LogFileWriter::getInstance().logInfo("writeMegsPFITS write error");
+                std::cout << "ERROR: writeMegsPFITS returned an error" << std::endl;
+            }
+            processedPacketCounter = 0;
+            // reset the structure immediately after writing
+            oneMEGSPStructure = MEGSP_PACKET{0}; // c++11 
         }
-        // reset the structure immediately after writing
-        //oneMEGSPStructure = MEGS_IMAGE_REC{0}; // c++11 
     }
 }
 
