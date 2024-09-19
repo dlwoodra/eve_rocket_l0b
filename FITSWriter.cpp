@@ -147,7 +147,6 @@ int writeBinaryTable(const std::string& filename,
     fitsfile* fptr = nullptr;  // Pointer to the FITS file
 
     std::cout << "writeBinaryTable data 1"<<std::endl;
-    //printBytes(data, 26 ); //shows 26 bytes - same as writeMegsAFITS
 
     // Lock file mechanism
     std::string lockfile = filename + ".lock";
@@ -244,7 +243,7 @@ int writeBinaryTable(const std::string& filename,
             colType = TFLOAT;  // 32-bit float
             colTypeSize = 4;
         } else if (types[i] == 'D') {
-            colType = TDOUBLE; // 64-bit complex
+            colType = TDOUBLE; // 64-bit double
             colTypeSize = 8;
         } else if (types[i] == 'U') {
             colType = TUSHORT; // uint16
@@ -257,7 +256,7 @@ int writeBinaryTable(const std::string& filename,
             return -1;
         }
 
-        std::cout << "coltype: " << colType << " " << std::hex << *pdata << std::dec<<std::endl;
+        //std::cout << "coltype: " << colType << " " << std::hex << *pdata << std::dec<<std::endl;
 
         fits_write_col(fptr, colType, i + 1, firstrow, firstelem, columnLengths[i], (void*)pdata, &status);
         checkFitsStatus(status);
