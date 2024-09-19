@@ -40,7 +40,7 @@ std::string FITSWriter::createFITSFilename(uint16_t apid, double tai_seconds) {
 }
 
 // Function to initialize a FITS file
-bool FITSWriter::initializeFITSImageFile(const std::string& filename, fitsfile*& fptr) {
+bool FITSWriter::initializeFITSFile(const std::string& filename, fitsfile*& fptr) {
     //fitsfile* fptr;
     int status = 0;
 
@@ -61,16 +61,15 @@ bool FITSWriter::initializeFITSImageFile(const std::string& filename, fitsfile*&
         return false;
     }
 
-    // Create a primary array image (e.g., 16-bit unsigned integer)
-    long naxes[2] = {MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT}; // dimensions, can be adjusted as needed
-    if (fits_create_img(fptr, USHORT_IMG, 2, naxes, &status)) {
-        fits_report_error(stderr, status);
-        return false;
-    }
+    // // Create a primary array image (e.g., 16-bit unsigned integer)
+    // long naxes[2] = {MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT}; // dimensions, can be adjusted as needed
+    // if (fits_create_img(fptr, USHORT_IMG, 2, naxes, &status)) {
+    //     fits_report_error(stderr, status);
+    //     return false;
+    // }
 
     return true;
 }
-
 
 // Error handling function
 void checkFitsStatus(int status) {
@@ -386,11 +385,19 @@ bool FITSWriter::writeMegsFITS(const MEGS_IMAGE_REC& megsStructure, uint16_t api
     std::string filename = createFITSFilename(apid, megsStructure.tai_time_seconds);
 
     fitsfile* fptr = nullptr;
-    if (!initializeFITSImageFile(filename, fptr)) {
+    if (!initializeFITSFile(filename, fptr)) {
         std::cerr << "ERROR: Failed to initialize FITS file: " << filename << std::endl;
         LogFileWriter::getInstance().logError("FITSWriter::writeMegsFITS: Failed to initialize FITS file: " + filename);
         return false;
     }
+
+    // Create a primary array image (e.g., 16-bit unsigned integer)
+    long naxes[2] = {MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT}; // dimensions, can be adjusted as needed
+    if (fits_create_img(fptr, USHORT_IMG, 2, naxes, &status)) {
+        fits_report_error(stderr, status);
+        return false;
+    }
+
 
     if (!writeMegsFITSImgHeader(fptr, megsStructure, status)) {
         return false;
@@ -430,9 +437,91 @@ bool FITSWriter::writeMegsBFITS( const MEGS_IMAGE_REC& megsStructure) {
     return writeMegsFITS(megsStructure, MEGSB_APID, "MEGSB_TABLE");
 }
 
-// MEGS-P 
+// MEGS-P binary table writer
+int writeMegsPFITSBinaryTable(const std::string& filename, 
+    const MEGSP_PACKET& megsPStructure,
+    const std::string& extname,
+    const uint16_t apid ) {
+    
+    std::vector<std::string> columnNames = {
+        "YYYYDOY", "SOD", "TAI_TIME_SECONDS", "TAI_TIME_SUBSECONDS",
+        "REC_TAI_SECONDS", "REC_TAI_SUBSECONDS", 
+        "MP_lya", "MP_dark" 
+    };
+
+    std::vector<std::string> columnTypes = {"V", "V", "V", "V", 
+        "V", "V", 
+        "U", "U"};
+    std::string combinedColumnTypes;    
+    for (const auto& type : columnTypes) {
+        combinedColumnTypes += type;  // Concatenate each string in columnTypes
+    }
+    std::vector<std::string> columnUnits = {"DATE", "s", "s", "s", "s", "s", "count","count"};
+ 
+    //copy data
+    struct DataRow {
+        uint32_t yyyydoy;
+        uint32_t sod;
+        uint32_t tai_time_seconds;
+        uint32_t tai_time_subseconds;
+        uint32_t rec_tai_seconds;
+        uint32_t rec_tai_subseconds;
+        uint16_t MP_lya[MEGSP_INTEGRATIONS_PER_FILE];
+        uint16_t MP_dark[MEGSP_INTEGRATIONS_PER_FILE];
+    } __attribute__((packed));
+
+    // populate the scalars
+    DataRow row = {
+        megsPStructure.yyyydoy, megsPStructure.sod, megsPStructure.tai_time_seconds,
+        megsPStructure.tai_time_subseconds, megsPStructure.rec_tai_seconds,
+        megsPStructure.rec_tai_subseconds
+    };
+    // populate the arrays
+    for (size_t i = 0; i < MEGSP_INTEGRATIONS_PER_FILE; ++i) {
+        row.MP_lya[i] = megsPStructure.MP_lya[i];
+        row.MP_dark[i] = megsPStructure.MP_dark[i];
+    }
+
+    std::vector<uint8_t> data(sizeof(DataRow));
+    memcpy(data.data(), &row, sizeof(DataRow));
+
+    return writeBinaryTable(
+        filename, data.data(), columnNames.size(), columnNames,
+        combinedColumnTypes, columnUnits, true, extname.c_str()
+    );
+}
+
+// MEGS-P main writer
 bool FITSWriter::writeMegsPFITS( const MEGSP_PACKET& megsPStructure) {
-    return 0;
-    //return writeMegsFITS(megsPStructure, MEGSP_APID, "MEGSP_TABLE");
+    //return true;
+    uint16_t apid = MEGSP_APID;
+    std::string extname = "MEGSP_DATA";
+
+    std::cout << "writing MEGS-P FITS file for APID: " << apid << std::endl;
+    LogFileWriter::getInstance().logInfo("writing MEGS-P FITS file");
+
+    int32_t status = 0;
+    std::string filename = createFITSFilename(MEGSP_APID, megsPStructure.tai_time_seconds);
+
+    fitsfile* fptr = nullptr;
+    if (!initializeFITSFile(filename, fptr)) {
+        std::cerr << "ERROR: Failed to initialize FITS file: " << filename << std::endl;
+        LogFileWriter::getInstance().logError("FITSWriter::writeMegsPFITS: Failed to initialize FITS file: " + filename);
+        return false;
+    }
+
+    checkFitsStatus(status);
+
+    int result = writeMegsPFITSBinaryTable(filename, megsPStructure, extname, apid);
+    if (result != 0) {
+        std::cerr << "Failed to write binary table to FITS file: " << filename << std::endl;
+        return false;
+    }
+
+    std::cout << "FITSWriter::writeMegsPFITS successfully wrote " << filename << std::endl;
+    LogFileWriter::getInstance().logInfo("FITSWriter::writeMegsPFITS successfully wrote " + filename);
+
+    return true;
+
 }
 
