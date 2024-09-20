@@ -550,3 +550,113 @@ bool FITSWriter::writeMegsPFITS( const MEGSP_PACKET& megsPStructure) {
 
 }
 
+// ESP binary table writer
+int writeESPFITSBinaryTable(const std::string& filename, 
+    const ESP_PACKET& ESPStructure,
+    const std::string& extname,
+    const uint16_t apid ) {
+    
+    std::vector<std::string> columnNames = {
+        "YYYYDOY", "SOD", "TAI_TIME_SECONDS", "TAI_TIME_SUBSECONDS",
+        "REC_TAI_SECONDS", "REC_TAI_SUBSECONDS", 
+        "ESP_xfer_cnt","ESP_q0", "ESP_q1", "ESP_q2", "ESP_q3", "ESP_171", "ESP_257", "ESP_304", "ESP_366", "ESP_dark" 
+    };
+
+    std::vector<std::string> columnTypes = {"V", "V", "V", "V", 
+        "V", "V", 
+        "U", "U", "U", "U", "U", "U", "U", "U", "U", "U"};
+    std::string combinedColumnTypes;    
+    for (const auto& type : columnTypes) {
+        combinedColumnTypes += type;  // Concatenate each string in columnTypes
+    }
+    std::vector<std::string> columnUnits = {"DATE", "s", "s", "s", "s", "s", "", "count","count","count", "count","count","count", "count","count","count"};
+
+    std::vector<int> columnLengths = {1,1,1,1,1,1,ESP_INTEGRATIONS_PER_FILE, 
+        ESP_INTEGRATIONS_PER_FILE, ESP_INTEGRATIONS_PER_FILE, ESP_INTEGRATIONS_PER_FILE,
+        ESP_INTEGRATIONS_PER_FILE, ESP_INTEGRATIONS_PER_FILE, ESP_INTEGRATIONS_PER_FILE,
+        ESP_INTEGRATIONS_PER_FILE, ESP_INTEGRATIONS_PER_FILE, ESP_INTEGRATIONS_PER_FILE 
+    };
+
+    //copy data
+    struct DataRow {
+        uint32_t yyyydoy;
+        uint32_t sod;
+        uint32_t tai_time_seconds;
+        uint32_t tai_time_subseconds;
+        uint32_t rec_tai_seconds;
+        uint32_t rec_tai_subseconds;
+        uint16_t ESP_xfer_cnt[ESP_INTEGRATIONS_PER_FILE];
+        uint16_t ESP_q0[ESP_INTEGRATIONS_PER_FILE];
+        uint16_t ESP_q1[ESP_INTEGRATIONS_PER_FILE];
+        uint16_t ESP_q2[ESP_INTEGRATIONS_PER_FILE];
+        uint16_t ESP_q3[ESP_INTEGRATIONS_PER_FILE];
+        uint16_t ESP_171[ESP_INTEGRATIONS_PER_FILE];
+        uint16_t ESP_257[ESP_INTEGRATIONS_PER_FILE];
+        uint16_t ESP_304[ESP_INTEGRATIONS_PER_FILE];
+        uint16_t ESP_366[ESP_INTEGRATIONS_PER_FILE];
+        uint16_t ESP_dark[ESP_INTEGRATIONS_PER_FILE];
+    } __attribute__((packed));
+
+    // populate the scalars
+    DataRow row = {
+        ESPStructure.yyyydoy, ESPStructure.sod, ESPStructure.tai_time_seconds,
+        ESPStructure.tai_time_subseconds, ESPStructure.rec_tai_seconds,
+        ESPStructure.rec_tai_subseconds
+    };
+    // populate the arrays
+    for (size_t i = 0; i < ESP_INTEGRATIONS_PER_FILE; ++i) {
+        row.ESP_xfer_cnt[i] = ESPStructure.ESP_xfer_cnt[i];
+        row.ESP_q0[i] = ESPStructure.ESP_q0[i];
+        row.ESP_q1[i] = ESPStructure.ESP_q1[i];
+        row.ESP_q2[i] = ESPStructure.ESP_q2[i];
+        row.ESP_q3[i] = ESPStructure.ESP_q3[i];
+        row.ESP_171[i] = ESPStructure.ESP_171[i];
+        row.ESP_257[i] = ESPStructure.ESP_257[i];
+        row.ESP_304[i] = ESPStructure.ESP_304[i];
+        row.ESP_366[i] = ESPStructure.ESP_366[i];
+        row.ESP_dark[i] = ESPStructure.ESP_dark[i];
+    }
+
+    std::vector<uint8_t> data(sizeof(DataRow));
+    memcpy(data.data(), &row, sizeof(DataRow));
+
+    return writeBinaryTable(
+        filename, data.data(), columnNames.size(), columnNames,
+        combinedColumnTypes, columnLengths, columnUnits, true, extname.c_str()
+    );
+}
+
+// ESP main writer
+bool FITSWriter::writeESPFITS( const ESP_PACKET& ESPStructure) {
+    //return true;
+    uint16_t apid = ESP_APID;
+    std::string extname = "ESP_DATA";
+
+    std::cout << "writing ESP FITS file for APID: " << apid << std::endl;
+    LogFileWriter::getInstance().logInfo("writing ESP FITS file");
+
+    int32_t status = 0;
+    std::string filename = createFITSFilename(ESP_APID, ESPStructure.tai_time_seconds);
+
+    fitsfile* fptr = nullptr;
+    if (!initializeFITSFile(filename, fptr)) {
+        std::cerr << "ERROR: Failed to initialize FITS file: " << filename << std::endl;
+        LogFileWriter::getInstance().logError("FITSWriter::writeESPFITS: Failed to initialize FITS file: " + filename);
+        return false;
+    }
+
+    checkFitsStatus(status);
+
+    int result = writeESPFITSBinaryTable(filename, ESPStructure, extname, apid);
+    if (result != 0) {
+        std::cerr << "Failed to write binary table to FITS file: " << filename << std::endl;
+        return false;
+    }
+
+    std::cout << "FITSWriter::writeESPFITS successfully wrote " << filename << std::endl;
+    LogFileWriter::getInstance().logInfo("FITSWriter::writeESPFITS successfully wrote " + filename);
+
+    return true;
+
+}
+
