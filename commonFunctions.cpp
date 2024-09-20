@@ -424,7 +424,7 @@ void processMegsPPacket(std::vector<uint8_t> payload,
     int packetoffset = processedPacketCounter * MEGSP_PACKETS_PER_FILE;
     //std::cout<<"processMegsPPacket packetoffset "<< packetoffset << std::endl;
     for (int i=0; i<MEGSP_INTEGRATIONS_PER_PACKET; ++i) {
-        int incr = (i*4) + firstbyteoffset;
+        int incr = (i*4) + firstbyteoffset; // 4 is bytes per integration, 2 bytes per diode * 2 diodes per integration
         int index = packetoffset + i;
         oneMEGSPStructure.MP_lya[index] = (uint16_t (payload[incr]) << 8) | (uint16_t (payload[incr + 1]));
         oneMEGSPStructure.MP_dark[index] = (uint16_t (payload[incr+2]) << 8) | (uint16_t (payload[incr+3]));
@@ -459,6 +459,58 @@ void processMegsPPacket(std::vector<uint8_t> payload,
 
 void processESPPacket(std::vector<uint8_t> payload, 
     uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp) {
+
+    ESP_PACKET oneESPStructure = {0};
+    static uint16_t processedPacketCounter=0;
+
+    populateStructureTimes(oneESPStructure, payload);
+
+    int firstbyteoffset = 10;
+
+    int packetoffset = processedPacketCounter * ESP_PACKETS_PER_FILE;
+    //std::cout<<"processESPPacket packetoffset "<< packetoffset << std::endl;
+    constexpr int bytesperintegration = 2 * 9 + 2; // 9 diodes and one counter, is 20
+    for (int i=0; i<ESP_INTEGRATIONS_PER_PACKET; ++i) {
+        int incr = (i*bytesperintegration) + firstbyteoffset;
+        int index = packetoffset + i;
+        oneESPStructure.ESP_xfer_cnt[index] = (uint16_t (payload[incr]) << 8) | (uint16_t (payload[incr + 1]));
+        oneESPStructure.ESP_q0[index] = (uint16_t (payload[incr+2]) << 8) | (uint16_t (payload[incr+3]));
+        oneESPStructure.ESP_q1[index] = (uint16_t (payload[incr+4]) << 8) | (uint16_t (payload[incr+5]));
+        oneESPStructure.ESP_q2[index] = (uint16_t (payload[incr+6]) << 8) | (uint16_t (payload[incr+7]));
+        oneESPStructure.ESP_q3[index] = (uint16_t (payload[incr+8]) << 8) | (uint16_t (payload[incr+9]));
+        oneESPStructure.ESP_171[index] = (uint16_t (payload[incr+10]) << 8) | (uint16_t (payload[incr+11]));
+        oneESPStructure.ESP_257[index] = (uint16_t (payload[incr+12]) << 8) | (uint16_t (payload[incr+13]));
+        oneESPStructure.ESP_304[index] = (uint16_t (payload[incr+14]) << 8) | (uint16_t (payload[incr+15]));
+        oneESPStructure.ESP_366[index] = (uint16_t (payload[incr+16]) << 8) | (uint16_t (payload[incr+17]));
+        oneESPStructure.ESP_dark[index] = (uint16_t (payload[incr+18]) << 8) | (uint16_t (payload[incr+19]));
+    }
+
+    processedPacketCounter++;
+    //std::cout<<"processMegsPPacket processedPacketCounter "<< processedPacketCounter << std::endl;
+
+    // Write packet data to a FITS file if applicable
+    std::unique_ptr<FITSWriter> fitsFileWriter;
+    fitsFileWriter = std::unique_ptr<FITSWriter>(new FITSWriter());
+    // the c++14 way fitsFileWriter = std::make_unique<FITSWriter>();
+
+    // ONLY WRITE WHEN STRUCTURE IS FULL
+    if ( processedPacketCounter == ESP_PACKETS_PER_FILE ) {
+        if (fitsFileWriter) {
+            std::cout << "procesESPPacket: tai_time_seconds = " << oneESPStructure.tai_time_seconds << std::endl;
+
+            if (!fitsFileWriter->writeESPFITS( oneESPStructure )) {
+                LogFileWriter::getInstance().logInfo("writeESPFITS write error");
+                std::cout << "ERROR: writESPFITS returned an error" << std::endl;
+            }
+            std::cout<<"processESPPacket - ESP diode 0 values" << std::endl;
+            printBytes(oneESPStructure.ESP_q0,19);
+
+            processedPacketCounter = 0;
+            // reset the structure immediately after writing
+            oneESPStructure = ESP_PACKET{0}; // c++11 
+        }
+    }
+
 }
 
 void processHKPacket(std::vector<uint8_t> payload, 
