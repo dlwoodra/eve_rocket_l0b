@@ -40,6 +40,7 @@ public:
     bool writeMegsBFITS(const MEGS_IMAGE_REC& megsStructure);
     
     bool writeMegsPFITS(const MEGSP_PACKET& megsPStructure);
+    bool writeESPFITS(const ESP_PACKET& ESPStructure);
 
 private:
     // Helper function to create a FITS filename based on APID and timestamp
