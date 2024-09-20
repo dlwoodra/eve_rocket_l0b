@@ -561,7 +561,6 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
     while (isReceiveFIFOEmpty()) {
         handleReceiveFIFOError();
         std::cout<<"Waiting for data..."<<std::endl;
-        //Sleep(250); //millisec
     }
 
     // LSB register bit is stat_tx_empty - don't need that bit
@@ -580,13 +579,15 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
 
     // for these params we should call this every ~65-75 milliseconds
     // for now just read the buffer iloop times as fast as possible
-    // note 8/30/24 blockPipeOutStatus is 10000 (if hex then 65536)
+    // note 8/30/24 blockPipeOutStatus is 65536
     uint32_t milliSecondWaitTimeBetweenReads = 2;
     uint32_t numberOfCountersPerSecond = 1000 / milliSecondWaitTimeBetweenReads - 1;
     while (true) {
-    //for ( int32_t iloop=0; iloop < 200; ++iloop) {
-        //std::cout<< "Starting loop" <<std::endl;
         uint32_t waitCounter=0;
+
+        // check for overflow
+        checkLinkStatus();
+
         while (isReceiveFIFOEmpty()) {
             waitCounter++;
             if ((waitCounter % (numberOfCountersPerSecond)) == 0) {
@@ -599,8 +600,8 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
         if (waitCounter > 100) {
             std::cout<<"Warning: CGProcRx slow data transfer, waitCounter is high "<<waitCounter<<std::endl;
             LogFileWriter::getInstance().logWarning("CGProxRx slow data transfer, waitCounter is high " + std::to_string(waitCounter));
-
         }
+
         int32_t blockPipeOutStatus = readDataFromUSB();
         // returns number of bytes or <0 for errors
 	    if ( blockPipeOutStatus < 0)
@@ -743,13 +744,6 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
         } // iloop
 
 	}
-
-    // done reading
-    //outputFile.close();
-    //if (outputFile.fail()) {
-    //    std::cerr << "ERROR: Failed to close the file properly." << std::endl;
-    //    return;
-    //}
 }
 
 // unused
@@ -825,7 +819,9 @@ void USBInputSource::checkLinkStatus(void)
 	}
 
 	//printf("\r%i\t%i\t%s", ctrTxPkts, ctrRxPkts, StatusStr);
-    std::cout << "\r" << ctrTxPkts << "\t" << ctrRxPkts << "\t" << StatusStr << std::endl;
+    //std::cout << "\r" << ctrTxPkts << "\t" << ctrRxPkts << "\t" << StatusStr << std::endl;
+
+    LogFileWriter::getInstance().logError("checkLinkStatus: FIFO Overflow - not keeping up");
 
 }
 
