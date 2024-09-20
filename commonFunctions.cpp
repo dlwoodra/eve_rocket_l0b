@@ -89,7 +89,7 @@ void processOnePacket(CCSDSReader& pktReader, const std::vector<uint8_t>& packet
 uint32_t payloadToTAITimeSeconds(const std::vector<uint8_t>& payload) {
     if (payload.size() < 4) {
         // Handle the error case, perhaps by throwing an exception
-        throw std::invalid_argument("Payload must contain at least 4 bytes.");
+        throw std::invalid_argument("payloadToTAITimeSeconds - Payload must contain at least 4 bytes.");
     }
 
     //std::cout << "Payload TAI Seconds bytes in hex:" << std::endl;
@@ -99,32 +99,31 @@ uint32_t payloadToTAITimeSeconds(const std::vector<uint8_t>& payload) {
     //              << static_cast<int>(payload[i]) << std::dec << std::endl;
     //}
 
-    uint32_t tai = (static_cast<uint32_t>(payload[3]) << 24) |
-           (static_cast<uint32_t>(payload[2]) << 16) |
-           (static_cast<uint32_t>(payload[1]) << 8)  |
-           static_cast<uint32_t>(payload[0]);
+    //uint32_t tai = (static_cast<uint32_t>(payload[3]) << 24) |
+    //       (static_cast<uint32_t>(payload[2]) << 16) |
+    //       (static_cast<uint32_t>(payload[1]) << 8)  |
+    //       static_cast<uint32_t>(payload[0]);
     uint32_t reversedtai = (static_cast<uint32_t>(payload[0]) << 24) |
            (static_cast<uint32_t>(payload[1]) << 16) |
            (static_cast<uint32_t>(payload[2]) << 8)  |
            static_cast<uint32_t>(payload[3]);
 
-    std::cout << "payloadToTAITimeSeconds calculated " << tai << std::endl;
     std::cout << "payloadToTAITimeSeconds reversed calculated " << reversedtai << std::endl;
         // Print the combined 32-bit value in hex
-    std::cout << "payloadToTAITimeSeconds TAI bytes: 0x" 
-              << std::hex << std::setfill('0') << std::setw(8) 
-              << tai << std::dec << std::endl;
-    return tai;
+    //std::cout << "payloadToTAITimeSeconds TAI bytes: 0x" 
+    //          << std::hex << std::setfill('0') << std::setw(8) 
+    //          << tai << std::dec << std::endl;
+    return reversedtai;
 }
 
 uint32_t payloadToTAITimeSubseconds(const std::vector<uint8_t>& payload) {
     if (payload.size() < 6) {
         // Handle the error case, perhaps by throwing an exception
-        throw std::invalid_argument("Payload must contain at least 4 bytes.");
+        throw std::invalid_argument("payloadToTAITimeSubseconds - Payload must contain at least 4 bytes.");
     }
 
-    return (static_cast<uint32_t>(payload[4]) << 24) |
-           (static_cast<uint32_t>(payload[5]) << 16);
+    return (static_cast<uint32_t>(payload[5]) << 24) |
+           (static_cast<uint32_t>(payload[4]) << 16);
 }
 
 // use template to allow any of the data structures to have the time variables populated
@@ -156,10 +155,8 @@ void populateStructureTimes(T& oneStructure, const std::vector<uint8_t>& payload
 
 // the payload starts with the secondary header timestamp
 void processMegsAPacket(std::vector<uint8_t> payload, 
-    uint16_t sourceSequenceCounter, uint16_t packetLength, 
-    double timeStamp) {
+    uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp) {
 
-    //std::cout<<"processMegsAPacket a " <<std::endl;
     LogFileWriter::getInstance().logInfo("processMegsAPacket");
 
     // insert pixels into image
@@ -346,10 +343,10 @@ void processMegsBPacket(std::vector<uint8_t> payload,
         oneMEGSStructure = MEGS_IMAGE_REC{0}; // c++11 
 
         testPattern = false; // default is not a test pattern
-        if ((vcdu[34] == 0) && (vcdu[35] == 2) && (vcdu[36] == 0) && (vcdu[37] == 1)) {
+        //if ((vcdu[34] == 0) && (vcdu[35] == 2) && (vcdu[36] == 0) && (vcdu[37] == 1)) { //NEED TO CHANGE FOR MEGS-B
             testPattern = true; // use vcdu[34]==0 vcdu[35]=2 vcdu[36]=0 vcdu[37]=1 to identify TP (first 2 pixesl are bad so skip 30-33)
             std::cout << "processMegsBPacket identified a test pattern" <<std::endl;
-        }
+        //}
 
         // only assign the time from the first packet, the rest keep changing
         tai_sec = payloadToTAITimeSeconds(payload);
@@ -417,15 +414,15 @@ void processMegsPPacket(std::vector<uint8_t> payload,
     MEGSP_PACKET oneMEGSPStructure = {0};
     static uint16_t processedPacketCounter=0;
 
-    std::cout<<"processMegsPPacket 1" << std::endl;
+    //std::cout<<"processMegsPPacket 1" << std::endl;
 
     populateStructureTimes(oneMEGSPStructure, payload);
-    std::cout<<"processMegsPPacket 2" << std::endl;
+    //std::cout<<"processMegsPPacket 2" << std::endl;
 
     int firstbyteoffset = 10;
-    //int NUM_MEGSP_DIODES = 2;
+
     int packetoffset = processedPacketCounter * MEGSP_PACKETS_PER_FILE;
-    std::cout<<"processMegsPPacket packetoffset "<< packetoffset << std::endl;
+    //std::cout<<"processMegsPPacket packetoffset "<< packetoffset << std::endl;
     for (int i=0; i<MEGSP_INTEGRATIONS_PER_PACKET; ++i) {
         int incr = (i*4) + firstbyteoffset;
         int index = packetoffset + i;
@@ -434,7 +431,7 @@ void processMegsPPacket(std::vector<uint8_t> payload,
     }
 
     processedPacketCounter++;
-    std::cout<<"processMegsPPacket processedPacketCounter "<< processedPacketCounter << std::endl;
+    //std::cout<<"processMegsPPacket processedPacketCounter "<< processedPacketCounter << std::endl;
 
     // Write packet data to a FITS file if applicable
     std::unique_ptr<FITSWriter> fitsFileWriter;
@@ -450,8 +447,8 @@ void processMegsPPacket(std::vector<uint8_t> payload,
                 LogFileWriter::getInstance().logInfo("writeMegsPFITS write error");
                 std::cout << "ERROR: writeMegsPFITS returned an error" << std::endl;
             }
-            std::cout<<"processMegsPPacket 3 MP_lya values" << std::endl;
-            printBytes(oneMEGSPStructure.MP_lya,39);
+            std::cout<<"processMegsPPacket - MP_lya values" << std::endl;
+            printBytes(oneMEGSPStructure.MP_lya,19);
 
             processedPacketCounter = 0;
             // reset the structure immediately after writing
