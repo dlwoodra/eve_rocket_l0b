@@ -23,16 +23,44 @@ std::string FITSWriter::createFITSFilename(uint16_t apid, double tai_seconds) {
     std::time_t t = static_cast<std::time_t>(unixtime);
     std::tm* tm = std::gmtime(&t);
 
+    static const char* env_eve_data_root = std::getenv("eve_data_root");
+    if (env_eve_data_root == nullptr) {
+        std::cout<< "***";
+        std::cout << "ERROR: environment variable eve_data_root is undefined - aborting" <<std::endl;
+        std::cout<< "***";
+        exit(EXIT_FAILURE);
+    }
+    static const std::string dataRootPath(env_eve_data_root);
+    std::string l0bpath = dataRootPath + "level0b/";
+
     std::string filename_prefix;
+    std::string channelstring;
     if ( apid == 601 ) {
-        filename_prefix = "MA__L0B_0_";
+        channelstring = "megs_a/";
+        filename_prefix =  "MA__L0B_0_";
     } else if ( apid == 602 ) {
+        channelstring = "megs_b/";
         filename_prefix = "MB__L0B_0_";
     } else if ( apid == 604 ) {
+        channelstring = "megs_p/";
         filename_prefix = "MP__L0B_0_";
     } else if ( apid == 605 ) {
+        channelstring = "esp/";
         filename_prefix == "ESP_L0B_0_";
+    } else if ( apid == 606 ) {
+        channelstring = "shk/";
+        filename_prefix == "SHK_L0B_0_";
     } else {filename_prefix = "unknown_apid_";}
+
+    oss << l0bpath << channelstring << std::put_time(tm, "%Y/%j/");
+
+    // Create the directories if they don't exist, use system call
+    std::string dirPath = oss.str();
+    std::string mkdirCommand = "mkdir -p " + dirPath;
+    if (system(mkdirCommand.c_str()) != 0) {
+        std::cerr << "ERROR: Could not create directories for L0B file " << channelstring << std::endl;
+        return "";
+    }
 
     oss << filename_prefix << std::put_time(tm, "%Y%j_%H%M%S") << ".fit";
     
