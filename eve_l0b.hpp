@@ -25,6 +25,11 @@ constexpr int32_t SECONDS_PER_MEGSP_FILE = 10;
 constexpr int32_t MEGSP_PACKETS_PER_FILE = SECONDS_PER_MEGSP_FILE;
 constexpr int32_t MEGSP_INTEGRATIONS_PER_FILE = MEGSP_INTEGRATIONS_PER_PACKET * SECONDS_PER_MEGSP_FILE;
 
+constexpr int32_t ESP_INTEGRATIONS_PER_PACKET = 4;
+constexpr int32_t SECONDS_PER_ESP_FILE = 10;
+constexpr int32_t ESP_PACKETS_PER_FILE = SECONDS_PER_ESP_FILE;
+constexpr int32_t ESP_INTEGRATIONS_PER_FILE = ESP_INTEGRATIONS_PER_PACKET * SECONDS_PER_ESP_FILE;
+
 #define BAD_PIXEL 16384 			// 2^14	- Image fill value
 
 #define n_bytes_per_syncmarker 4		// The sync marker is 4 bytes
@@ -322,6 +327,29 @@ struct PHOTOMETER_PACKET
 } __attribute__ ((packed));
 
 extern struct PHOTOMETER_PACKET photometer_data[512];	// In 2 minutes there are 480 observations
+
+struct ESP_PACKET
+{
+	uint32_t yyyydoy;
+  	uint32_t sod;
+	uint32_t tai_time_seconds;  
+	uint32_t tai_time_subseconds;
+	uint32_t rec_tai_seconds;
+ 	uint32_t rec_tai_subseconds;
+	uint16_t ESP_xfer_cnt[ESP_INTEGRATIONS_PER_FILE];
+	uint16_t ESP_q0[ESP_INTEGRATIONS_PER_FILE];
+	uint16_t ESP_q1[ESP_INTEGRATIONS_PER_FILE];
+	uint16_t ESP_q2[ESP_INTEGRATIONS_PER_FILE];
+	uint16_t ESP_q3[ESP_INTEGRATIONS_PER_FILE];
+	uint16_t ESP_171[ESP_INTEGRATIONS_PER_FILE];
+	uint16_t ESP_257[ESP_INTEGRATIONS_PER_FILE];
+	uint16_t ESP_304[ESP_INTEGRATIONS_PER_FILE];
+	uint16_t ESP_366[ESP_INTEGRATIONS_PER_FILE];
+	uint16_t ESP_dark[ESP_INTEGRATIONS_PER_FILE];
+	std::string iso8601;
+}; // __attribute__ ((packed));
+
+extern struct ESP_PACKET esp_data;
 
 struct MEGSP_PACKET
 {
