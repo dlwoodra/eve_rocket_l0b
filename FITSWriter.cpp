@@ -35,41 +35,51 @@ std::string FITSWriter::createFITSFilename(uint16_t apid, double tai_seconds) {
 
     std::string filename_prefix;
     std::string channelstring;
-    if ( apid == 601 ) {
-        channelstring = "megs_a/";
-        filename_prefix =  "MA__L0B_0_";
-    } else if ( apid == 602 ) {
-        channelstring = "megs_b/";
-        filename_prefix = "MB__L0B_0_";
-    } else if ( apid == 604 ) {
-        channelstring = "megs_p/";
-        filename_prefix = "MP__L0B_0_";
-    } else if ( apid == 605 ) {
-        channelstring = "esp/";
-        filename_prefix == "ESP_L0B_0_";
-    } else if ( apid == 606 ) {
-        channelstring = "shk/";
-        filename_prefix == "SHK_L0B_0_";
-    } else {filename_prefix = "unknown_apid_";}
+
+    switch (apid) {
+        case MEGSA_APID:
+            channelstring = "megs_a/";
+            filename_prefix =  "MA__L0B_0_";
+            break;
+        case MEGSB_APID:
+            channelstring = "megs_b/";
+            filename_prefix = "MB__L0B_0_";
+            break;
+        case MEGSP_APID:
+            channelstring = "megs_p/";
+            filename_prefix = "MP__L0B_0_";
+            break;
+        case ESP_APID:
+            channelstring = "esp/";
+            filename_prefix = "ESP_L0B_0_";
+            break;
+        case HK_APID:
+            channelstring = "shk/";
+            filename_prefix = "SHK_L0B_0_";
+            break;
+        default:
+            channelstring = "unk/";
+            filename_prefix = "unknown_apid_" + std::to_string(apid) + "_";
+            break;
+    }
 
     oss << l0bpath << channelstring << std::put_time(tm, "%Y/%j/");
 
     // Create the directories if they don't exist, use system call
     std::string dirPath = oss.str();
-    std::string mkdirCommand = "mkdir -p " + dirPath;
-    if (system(mkdirCommand.c_str()) != 0) {
-        std::cerr << "ERROR: Could not create directories for L0B file " << channelstring << std::endl;
+    if (!create_directory_if_not_exists(dirPath)) {
         return "";
     }
 
     oss << filename_prefix << std::put_time(tm, "%Y%j_%H%M%S") << ".fit";
-    
+
+    std::cout<< "createFITSFilename - " << oss.str() << std::endl;
+
     return oss.str();
 }
 
 // Function to initialize a FITS file
 bool FITSWriter::initializeFITSFile(const std::string& filename, fitsfile*& fptr) {
-    //fitsfile* fptr;
     int status = 0;
 
     // This part overwrites an existing FITS file.
@@ -100,21 +110,6 @@ void checkFitsStatus(int status) {
     }
 }
 
-// UNUSED PLACEHOLDER
-bool FITSWriter::writeDataToFITS(fitsfile* fptr, const std::vector<uint8_t>& data) {
-    int status = 0;
-    //long fpixel[2] = {1, 1}; // Starting point to write in the image
-    long long int fpixel = 1; // Starting point to write in the image
-
-    // Write data to the image
-    if (fits_write_img(fptr, TBYTE, fpixel, data.size(), const_cast<uint8_t*>(data.data()), &status)) {
-        fits_report_error(stderr, status);
-        return false;
-    }
-
-    return true;
-}
-
 // Helper function to convert vector of strings to array of char pointers
 std::vector<char*> convertToCharPtrArray(const std::vector<std::string>& vec) {
     std::vector<char*> charArray(vec.size());
@@ -140,16 +135,6 @@ std::vector<char*> convertTypesToTFormPtrArray(const std::string& types, const s
     for (size_t i = 0; i < types.size(); ++i) {
         tFormArray[i] = new char[10];  // Allocate space for 9 chars + null terminator
         sprintf(tFormArray[i], "%d%c", lengths[i], types[i]);
-        //if (types[i] != 'A') {
-            //tFormArray[i][0] = '1';
-            //tFormArray[i][1] = types[i];
-            //tFormArray[i][2] = '\0';
-        //} else {
-        //    tFormArray[i][0] = '1';
-        //    tFormArray[i][0] = '6';
-        //    tFormArray[i][2] = 'A';
-        //    tFormArray[i][3] = '\0';
-        //}
     }
     return tFormArray;
 }
@@ -283,8 +268,6 @@ int writeBinaryTable(const std::string& filename,
             std::cerr << "Unknown type code: " << types[i] << std::endl;
             return -1;
         }
-
-        //std::cout << "coltype: " << colType << " " << std::hex << *pdata << std::dec<<std::endl;
 
         fits_write_col(fptr, colType, i + 1, firstrow, firstelem, columnLengths[i], (void*)pdata, &status);
         checkFitsStatus(status);
@@ -518,11 +501,9 @@ int writeMegsPFITSBinaryTable(const std::string& filename,
 
 // MEGS-P main writer
 bool FITSWriter::writeMegsPFITS( const MEGSP_PACKET& megsPStructure) {
-    //return true;
-    uint16_t apid = MEGSP_APID;
     std::string extname = "MEGSP_DATA";
 
-    std::cout << "writing MEGS-P FITS file for APID: " << apid << std::endl;
+    std::cout << "writing MEGS-P FITS file for APID: " << MEGSP_APID << std::endl;
     LogFileWriter::getInstance().logInfo("writing MEGS-P FITS file");
 
     int32_t status = 0;
@@ -537,7 +518,7 @@ bool FITSWriter::writeMegsPFITS( const MEGSP_PACKET& megsPStructure) {
 
     checkFitsStatus(status);
 
-    int result = writeMegsPFITSBinaryTable(filename, megsPStructure, extname, apid);
+    int result = writeMegsPFITSBinaryTable(filename, megsPStructure, extname, MEGSP_APID);
     if (result != 0) {
         std::cerr << "Failed to write binary table to FITS file: " << filename << std::endl;
         return false;
@@ -628,11 +609,9 @@ int writeESPFITSBinaryTable(const std::string& filename,
 
 // ESP main writer
 bool FITSWriter::writeESPFITS( const ESP_PACKET& ESPStructure) {
-    //return true;
-    uint16_t apid = ESP_APID;
     std::string extname = "ESP_DATA";
 
-    std::cout << "writing ESP FITS file for APID: " << apid << std::endl;
+    std::cout << "writing ESP FITS file for APID: " << ESP_APID << std::endl;
     LogFileWriter::getInstance().logInfo("writing ESP FITS file");
 
     int32_t status = 0;
@@ -647,7 +626,7 @@ bool FITSWriter::writeESPFITS( const ESP_PACKET& ESPStructure) {
 
     checkFitsStatus(status);
 
-    int result = writeESPFITSBinaryTable(filename, ESPStructure, extname, apid);
+    int result = writeESPFITSBinaryTable(filename, ESPStructure, extname, ESP_APID);
     if (result != 0) {
         std::cerr << "Failed to write binary table to FITS file: " << filename << std::endl;
         return false;
