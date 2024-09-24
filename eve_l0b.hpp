@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <string>
 #include <time.h>
 #include <math.h>
 #include <byteswap.h>
