@@ -1,11 +1,79 @@
 // commonFunctions.cpp
 
 #include "commonFunctions.hpp"
-//#include "eve_l0b.hpp" // included in commonFunctions.hpp
+
+#ifdef ENABLEGUI
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
+#include <stdio.h>
+//#define GL_SILENCE_DEPRECATION
+#include <GLFW/glfw3.h> // Will drag system OpenGL headers
+
+#include "implot.h"  // Include ImPlot if you are using it
+
+// reads a packet and writes it to the recordfile
+void processPackets_withgui(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& recordWriter, bool skipRecord, GLFWwindow* window) {
+    std::vector<uint8_t> packet;
+    int counter = 0;
+
+    while (!glfwWindowShouldClose(window)) {
+        if (pktReader.readNextPacket(packet)) {
+            counter++;
+            if (!skipRecord && recordWriter && !recordWriter->writeSyncAndPacketToRecordFile(packet)) {
+                LogFileWriter::getInstance().logError("ERROR: processPackets failed to write packet to record file.");
+                return;
+            }
+            // Process packet
+            processOnePacket(pktReader, packet);
+
+            // update plotcounter
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            //Sleep(100);
+        }
+    }
+}
+#endif
 
 // Function returns false if filename is empty
 bool isValidFilename(const std::string& filename) {
     return !filename.empty();
+}
+
+// Utility function to create a single directory
+bool create_single_directory(const std::string& path) {
+    // Check if directory exists and create it if it doesn't
+    struct stat info;
+    if (stat(path.c_str(), &info) != 0) {
+        // Directory doesn't exist, create it
+        if (mkdir(path.c_str(), 0755) != 0) {
+            std::cerr << "ERROR: Could not create directory: " << path << std::endl;
+            return false;
+        }
+    } else if (!(info.st_mode & S_IFDIR)) {
+        std::cerr << "ERROR: Path exists but is not a directory: " << path << std::endl;
+        return false;
+    }
+    return true;
+}
+
+// Function to create directories recursively, like `mkdir -p`
+bool create_directory_if_not_exists(const std::string& path) {
+    std::istringstream pathStream(path);
+    std::string segment;
+    std::string currentPath;
+
+    while (std::getline(pathStream, segment, '/')) {
+        if (!segment.empty()) {
+            currentPath += segment + "/";
+            if (!create_single_directory(currentPath)) {
+                return false;
+            }
+        }
+    }
+
+    return true;
 }
 
 // reads a packet and writes it to the recordfile
@@ -13,7 +81,6 @@ void processPackets(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& r
     std::vector<uint8_t> packet;
     int counter = 0;
 
-    std::cout << "entered processPackets" << std::endl;
     while (pktReader.readNextPacket(packet)) {
         counter++;
         //std::cout << "processPackets counter " << counter << std::endl;
@@ -469,7 +536,10 @@ void processESPPacket(std::vector<uint8_t> payload,
 
     int packetoffset = processedPacketCounter * ESP_PACKETS_PER_FILE;
     //std::cout<<"processESPPacket packetoffset "<< packetoffset << std::endl;
-    constexpr int bytesperintegration = 2 * 9 + 2; // 9 diodes and one counter, is 20
+    // integrations are sequentially adjacent in the packet
+    // pri hdr, sec hdr, mode, integration 1, integrtion 2, etc
+    // each ESP integration starts with a 2 byte counter, then 9 2 byte diode measurements
+    constexpr int bytesperintegration = (2 * 9) + 2; // 9 diodes and one counter, is 20
     for (int i=0; i<ESP_INTEGRATIONS_PER_PACKET; ++i) {
         int incr = (i*bytesperintegration) + firstbyteoffset;
         int index = packetoffset + i;
