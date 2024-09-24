@@ -14,7 +14,7 @@ CXXFLAGS = -std=c++11 -fopenmp
 # Check if SKIPPARITY is defined during compilation
 ## active using make SKIPPARITY=1 target
 ifdef SKIPPARITY
-    CFLAGS += -DSKIPPARITY
+    CXXFLAGS += -DSKIPPARITY
 endif
 
 PCH_FLAGS = -include spdlog_pch.hpp
@@ -34,8 +34,17 @@ COMSRC = CCSDSReader.cpp RecordFileWriter.cpp USBInputSource.cpp \
 SRCS = ${COMSRC} main.cpp
 TEST_SRCS = ${COMSRC} test_main.cpp 
 
-OBJS = ${SRCS:.cpp=.o}
-TEST_OBJS = ${TEST_SRCS:.cpp=.o}
+COM_OBJS = ${COMSRC:.cpp=.o}
+#OBJS = ${SRCS:.cpp=.o} ${COM_OBJS}
+MAIN_OBJS = main.o
+TEST_OBJS = test_main.o
+#TEST_OBJS = ${TEST_SRCS:.cpp=.o} ${COM_OBJS}
+
+# Function to compile source files into object files
+#%.o: %.cpp spdlog_pch.pch
+#	$(CXX) $(CXXFLAGS) $(PCH_FLAGS) $(INCLUDE_PATH) $(FAST_FLAGS) -c $< -o $@
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) $(INCLUDE_PATH) $(FAST_FLAGS) -c $< -o $@
 
 # actions, not files
 .PHONY: all clean cleanrtlm cleanlog removebinaries
@@ -50,25 +59,22 @@ spdlog_pch.pch: spdlog_pch.hpp
 	$(CXX) $(CXXFLAGS) $(PCH_FLAGS) -x c++-header spdlog_pch.hpp -o spdlog_pch.pch
 
 # for running tests
-rl0b_test: spdlog_pch
-	$(CXX) $(CXXFLAGS) $(INCLUDE_PATH) $(TEST_FLAGS) $(PCH_FLAGS) -c $(TEST_SRCS)
-	$(CXX) $(LINKED_LIBS) -o $@ $(TEST_OBJS) $(LFLAGS)
-	rm -f $(TEST_OBJS)
+rl0b_test: spdlog_pch $(COM_OBJS) $(TEST_OBJS)
+	$(CXX) $(CXXFLAGS) $(INCLUDE_PATH) $(TEST_FLAGS) $(PCH_FLAGS) -o $@ $(COM_OBJS) $(TEST_OBJS) $(LINKED_LIBS) $(LFLAGS)
+#	rm -f $(TEST_OBJS)
 
 # for production use at SURF
-rl0b_main: spdlog_pch
-	$(CXX) $(CXXFLAGS) $(INCLUDE_PATH) $(FAST_FLAGS) $(PCH_FLAGS) -c $(SRCS)
-	$(CXX) $(LINKED_LIBS) -o $@ $(OBJS) $(LFLAGS)
-	rm -f $(OBJS)
+rl0b_main: spdlog_pch $(COM_OBJS) $(MAIN_OBJS)
+	$(CXX) $(CXXFLAGS) $(INCLUDE_PATH) $(FAST_FLAGS) $(PCH_FLAGS) -o $@ $(COM_OBJS) $(MAIN_OBJS) $(LINKED_LIBS) $(LFLAGS)
+#	rm -f $(OBJS)
 
 # for gdb
-rl0b_main_debug: spdlog_pch
-	$(CXX) $(CXXFLAGS) $(INCLUDE_PATH) $(DEBUG_FLAGS) $(PCH_FLAGS) -c $(SRCS)
-	$(CXX) $(LINKED_LIBS) -o $@ $(OBJS) $(LFLAGS)
+rl0b_main_debug: spdlog_pch $(COM_OBJS) $(MAIN_OBJS)
+	$(CXX) $(CXXFLAGS) $(INCLUDE_PATH) $(DEBUG_FLAGS) $(PCH_FLAGS) -o $@ $(COM_OBJS) $(MAIN_OBJS) $(LINKED_LIBS) $(LFLAGS)
 	rm -f $(OBJS)
 
 clean:
-	rm -f $(OBJS) $(TEST_OBJS)
+	rm -f $(COM_OBJS) $(MAIN_OBJS) $(TEST_OBJS)
 
 cleanrtlm:
 	find . -name "record*.rtlm" -size 0 -delete
