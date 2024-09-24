@@ -1,0 +1,94 @@
+#
+# makefile
+#
+
+# note that this relies on precompiling spdlog_pch.hpp
+# use make spdlog_pch
+
+#openmp is enabled with CXXFLAGS and LFLAGS
+
+# Makefile_gui
+
+CXX = g++
+
+IMGUI_DIR = ./imgui
+IMGUI_BACKEND_DIR = $(IMGUI_DIR)/backends
+
+INCLUDE_PATH = -I/usr/local/include -I$(IMGUI_DIR) -I$(IMGUI_BACKEND_DIR)
+CXXFLAGS = -std=c++11 -fopenmp `pkg-config --cflags glfw3`
+
+# Check if SKIPPARITY is defined during compilation
+ifdef SKIPPARITY
+    CXXFLAGS += -DSKIPPARITY
+endif
+
+CXXFLAGS += -DENABLEGUI
+
+PCH_FLAGS = -include spdlog_pch.hpp
+
+FAST_FLAGS = -O3 -Wall
+TEST_FLAGS = -Wall
+DEBUG_FLAGS = -g -Wall
+
+LFLAGS = -lcfitsio -lm -lspdlog -lfmt -lokFrontPanel -fopenmp -lGL
+LINKED_LIBS = -L/usr/local/lib -Wl,-rpath=/usr/local/lib
+LINKED_LIBS += `pkg-config --static --libs glfw3`
+
+# Common source files
+COMSRC = CCSDSReader.cpp RecordFileWriter.cpp USBInputSource.cpp \
+    FileInputSource.cpp FITSWriter.cpp PacketProcessor.cpp \
+    TimeInfo.cpp assemble_image.cpp tai_to_ydhms.cpp LogFileWriter.cpp \
+    commonFunctions.cpp
+
+# ImGui source files
+IMGUI_SOURCES = $(IMGUI_DIR)/imgui.cpp $(IMGUI_DIR)/imgui_draw.cpp $(IMGUI_DIR)/imgui_tables.cpp \
+                $(IMGUI_DIR)/imgui_widgets.cpp $(IMGUI_DIR)/imgui_demo.cpp
+IMGUI_SOURCES += ./implot.cpp ./implot_items.cpp
+IMGUI_BACKEND_SOURCES = $(IMGUI_BACKEND_DIR)/imgui_impl_glfw.cpp $(IMGUI_BACKEND_DIR)/imgui_impl_opengl3.cpp
+
+# Generate object files in their respective directories
+IMGUI_OBJS = $(IMGUI_SOURCES:.cpp=.o) $(IMGUI_BACKEND_SOURCES:.cpp=.o)
+COM_OBJS = $(COMSRC:.cpp=.o)
+MAIN_OBJS = gui_main.o
+TEST_OBJS = test_main.o
+
+# Function to compile source files into object files
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) $(INCLUDE_PATH) $(FAST_FLAGS) -c $< -o $@
+
+# actions, not files
+.PHONY: all clean cleanrtlm cleanlog removebinaries
+
+all: rl0b_test rl0b_main_gui rl0b_main_debug
+
+# Target to build the precompiled header
+spdlog_pch: spdlog_pch.pch
+
+# Rule to generate the precompiled header
+spdlog_pch.pch: spdlog_pch.hpp
+	$(CXX) $(CXXFLAGS) $(PCH_FLAGS) -x c++-header spdlog_pch.hpp -o spdlog_pch.pch
+
+# For running tests
+rl0b_test: spdlog_pch $(COM_OBJS) $(TEST_OBJS) $(IMGUI_OBJS)
+	$(CXX) $(CXXFLAGS) $(INCLUDE_PATH) $(TEST_FLAGS) $(PCH_FLAGS) -o $@ $(COM_OBJS) $(TEST_OBJS) $(IMGUI_OBJS) $(LINKED_LIBS) $(LFLAGS)
+
+# For production use
+rl0b_main_gui: spdlog_pch $(COM_OBJS) $(MAIN_OBJS) $(IMGUI_OBJS)
+	$(CXX) $(CXXFLAGS) $(INCLUDE_PATH) $(FAST_FLAGS) $(PCH_FLAGS) -o $@ $(COM_OBJS) $(MAIN_OBJS) $(IMGUI_OBJS) $(LINKED_LIBS) $(LFLAGS)
+
+# For debugging
+rl0b_main_debug: spdlog_pch $(COM_OBJS) $(MAIN_OBJS) $(IMGUI_OBJS)
+	$(CXX) $(CXXFLAGS) $(INCLUDE_PATH) $(DEBUG_FLAGS) $(PCH_FLAGS) -o $@ $(COM_OBJS) $(MAIN_OBJS) $(IMGUI_OBJS) $(LINKED_LIBS) $(LFLAGS)
+
+clean:
+	rm -f $(COM_OBJS) $(TEST_OBJS) $(MAIN_OBJS) $(IMGUI_OBJS)
+
+cleanrtlm:
+	find . -name "record*.rtlm" -size 0 -delete
+
+cleanlog:
+	find . -name "log*.log" -size 0 -delete
+
+removebinaries:
+	rm -f rl0b_main_gui rl0b_test rl0b_main_debug
+
