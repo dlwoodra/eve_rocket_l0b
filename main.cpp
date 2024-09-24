@@ -75,6 +75,15 @@ int main(int argc, char* argv[]) {
     bool skipMP = false;
     bool skipRecord = false;
 
+    static const char* env_eve_data_root = std::getenv("eve_data_root");
+    if (env_eve_data_root == nullptr) {
+        std::cout<< "***";
+        std::cout << "ERROR: environment variable eve_data_root is undefined - aborting" <<std::endl;
+        std::cout << " make sure you have sourced the setup script setup_eve_rdp.csh or similar" <<std::endl;
+        std::cout<< "***";
+        exit(EXIT_FAILURE);
+    }
+
     // Register the signal handler for SIGINT
     std::signal(SIGINT, handleSigint);
 
