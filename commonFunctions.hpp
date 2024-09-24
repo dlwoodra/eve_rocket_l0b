@@ -17,8 +17,11 @@
 //#include <fstream> // included in CCSDSReader.hpp
 //#include <iostream> // included in CCSDSReader.hpp
 #include <string>
-//#include <vector> // included in CCSDSReader.hpp
 
+#include <sys/stat.h> // For mkdir
+#include <sys/types.h> // For mode_t
+#include <errno.h>     // For errno
+#include <cstring>     // For strerror
 
 //prototypes
 bool isValidFilename(const std::string& filename);
@@ -41,5 +44,6 @@ void printBytes(const void* ptr, size_t size);
 void printBytesToStdOut(const uint8_t* array, uint32_t start, uint32_t end);
 void printUint16ToStdOut(const uint16_t* image, size_t size, size_t count);
 
+bool create_directory_if_not_exists(const std::string& dirPath);
 
 #endif // COMMONFUNCTIONS_H
