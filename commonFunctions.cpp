@@ -117,11 +117,9 @@ void processOnePacket(CCSDSReader& pktReader, const std::vector<uint8_t>& packet
     double timeStamp = pktReader.getPacketTimeStamp(payload);
     //std::cout<<"processOnePacket - f timeStamp "<<timeStamp <<std::endl;
 
-    LogFileWriter::getInstance().logInfo("APID " + std::to_string(apid) + \
-        " SSC " + std::to_string(sourceSequenceCounter) + \
-        " pktLen " + std::to_string(packetLength) + \
-        " time " + std::to_string(timeStamp) \
-        );
+    LogFileWriter::getInstance().logInfo("APID {} SSC {} pktLen {} time {}", apid,
+        sourceSequenceCounter, packetLength, timeStamp
+    );
 
     switch (apid) {
         case MEGSA_APID:
@@ -150,7 +148,15 @@ void processOnePacket(CCSDSReader& pktReader, const std::vector<uint8_t>& packet
     std::chrono::duration<double> elapsed_seconds = end - start;
     //std::cout << "Elapsed time: " << elapsed_seconds.count() << " sec" << std::endl;
     uint64_t elapsedMicrosec = 1.e6 * elapsed_seconds.count();
-    LogFileWriter::getInstance().logInfo("Elapsed microsec "+ std::to_string(elapsedMicrosec));
+    LogFileWriter::getInstance().logInfo("Elapsed microsec {}",elapsedMicrosec);
+}
+
+// payloadBytesToUint32 creates a 32-bit int from 4 bytes in TAI time order starting at offsetByte
+uint32_t payloadBytesToUint32(const std::vector<uint8_t>&payload, const int32_t offsetByte) {
+    return (static_cast<uint32_t>(payload[offsetByte]) << 24) |
+           (static_cast<uint32_t>(payload[offsetByte+1]) << 16) |
+           (static_cast<uint32_t>(payload[offsetByte+2]) << 8)  |
+           static_cast<uint32_t>(payload[offsetByte+3]);
 }
 
 uint32_t payloadToTAITimeSeconds(const std::vector<uint8_t>& payload) {
@@ -283,7 +289,7 @@ void processMegsAPacket(std::vector<uint8_t> payload,
         (sourceSequenceCounter <= previousSrcSeqCount)) {
         // packet is from a new image
         std::string logMsg = "MA starting new image first SrcSeqCounter: " + std::to_string(sourceSequenceCounter);
-        LogFileWriter::getInstance().logInfo(logMsg);
+        LogFileWriter::getInstance().logInfo("MA starting new image first SrcSeqCounter: {}", sourceSequenceCounter);
         std::cout << "Info: " << logMsg << std::endl;
 
         //reset oneMEGSStructure
@@ -336,7 +342,7 @@ void processMegsAPacket(std::vector<uint8_t> payload,
     //std::cout << "processMegsAPacket called assemble_image R2 vcdu_count " << oneMEGSStructure.vcdu_count << " im02"<<" "<<oneMEGSStructure.image[0][2] <<" "<< oneMEGSStructure.image[1][2] << " "<<oneMEGSStructure.image[2][2] <<" "<<oneMEGSStructure.image[3][2] <<"\n";
 
     if ( parityErrors > 0 ) {
-        LogFileWriter::getInstance().logError("MA parity errors: "+ std::to_string(parityErrors));
+        LogFileWriter::getInstance().logError("MA parity errors: {} SSC: {}", parityErrors, sourceSequenceCounter);
         std::cout << "processMegsAPacket - assemble_image returned parity errors: " << parityErrors << " ssc:"<<sourceSequenceCounter<<"\n";
     }
     processedPacketCounter++; // count packets processed
@@ -403,7 +409,7 @@ void processMegsBPacket(std::vector<uint8_t> payload,
         (sourceSequenceCounter <= previousSrcSeqCount)) {
         // packet is from a new image
         std::string logMsg = "MB starting new image first SrcSeqCounter: " + std::to_string(sourceSequenceCounter);
-        LogFileWriter::getInstance().logInfo(logMsg);
+        LogFileWriter::getInstance().logInfo("MB starting new image first SrcSeqCounter: {}", sourceSequenceCounter);
         std::cout << "Info: " << logMsg << std::endl;
 
         //reset oneMEGSStructure
@@ -443,7 +449,7 @@ void processMegsBPacket(std::vector<uint8_t> payload,
     int parityErrors = assemble_image(vcdu, &oneMEGSStructure, sourceSequenceCounter, testPattern, &status);
 
     if ( parityErrors > 0 ) {
-        LogFileWriter::getInstance().logError("MB parity errors: "+ std::to_string(parityErrors));
+        LogFileWriter::getInstance().logError("MB parity errors: {}", parityErrors);
         std::cout << "processMegsBPacket - assemble_image returned parity errors: " << parityErrors << " ssc:"<<sourceSequenceCounter<<"\n";
     }
 
@@ -585,6 +591,108 @@ void processESPPacket(std::vector<uint8_t> payload,
 
 void processHKPacket(std::vector<uint8_t> payload, 
     uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp) {
+    
+    return; // Need to debug
+
+    SHK_PACKET oneSHKStructure = {0};
+    static uint16_t processedPacketCounter=0;
+
+    populateStructureTimes(oneSHKStructure, payload);
+
+    int firstbyteoffset = 10; // offset into payload after 4 bytes TAI sec, 4 bytes TAIsubsec, 2 bytes modeword
+
+    int packetoffset = processedPacketCounter * SHK_PACKETS_PER_FILE;
+    //std::cout<<"processESPPacket packetoffset "<< packetoffset << std::endl;
+    // integrations are sequentially adjacent in the packet
+    // pri hdr, sec hdr, mode, integration 1, integrtion 2, etc
+    // each SHK "integration" starts with a 2 byte counter, then 9 2 byte diode measurements
+    constexpr int bytesperintegration = (4 * 65) + 2; // 65 32-bit values, some are unused
+    for (int i=0; i<SHK_INTEGRATIONS_PER_PACKET; ++i) {
+        int incr = (i*bytesperintegration) + firstbyteoffset;
+        int index = packetoffset + i;
+        oneSHKStructure.FPGA_Board_Temperature[index] = payloadBytesToUint32(payload, incr+4);
+        oneSHKStructure.FPGA_Board_p5_0_Voltage[index] = payloadBytesToUint32(payload, incr+8);
+        oneSHKStructure.FPGA_Board_p3_3_Voltage[index] = payloadBytesToUint32(payload, incr+12);
+        oneSHKStructure.FPGA_Board_p2_5_Voltage[index] = payloadBytesToUint32(payload, incr+16);
+        oneSHKStructure.FPGA_Board_p1_2_Voltage[index] = payloadBytesToUint32(payload, incr+20);
+        oneSHKStructure.MEGSA_CEB_Temperature[index] = payloadBytesToUint32(payload, incr+24);
+        oneSHKStructure.MEGSA_CPR_Temperature[index] = payloadBytesToUint32(payload, incr+28);
+        oneSHKStructure.MEGSA_p24_Voltage[index] = payloadBytesToUint32(payload, incr+32);
+        oneSHKStructure.MEGSA_p15_Voltage[index] = payloadBytesToUint32(payload, incr+36);
+        oneSHKStructure.MEGSA_m15_Voltage[index] = payloadBytesToUint32(payload, incr+40); // 10*4
+        oneSHKStructure.MEGSA_p5_0_Analog_Voltage[index] = payloadBytesToUint32(payload, incr+44);
+        oneSHKStructure.MEGSA_m5_0_Voltage[index] = payloadBytesToUint32(payload, incr+48);
+        oneSHKStructure.MEGSA_p5_0_Digital_Voltage[index] = payloadBytesToUint32(payload, incr+52);
+        oneSHKStructure.MEGSA_p2_5_Voltage[index] = payloadBytesToUint32(payload, incr+56);
+        oneSHKStructure.MEGSA_p24_Current[index] = payloadBytesToUint32(payload, incr+60);
+        oneSHKStructure.MEGSA_p15_Current[index] = payloadBytesToUint32(payload, incr+64);
+        oneSHKStructure.MEGSA_m15_Current[index] = payloadBytesToUint32(payload, incr+68);
+        oneSHKStructure.MEGSA_p5_0_Analog_Current[index] = payloadBytesToUint32(payload, incr+72);
+        oneSHKStructure.MEGSA_m5_0_Current[index] = payloadBytesToUint32(payload, incr+76);
+        oneSHKStructure.MEGSA_p5_0_Digital_Current[index] = payloadBytesToUint32(payload, incr+80); //20*4
+        oneSHKStructure.MEGSA_p2_5_Current[index] = payloadBytesToUint32(payload, incr+84);
+        oneSHKStructure.MEGSA_Integration_Register[index] = payloadBytesToUint32(payload, incr+88);
+        oneSHKStructure.MEGSA_Analog_Mux_Register[index] = payloadBytesToUint32(payload, incr+92);
+        oneSHKStructure.MEGSA_Digital_Status_Register[index] = payloadBytesToUint32(payload, incr+96);
+        oneSHKStructure.MEGSA_Integration_Timer_Register[index] = payloadBytesToUint32(payload, incr+100);
+        oneSHKStructure.MEGSA_Command_Error_Count_Register[index] = payloadBytesToUint32(payload, incr+104);
+        oneSHKStructure.MEGSA_CEB_FPGA_Version_Register[index] = payloadBytesToUint32(payload, incr+108);
+        // gap of 4 32-bit values
+        oneSHKStructure.MEGSB_CEB_Temperature[index] = payloadBytesToUint32(payload, incr+128);
+        oneSHKStructure.MEGSB_CPR_Temperature[index] = payloadBytesToUint32(payload, incr+132);
+        oneSHKStructure.MEGSB_p24_Voltage[index] = payloadBytesToUint32(payload, incr+136);
+        oneSHKStructure.MEGSB_p15_Voltage[index] = payloadBytesToUint32(payload, incr+140);
+        oneSHKStructure.MEGSB_m15_Voltage[index] = payloadBytesToUint32(payload, incr+144);
+        oneSHKStructure.MEGSB_p5_0_Analog_Voltage[index] = payloadBytesToUint32(payload, incr+148);
+        oneSHKStructure.MEGSB_m5_0_Voltage[index] = payloadBytesToUint32(payload, incr+152);
+        oneSHKStructure.MEGSB_p5_0_Digital_Voltage[index] = payloadBytesToUint32(payload, incr+156);
+        oneSHKStructure.MEGSB_p2_5_Voltage[index] = payloadBytesToUint32(payload, incr+160); // 40*4
+        oneSHKStructure.MEGSB_p24_Current[index] = payloadBytesToUint32(payload, incr+164);
+        oneSHKStructure.MEGSB_p15_Current[index] = payloadBytesToUint32(payload, incr+168);
+        oneSHKStructure.MEGSB_m15_Current[index] = payloadBytesToUint32(payload, incr+172);
+        oneSHKStructure.MEGSB_p5_0_Analog_Current[index] = payloadBytesToUint32(payload, incr+176);
+        oneSHKStructure.MEGSB_m5_0_Current[index] = payloadBytesToUint32(payload, incr+180);
+        oneSHKStructure.MEGSB_p5_0_Digital_Current[index] = payloadBytesToUint32(payload, incr+184);
+        oneSHKStructure.MEGSB_p2_5_Current[index] = payloadBytesToUint32(payload, incr+188);
+        oneSHKStructure.MEGSB_Integration_Register[index] = payloadBytesToUint32(payload, incr+192);
+        oneSHKStructure.MEGSB_Analog_Mux_Register[index] = payloadBytesToUint32(payload, incr+196);
+        oneSHKStructure.MEGSB_Digital_Status_Register[index] = payloadBytesToUint32(payload, incr+200); // 50*4
+        oneSHKStructure.MEGSB_Integration_Timer_Register[index] = payloadBytesToUint32(payload, incr+204);
+        oneSHKStructure.MEGSB_Command_Error_Count_Register[index] = payloadBytesToUint32(payload, incr+208);
+        oneSHKStructure.MEGSB_CEB_FPGA_Version_Register[index] = payloadBytesToUint32(payload, incr+212);
+
+        oneSHKStructure.MEGSA_Thermistor_Diode[index] = payloadBytesToUint32(payload, incr+216);
+        oneSHKStructure.MEGSA_PRT[index] = payloadBytesToUint32(payload, incr+220);
+        oneSHKStructure.MEGSB_Thermistor_Diode[index] = payloadBytesToUint32(payload, incr+224);
+        oneSHKStructure.MEGSB_PRT[index] = payloadBytesToUint32(payload, incr+228);
+        // additional 4 spares at the end
+    }
+
+    processedPacketCounter++;
+    //std::cout<<"procesHKPacket processedPacketCounter "<< processedPacketCounter << std::endl;
+
+    // Write packet data to a FITS file if applicable
+    std::unique_ptr<FITSWriter> fitsFileWriter;
+    fitsFileWriter = std::unique_ptr<FITSWriter>(new FITSWriter());
+    // the c++14 way fitsFileWriter = std::make_unique<FITSWriter>();
+
+    // ONLY WRITE WHEN STRUCTURE IS FULL
+    if ( processedPacketCounter == SHK_PACKETS_PER_FILE ) {
+        if (fitsFileWriter) {
+            std::cout << "procesESPPacket: tai_time_seconds = " << oneSHKStructure.tai_time_seconds << std::endl;
+
+            if (!fitsFileWriter->writeSHKFITS( oneSHKStructure )) {
+                LogFileWriter::getInstance().logInfo("writeSHKFITS write error");
+                std::cout << "ERROR: writeSHKFITS returned an error" << std::endl;
+            }
+            //std::cout<<"processSHKPacket - SHK FPGA_Board_Temperature values" << std::endl;
+            //printBytes(oneSHKStructure.FPGA_Board_Temperature,19);
+
+            processedPacketCounter = 0;
+            // reset the structure immediately after writing
+            oneSHKStructure = SHK_PACKET{0}; // c++11 
+        }
+    }
 }
 
 void printBytesToStdOut(const uint8_t* array, uint32_t start, uint32_t end) {
