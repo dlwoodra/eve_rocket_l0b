@@ -17,24 +17,6 @@ LogFileWriter::~LogFileWriter() {
     // No explicit cleanup needed for spdlog
 }
 
-void LogFileWriter::logInfo(const std::string& message) {
-    if (checkAndRotateFile()) {
-        logger->info(message);
-    }
-}
-
-void LogFileWriter::logWarning(const std::string& message) {
-    if (checkAndRotateFile()) {
-        logger->warn(message);
-    }
-}
-
-void LogFileWriter::logError(const std::string& message) {
-    if (checkAndRotateFile()) {
-        logger->error(message);
-    }
-}
-
 bool LogFileWriter::checkAndRotateFile() {
     TimeInfo currentTime;
     int currentMinute = currentTime.getMinute();
