@@ -139,18 +139,18 @@ void parseCommandLineArgs(int argc, char* argv[], std::string& filename, bool& s
         std::string arg = argv[i];
         if (isValidFilename(arg) && arg[0] != '-') {
             filename = arg;
-            LogFileWriter::getInstance().logInfo("Received filename arg: " + arg);
+            LogFileWriter::getInstance().logInfo("Received filename arg: {}", arg);
         } else if (arg == "--skipESP" || arg == "-skipESP") {
             skipESP = true;
-            LogFileWriter::getInstance().logInfo("Received : " + arg);
+            LogFileWriter::getInstance().logInfo("Received : {}", arg);
         } else if (arg == "--skipMP" || arg == "-skipMP") {
             skipMP = true;
-            LogFileWriter::getInstance().logInfo("Received : " + arg);
+            LogFileWriter::getInstance().logInfo("Received : {}", arg);
         } else if (arg == "--help" || arg == "-help") {
             print_help();
         } else if (arg == "--skipRecord" || arg == "-skipRecord") {
             skipRecord = true;
-            LogFileWriter::getInstance().logInfo("Received : " + arg);
+            LogFileWriter::getInstance().logInfo("Received : {}", arg);
         } else {
             LogFileWriter::getInstance().logError("Unknown command line option: " + arg);
             std::cerr << "Unknown option: " << arg << std::endl;
