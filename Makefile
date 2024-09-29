@@ -26,28 +26,25 @@ DEBUG_FLAGS = -g -Wall
 LFLAGS = -lcfitsio -lm -lspdlog -lfmt -lokFrontPanel -fopenmp
 LINKED_LIBS = -L/usr/local/lib -Wl,-rpath=/usr/local/lib 
 
-COMSRC = CCSDSReader.cpp RecordFileWriter.cpp USBInputSource.cpp \
-    FileInputSource.cpp FITSWriter.cpp PacketProcessor.cpp \
-    TimeInfo.cpp assemble_image.cpp tai_to_ydhms.cpp LogFileWriter.cpp \
+COMSRC = LogFileWriter.cpp CCSDSReader.cpp RecordFileWriter.cpp \
+	USBInputSource.cpp FileInputSource.cpp FITSWriter.cpp PacketProcessor.cpp \
+    TimeInfo.cpp assemble_image.cpp tai_to_ydhms.cpp \
     commonFunctions.cpp
 
 SRCS = ${COMSRC} main.cpp
 TEST_SRCS = ${COMSRC} test_main.cpp 
 
 COM_OBJS = ${COMSRC:.cpp=.o}
-#OBJS = ${SRCS:.cpp=.o} ${COM_OBJS}
+
 MAIN_OBJS = main.o
 TEST_OBJS = test_main.o
-#TEST_OBJS = ${TEST_SRCS:.cpp=.o} ${COM_OBJS}
 
 # Function to compile source files into object files
-#%.o: %.cpp spdlog_pch.pch
-#	$(CXX) $(CXXFLAGS) $(PCH_FLAGS) $(INCLUDE_PATH) $(FAST_FLAGS) -c $< -o $@
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) $(INCLUDE_PATH) $(FAST_FLAGS) -c $< -o $@
 
 # actions, not files
-.PHONY: all clean cleanrtlm cleanlog removebinaries
+.PHONY: all clean removebinaries
 
 all: rl0b_test rl0b_main rl0b_main_debug
 
@@ -61,25 +58,19 @@ spdlog_pch.pch: spdlog_pch.hpp
 # for running tests
 rl0b_test: spdlog_pch $(COM_OBJS) $(TEST_OBJS)
 	$(CXX) $(CXXFLAGS) $(INCLUDE_PATH) $(TEST_FLAGS) $(PCH_FLAGS) -o $@ $(COM_OBJS) $(TEST_OBJS) $(LINKED_LIBS) $(LFLAGS)
-#	rm -f $(TEST_OBJS)
+	rm -f $(TEST_OBJS)
 
 # for production use at SURF
 rl0b_main: spdlog_pch $(COM_OBJS) $(MAIN_OBJS)
 	$(CXX) $(CXXFLAGS) $(INCLUDE_PATH) $(FAST_FLAGS) $(PCH_FLAGS) -o $@ $(COM_OBJS) $(MAIN_OBJS) $(LINKED_LIBS) $(LFLAGS)
-#	rm -f $(OBJS)
 
 # for gdb
 rl0b_main_debug: spdlog_pch $(COM_OBJS) $(MAIN_OBJS)
 	$(CXX) $(CXXFLAGS) $(INCLUDE_PATH) $(DEBUG_FLAGS) $(PCH_FLAGS) -o $@ $(COM_OBJS) $(MAIN_OBJS) $(LINKED_LIBS) $(LFLAGS)
-	rm -f $(OBJS)
 
 clean:
 	rm -f $(COM_OBJS) $(MAIN_OBJS) $(TEST_OBJS)
-
-cleanrtlm:
 	find . -name "record*.rtlm" -size 0 -delete
-
-cleanlog:
 	find . -name "log*.log" -size 0 -delete
 
 removebinaries:
