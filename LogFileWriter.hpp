@@ -19,9 +19,27 @@ public:
         return instance;
     }
 
-    void logInfo(const std::string& message);
-    void logWarning(const std::string& message);
-    void logError(const std::string& message);
+    // Templates have to be implemented in the class or other code will fail to link
+
+    // Template-based logInfo with formatting support
+    template<typename... Args>
+    void logInfo(const std::string& message, Args&&... args) {
+        checkAndRotateFile();
+        logger->info(message, std::forward<Args>(args)...);
+    }
+
+    // Template-based logWarning with formatting support
+    template<typename... Args>
+    void logWarning(const std::string& message, Args&&... args)  {
+        checkAndRotateFile();
+        logger->warn(message, std::forward<Args>(args)...);
+    }
+
+    template<typename... Args>
+    void logError(const std::string& message, Args&&... args)  {
+        checkAndRotateFile();
+        logger->error(message, std::forward<Args>(args)...);
+    }
 
 private:
     LogFileWriter();
