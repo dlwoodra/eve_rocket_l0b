@@ -3,7 +3,6 @@
 #include "FITSWriter.hpp"
 #include <algorithm> // for lower_bound (searching for LUT_APID)
 
-
 struct DeviceInfo {
     std::string productName;
     uint32_t deviceID;
@@ -599,7 +598,7 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
         }
         if (waitCounter > 100) {
             std::cout<<"Warning: CGProcRx slow data transfer, waitCounter is high "<<waitCounter<<std::endl;
-            LogFileWriter::getInstance().logWarning("CGProxRx slow data transfer, waitCounter is high " + std::to_string(waitCounter));
+            LogFileWriter::getInstance().logWarning("CGProxRx slow data transfer, waitCounter is high {}", waitCounter);
         }
 
         int32_t blockPipeOutStatus = readDataFromUSB();
@@ -607,12 +606,12 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
 	    if ( blockPipeOutStatus < 0)
 	    {
             std::cerr << "ERROR: USB Read Error" << std::endl;
-            LogFileWriter::getInstance().logError("CGProxRx blockPipeOutStatus Read error " + std::to_string(blockPipeOutStatus));
+            LogFileWriter::getInstance().logError("CGProxRx blockPipeOutStatus Read error {}",blockPipeOutStatus);
 		    return;
 	    }
         if ( blockPipeOutStatus != 65536 ) {
             std::cout << "ERROR: CGProxRx blockPipeOutStatus expected 65536 bytes read got "<<blockPipeOutStatus << std::endl;
-            LogFileWriter::getInstance().logError("CGProxRx blockPipeOutStatus expected 65536 bytes read got " + std::to_string(blockPipeOutStatus));
+            LogFileWriter::getInstance().logError("CGProxRx blockPipeOutStatus expected 65536 bytes read got {}", blockPipeOutStatus);
         }
 
 
