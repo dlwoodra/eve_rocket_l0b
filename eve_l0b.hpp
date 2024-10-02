@@ -156,15 +156,15 @@ constexpr uint32_t MEGS_IMAGE_HEIGHT = 1024;
 // 	int aORb;
 // }plot_spectra_structA, plot_spectra_structB;
 
+// define program state variables to use across both threads here
+
 struct PKT_COUNT_REC {
-  long MA;
-  long MB;
-  long ESP;
-  long MP;
-  long SHK;
-  long TEST_MA;
-  long TEST_MB;
-  long TEST_GENERIC;
+  long MA=0;
+  long MB=0;
+  long ESP=0;
+  long MP=0;
+  long SHK=0;
+  long Unknown=0;
 }; //pkt_count;
 
 extern PKT_COUNT_REC pkt_count;
@@ -420,19 +420,25 @@ struct TLM_ERRORS
 
 extern TLM_ERRORS tlm_errors;
 
-//// Compression file rec
-//struct FILECOMP {
-//	char filename[128];
-//};
-//extern FILECOMP filecomp;
+// There is only one programState structure, and it is defined in main.cpp as a global to pass info to the imgui instance.
+struct ProgramState {
+    int count = 0; // Number of iterations
+    bool running = true; // Whether the program is still running
+	MEGS_IMAGE_REC megsa; // useful parts are vcdu_count, iso8601, and image
+	bool megsAUpdated = false;
+	MEGS_IMAGE_REC megsb;
+	bool megsBUpdated = false;
+	PKT_COUNT_REC packetsReceived;
+	long parityErrorsMA = 0;
+	long parityErrorsMB = 0;
+};
+
+
 
 // +++++++++++++++++  The procedure prototypes  ++++++++++++++++++
 
 int assemble_image( uint8_t * vcdu,  MEGS_IMAGE_REC * ptr, uint16_t sourceSequenceCounter, bool testPattern, int8_t *status);
 int	processPHOTOpacket(uint32_t *esp_time_seconds, uint32_t *esp_index, uint8_t *vcdu_data);
-//int	processSHKpacket(uint32_t *shk_time_seconds, int *shk_index, int *esp_index, uint8_t *vcdu_data, struct MEGS_IMAGE_REC *ptr_ma, struct MEGS_IMAGE_REC *ptr_mb);
-//inline void read_header( uint8_t *vcdu );
-//inline int WHERE( uint32_t tai_time, int shk_index );
 
 uint16_t max( uint16_t, uint16_t, uint16_t, uint16_t);
 
@@ -440,44 +446,13 @@ void checkstring( char * teststring );
 extern int tai_to_ydhms(uint32_t tai_in, uint16_t *year, uint16_t *doy, 
       uint32_t *sod, uint16_t *hh, uint16_t *mm, uint16_t *ss, std::string& iso8601);
 
-// Math and pointer helper procedures
-//void realfft(float data [ ], unsigned long n, int isign);
-//void four32(float data [ ], unsigned long nn, int isign);
 
-//inline int 				byteswap16( uint16_t * p16bitdata, int sizeofarray );
-//inline uint32_t 		halfwordswap( uint16_t * u16p );
-//inline uint32_t 		halfword_no_swap( uint16_t * u16p );
-//inline void 			wordswap( uint32_t * );
 inline unsigned char 	getbit8( uint8_t, uint8_t );
 inline unsigned char 	getbit16( uint16_t, uint8_t );
 inline uint8_t 			bitswap8( uint8_t inbits );
 inline uint16_t 		bitswap16( uint16_t inbits );
-// Swap bytes in 32 bit value.  MACRO
-// replaced with commonFunctions.cpp
-//#define byteswap_32(x) 
-//     ((((x) & 0xff000000) >> 24) | (((x) & 0x00ff0000) >>  8) |
-//      (((x) & 0x0000ff00) <<  8) | (((x) & 0x000000ff) << 24))
-
-//void locatesam( uint16_t **image, int width, int height, int xstart, int xstop, int ystart, int ystop, int * xloc, int * yloc, int * radius );
-
-//int fillimagedata(uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT]);
 
 int checkdir( char * filename );
-//int ParseCommandLineBool( char *cval, int argc, char *argv[] );
-//uint8_t * read_tlm(  char argv[2][MAX_STRING_LENGTH], int numfiles, uint32_t * memsize, uint32_t * packets, int8_t *status  );
-//int	processMegsPacket( uint16_t MEGS_APID, struct MEGS_IMAGE_REC *ptr_megs, uint8_t * vcdu, int shk_index );
-
-
-// **********  Quicklook prototypes  *******************
-//void dumpshk( char * filename, int );
-//void dumpesp( char * filename );
-//int plotspectra( uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT], char * filename, uint32_t tai_time_seconds, int mode, int termination_flag );
-//int write_quicklook(char *, char *, uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT], int, uint8_t, struct MEGS_IMAGE_REC * rec, int pck_recvd );
-//uint8_t write_megsa1(char *, uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT], uint8_t, char * );
-//uint8_t write_megsa2(char *, uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT], uint8_t, char * );
-//uint8_t write_megs_sam(char * , uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT], uint8_t, char * );
-//uint8_t write_megsb1(char *, uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT], uint8_t, char * );
-//int make_routine_plots(struct MEGS_IMAGE_REC *ma, struct MEGS_IMAGE_REC *mb, struct PHOTOMETER_PACKET photometer_data[512], struct SHK_PACKET shk_data[200], int p_counter);
 
 
 #endif
