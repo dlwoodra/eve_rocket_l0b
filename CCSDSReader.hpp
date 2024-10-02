@@ -2,10 +2,12 @@
 #define CCSDS_READER_HPP
 
 #include <cstdint>
+#include <chrono>
 #include <cstring>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <thread>
 #include <vector>
 
 #include "InputSource.hpp"
