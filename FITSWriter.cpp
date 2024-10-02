@@ -1,6 +1,8 @@
 #include "FITSWriter.hpp"
 #include "commonFunctions.hpp"
 
+extern std::vector<uint16_t> transposeImage(const uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT]);
+
 // Constructor
 FITSWriter::FITSWriter() {}
 
@@ -287,22 +289,6 @@ int FITSWriter::writeBinaryTable(const std::string& filename,
     freeCharPtrArray(tFormArray);
 
     return 0;
-}
-
-// Convert 2d image into 1d image in transpose order for writing to a FITS image HDU
-std::vector<uint16_t> transposeImage(const uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT]) {
-    const uint32_t width = MEGS_IMAGE_WIDTH;
-    const uint32_t height = MEGS_IMAGE_HEIGHT;
-    std::vector<uint16_t> transposedData(width * height);
-
-    #pragma omp parallel for
-    for (uint32_t y = 0; y < height; ++y) {
-        for (uint32_t x = 0; x < width; ++x) {
-            transposedData[x + (y * width)] = image[x][y];
-        }
-    }
-
-    return transposedData;
 }
 
 // write FITS image header keywords and values
