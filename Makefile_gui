@@ -15,7 +15,7 @@ IMGUI_DIR = ./imgui
 IMGUI_BACKEND_DIR = $(IMGUI_DIR)/backends
 
 INCLUDE_PATH = -I/usr/local/include -I$(IMGUI_DIR) -I$(IMGUI_BACKEND_DIR)
-CXXFLAGS = -std=c++11 -fopenmp `pkg-config --cflags glfw3`
+CXXFLAGS = -std=c++11 -fopenmp    #`pkg-config --cflags glfw3`
 
 # Check if SKIPPARITY is defined during compilation
 ifdef SKIPPARITY
@@ -32,24 +32,27 @@ DEBUG_FLAGS = -g -Wall
 
 LFLAGS = -lcfitsio -lm -lspdlog -lfmt -lokFrontPanel -fopenmp -lGL
 LINKED_LIBS = -L/usr/local/lib -Wl,-rpath=/usr/local/lib
-LINKED_LIBS += `pkg-config --static --libs glfw3`
+LINKED_LIBS += `pkg-config --static --libs glfw3`   # -lglfw -lrt -lm -ldl
 
 # Common source files
 COMSRC = CCSDSReader.cpp RecordFileWriter.cpp USBInputSource.cpp \
     FileInputSource.cpp FITSWriter.cpp PacketProcessor.cpp \
     TimeInfo.cpp assemble_image.cpp tai_to_ydhms.cpp LogFileWriter.cpp \
-    commonFunctions.cpp
+    commonFunctions.cpp imgui_thread.cpp
 
 # ImGui source files
-IMGUI_SOURCES = $(IMGUI_DIR)/imgui.cpp $(IMGUI_DIR)/imgui_draw.cpp $(IMGUI_DIR)/imgui_tables.cpp \
-                $(IMGUI_DIR)/imgui_widgets.cpp $(IMGUI_DIR)/imgui_demo.cpp
+IMGUI_SOURCES = $(IMGUI_DIR)/imgui.cpp $(IMGUI_DIR)/imgui_draw.cpp \
+				$(IMGUI_DIR)/imgui_tables.cpp \
+                $(IMGUI_DIR)/imgui_widgets.cpp \
+				$(IMGUI_DIR)/imgui_demo.cpp
 IMGUI_SOURCES += ./implot.cpp ./implot_items.cpp
-IMGUI_BACKEND_SOURCES = $(IMGUI_BACKEND_DIR)/imgui_impl_glfw.cpp $(IMGUI_BACKEND_DIR)/imgui_impl_opengl3.cpp
+IMGUI_BACKEND_SOURCES = $(IMGUI_BACKEND_DIR)/imgui_impl_glfw.cpp \
+						$(IMGUI_BACKEND_DIR)/imgui_impl_opengl3.cpp
 
 # Generate object files in their respective directories
 IMGUI_OBJS = $(IMGUI_SOURCES:.cpp=.o) $(IMGUI_BACKEND_SOURCES:.cpp=.o)
 COM_OBJS = $(COMSRC:.cpp=.o)
-MAIN_OBJS = gui_main.o
+MAIN_OBJS = main.o
 TEST_OBJS = test_main.o
 
 # Function to compile source files into object files
@@ -57,7 +60,7 @@ TEST_OBJS = test_main.o
 	$(CXX) $(CXXFLAGS) $(INCLUDE_PATH) $(FAST_FLAGS) -c $< -o $@
 
 # actions, not files
-.PHONY: all clean cleanrtlm cleanlog removebinaries
+.PHONY: all clean removebinaries
 
 all: rl0b_test rl0b_main_gui rl0b_main_debug
 
@@ -82,11 +85,7 @@ rl0b_main_debug: spdlog_pch $(COM_OBJS) $(MAIN_OBJS) $(IMGUI_OBJS)
 
 clean:
 	rm -f $(COM_OBJS) $(TEST_OBJS) $(MAIN_OBJS) $(IMGUI_OBJS)
-
-cleanrtlm:
 	find . -name "record*.rtlm" -size 0 -delete
-
-cleanlog:
 	find . -name "log*.log" -size 0 -delete
 
 removebinaries:
