@@ -3,31 +3,25 @@
 *  Description: This is the implementation for the minimum processing
 *  capability. Open a connection to the USB via an opal kelly api,
 *  read packets, write packets to a file separated by a 32-bit timestamp.
-*  target is XEM7310-a75
+*  target is XEM7310-a75.
+*    
+*  Functionality expanded to extract content from packets, assemble images,
+*  aggregate multiple packets together for writing to FITS files as
+*  level 0b data. 
+*
+*  Additional functionality to display some data using imgui with implot is intended.
+*
 */
 
-//#include "CCSDSReader.hpp" // included in RecordFileWriter.hpp
 #include "commonFunctions.hpp"
-//#include "eve_megs_twoscomp.h" // included in commonFunctions.hpp
-//#include "eve_megs_pixel_parity.h" // included in commonFunctions.hpp
 #include "eve_l0b.hpp"
-//#include "FITSWriter.hpp"  // in commonFunctions.hpp
-//#include "FileInputSource.hpp" // in CCSDSReader.hpp
-//#include "InputSource.hpp" // in CCSDSReader.hpp
-//#include "LogFileWriter.hpp"  // included in commonFunctions.hpp
-//#include "RecordFileWriter.hpp" // in commonFunctions.hpp
-//#include "USBInputSource.hpp" // in commonFunctions.hpp
 
-//#include <chrono> // included in RecordFileWRiter.hpp
 #include <csignal> // needed for SIGINT
-//#include <cstdint> // in CCSDSReader.hpp
-//#include <cstdlib> // in RecordFileWriter.hpp
-//#include <fstream> // in CCSDSReader.hpp
-//#include <iostream> // in CCSDSReader.hpp
-//#include <vector> // in CCSDSReader.hpp
+
 
 // prototypes
 void print_help();
+void globalStateInit();
 void parseCommandLineArgs(int argc, char* argv[], std::string& filename, bool& skipESP, bool& skipMP, bool& skipRecord);
 void extern processPackets(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& recordWriter, bool skipRecord);
 void extern processOnePacket(CCSDSReader& pktReader, const std::vector<uint8_t>& packet);
@@ -41,6 +35,15 @@ void extern processESPPacket(std::vector<uint8_t> payload,
     uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp);
 void extern processHKPacket(std::vector<uint8_t> payload, 
     uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp);
+int imgui_thread();
+
+ProgramState globalState;
+#ifdef ENABLEGUI
+// Start the ImGui loop in a new thread object imguiThread
+// passing function pointer imgui_thread
+std::thread imguiThread(imgui_thread);
+#endif
+
 
 // Function to handle the Ctrl-C (SIGINT) signal
 void handleSigint(int signal) {
@@ -65,7 +68,13 @@ void handleSigint(int signal) {
     //// Assign the global pointer
     //g_recordFileWriter = &recordFileWriter;
 
-
+    globalState.running = false;  // allow dear imgui to shut itself down
+    // wait a short amount for imgui to respond
+    //std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    // instead join the imgui thread
+#ifdef ENABLEGUI
+    imguiThread.join();
+#endif
     std::exit(signal); // Exit the program with the signal code
 }
 
@@ -84,11 +93,14 @@ int main(int argc, char* argv[]) {
         exit(EXIT_FAILURE);
     }
 
+    // initialize the programState structure contents
+    globalStateInit();
+
     // Register the signal handler for SIGINT
     std::signal(SIGINT, handleSigint);
 
     std::cout << "Program running. Press Ctrl-C to exit." << std::endl;
-    
+
     parseCommandLineArgs(argc, argv, filename, skipESP, skipMP, skipRecord);
 
     std::unique_ptr<RecordFileWriter> recordWriter;
@@ -157,6 +169,14 @@ void parseCommandLineArgs(int argc, char* argv[], std::string& filename, bool& s
             exit(EXIT_FAILURE);
         }
     }
+}
+
+void globalStateInit() {
+    std::cout << "globablStateInit executing" << std::endl;
+    LogFileWriter::getInstance().logInfo("globalStateInit executing");
+    globalState.megsa.image[0][0] = {0xff};
+    globalState.megsb.image[0][0] = {0x3fff};
+    globalState.running = true;
 }
 
 void print_help() {
