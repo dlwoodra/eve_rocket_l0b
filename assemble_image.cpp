@@ -88,7 +88,8 @@ int32_t assemble_image( uint8_t * vcdu, MEGS_IMAGE_REC * ptr, uint16_t sourceSeq
     uint16_t pixval16 = (uint16_t (vcdu[j] << 8) & 0xFF00) | (uint16_t (vcdu[j+1]));
 
     // rocket fpga messes up the first 2 pixels, then its OK
-    // ff ff aa aa 00 02 00 01 00 04 00 02 00 06 00 03
+    // ff ff aa aa 00 02 00 01 00 04 00 02 00 06 00 03 for MEGS-A testpatterns
+    // ff ff aa aa 8f fc 87 fe 8f fa 87 fd 0f f8 07 fc for MEGS-B testpatterns
     pix_val14 = pixval16 & 0x3FFF; // 14 bits of data
 
     // Only do twos comp for ccd data (not test patterns)
