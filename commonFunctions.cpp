@@ -200,7 +200,7 @@ void populateStructureTimes(T& oneStructure, const std::vector<uint8_t>& payload
 void processMegsAPacket(std::vector<uint8_t> payload, 
     uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp) {
 
-    LogFileWriter::getInstance().logInfo("processMegsAPacket");
+    //LogFileWriter::getInstance().logInfo("processMegsAPacket");
 
     // insert pixels into image
 
@@ -258,7 +258,7 @@ void processMegsAPacket(std::vector<uint8_t> payload,
         oneMEGSStructure.rec_tai_subseconds = currentTime.getTAISubseconds();
 
         tai_to_ydhms(tai_sec, &year, &doy, &sod, &hh, &mm, &ss, iso8601);
-        std::cout << "processMegsAPacket called tai_to_ydhms " << year << " "<< doy << "-" << hh << ":" << mm << ":" << ss <<" . "<< oneMEGSStructure.tai_time_subseconds/65535 <<"\n";
+        //std::cout << "processMegsAPacket called tai_to_ydhms " << year << " "<< doy << "-" << hh << ":" << mm << ":" << ss <<" . "<< oneMEGSStructure.tai_time_subseconds/65535 <<"\n";
         oneMEGSStructure.sod = (uint32_t) sod;
         oneMEGSStructure.yyyydoy = (uint32_t) year*1000 + doy;
         oneMEGSStructure.iso8601 = iso8601;
@@ -299,7 +299,7 @@ void processMegsAPacket(std::vector<uint8_t> payload,
         std::unique_ptr<FITSWriter> fitsFileWriter;
         fitsFileWriter = std::unique_ptr<FITSWriter>(new FITSWriter());
         // the c++14 way fitsFileWriter = std::make_unique<FITSWriter>();
-        std::cout << "processMegsAPacket number of packets: " << processedPacketCounter << std::endl;
+        //std::cout << "processMegsAPacket number of packets: " << processedPacketCounter << std::endl;
         if (fitsFileWriter) {
             std::cout << "processMegsAPacket: tai_time_seconds = " << oneMEGSStructure.tai_time_seconds << std::endl;
 
@@ -317,7 +317,7 @@ void processMegsAPacket(std::vector<uint8_t> payload,
 void processMegsBPacket(std::vector<uint8_t> payload, 
     uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp) {
 
-    LogFileWriter::getInstance().logInfo("processMegsBPacket");
+    //LogFileWriter::getInstance().logInfo("processMegsBPacket");
 
     // insert pixels into image
 
@@ -373,7 +373,7 @@ void processMegsBPacket(std::vector<uint8_t> payload,
         oneMEGSStructure.rec_tai_subseconds = currentTime.getTAISubseconds();
 
         tai_to_ydhms(tai_sec, &year, &doy, &sod, &hh, &mm, &ss, iso8601);
-        std::cout << "processMegsBPacket called tai_to_ydhms " << year << " "<< doy << "-" << hh << ":" << mm << ":" << ss <<" . "<< oneMEGSStructure.tai_time_subseconds/65535 <<"\n";
+        //std::cout << "processMegsBPacket called tai_to_ydhms " << year << " "<< doy << "-" << hh << ":" << mm << ":" << ss <<" . "<< oneMEGSStructure.tai_time_subseconds/65535 <<"\n";
         oneMEGSStructure.sod = (uint32_t) sod;
         oneMEGSStructure.yyyydoy = (uint32_t) year*1000 + doy;
         oneMEGSStructure.iso8601 = iso8601;
@@ -413,9 +413,9 @@ void processMegsBPacket(std::vector<uint8_t> payload,
         std::unique_ptr<FITSWriter> fitsFileWriter;
         fitsFileWriter = std::unique_ptr<FITSWriter>(new FITSWriter());
         // the c++14 way fitsFileWriter = std::make_unique<FITSWriter>();
-        std::cout << "processMegsBPacket number of packets: " << processedPacketCounter << std::endl;
+        //std::cout << "processMegsBPacket number of packets: " << processedPacketCounter << std::endl;
         if (fitsFileWriter) {
-            std::cout << "procesMegsBPacket: tai_time_seconds = " << oneMEGSStructure.tai_time_seconds << std::endl;
+            //std::cout << "procesMegsBPacket: tai_time_seconds = " << oneMEGSStructure.tai_time_seconds << std::endl;
 
             if (!fitsFileWriter->writeMegsBFITS( oneMEGSStructure )) {
                 LogFileWriter::getInstance().logInfo("writeMegsBFITS write error");
@@ -450,7 +450,7 @@ void processMegsPPacket(std::vector<uint8_t> payload,
 
         int incr = (i*bytesPerIntegration) + firstbyteoffset; // 4 is bytes per integration, 2 bytes per diode * 2 diodes per integration
         int index = packetoffset + i;
-        std::cout<<"processMegsPPacket 2l " << i << " "<<incr << " "<<index << " "<< sizeof(payload)<<std::endl;
+        //std::cout<<"processMegsPPacket 2l " << i << " "<<incr << " "<<index << " "<< sizeof(payload)<<std::endl;
 
         oneMEGSPStructure.MP_lya[index] = (uint16_t (payload[incr]) << 8) | (uint16_t (payload[incr + 1]));
         oneMEGSPStructure.MP_dark[index] = (uint16_t (payload[incr+2]) << 8) | (uint16_t (payload[incr+3]));
@@ -467,18 +467,12 @@ void processMegsPPacket(std::vector<uint8_t> payload,
     // ONLY WRITE WHEN STRUCTURE IS FULL
     if ( processedPacketCounter == MEGSP_PACKETS_PER_FILE ) {
         // Write packet data to a FITS file if applicable
-        std::cout<<"processMegsPPacket 3" << std::endl;
-
         std::unique_ptr<FITSWriter> fitsFileWriter;
-        std::cout<<"processMegsPPacket 4" << std::endl;
-
         fitsFileWriter = std::unique_ptr<FITSWriter>(new FITSWriter());
-        std::cout<<"processMegsPPacket 5" << std::endl;
-
         // the c++14 way fitsFileWriter = std::make_unique<FITSWriter>();
 
         if (fitsFileWriter) {
-            std::cout << "procesMegsPPacket: tai_time_seconds = " << oneMEGSPStructure.tai_time_seconds << std::endl;
+            //std::cout << "procesMegsPPacket: tai_time_seconds = " << oneMEGSPStructure.tai_time_seconds << std::endl;
 
             if (!fitsFileWriter->writeMegsPFITS( oneMEGSPStructure )) {
                 LogFileWriter::getInstance().logInfo("writeMegsPFITS write error");
