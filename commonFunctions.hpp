@@ -25,6 +25,7 @@
 
 //prototypes
 bool isValidFilename(const std::string& filename);
+std::vector<uint16_t> transposeImage(const uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT]);
 
 void processPackets(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& recordWriter, bool skipRecord);
 void processOnePacket(CCSDSReader& pktReader, const std::vector<uint8_t>& packet);
