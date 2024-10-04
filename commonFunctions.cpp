@@ -154,7 +154,7 @@ uint32_t payloadToTAITimeSeconds(const std::vector<uint8_t>& payload) {
            (static_cast<uint32_t>(payload[2]) << 8)  |
            static_cast<uint32_t>(payload[3]);
 
-    std::cout << "payloadToTAITimeSeconds calculated " << tai << std::endl;
+    //std::cout << "payloadToTAITimeSeconds calculated " << tai << std::endl;
 
     return tai;
 }
@@ -187,7 +187,7 @@ void populateStructureTimes(T& oneStructure, const std::vector<uint8_t>& payload
     std::string iso8601;
 
     tai_to_ydhms(tai_sec, &year, &doy, &sod, &hh, &mm, &ss, iso8601);
-    std::cout << "populateStructureTimes called tai_to_ydhms " << year << " "<< doy << "-" << hh << ":" << mm << ":" << ss <<" . "<< oneStructure.tai_time_subseconds / 65535 << "\n";
+    //std::cout << "populateStructureTimes called tai_to_ydhms " << year << " "<< doy << "-" << hh << ":" << mm << ":" << ss <<" . "<< oneStructure.tai_time_subseconds / 65535 << "\n";
     
     oneStructure.sod = (uint32_t)sod;
     oneStructure.yyyydoy = (uint32_t)(year * 1000 + doy);
@@ -268,7 +268,7 @@ void processMegsAPacket(std::vector<uint8_t> payload,
         globalState.megsa.tai_time_subseconds = oneMEGSStructure.tai_time_subseconds;
         globalState.megsa.sod = oneMEGSStructure.sod;
         globalState.megsa.yyyydoy = oneMEGSStructure.yyyydoy;
-        globalState.megsa.iso8601 = oneMEGSStructure.iso8601;
+        //globalState.megsa.iso8601 = oneMEGSStructure.iso8601;
 
         processedPacketCounter=0;
     }
@@ -383,7 +383,7 @@ void processMegsBPacket(std::vector<uint8_t> payload,
         globalState.megsb.tai_time_subseconds = oneMEGSStructure.tai_time_subseconds;
         globalState.megsb.sod = oneMEGSStructure.sod;
         globalState.megsb.yyyydoy = oneMEGSStructure.yyyydoy;
-        globalState.megsb.iso8601 = oneMEGSStructure.iso8601;
+        //globalState.megsb.iso8601 = oneMEGSStructure.iso8601;
 
         processedPacketCounter=0;
     }
@@ -440,27 +440,43 @@ void processMegsPPacket(std::vector<uint8_t> payload,
     populateStructureTimes(oneMEGSPStructure, payload);
     //std::cout<<"processMegsPPacket 2" << std::endl;
 
-    int firstbyteoffset = 10;
+    int firstbyteoffset = 10; //time=8,mode=2
 
-    int packetoffset = processedPacketCounter * MEGSP_PACKETS_PER_FILE;
-    //std::cout<<"processMegsPPacket packetoffset "<< packetoffset << std::endl;
+    //int packetoffset = processedPacketCounter * MEGSP_PACKETS_PER_FILE;
+    int packetoffset = processedPacketCounter * MEGSP_INTEGRATIONS_PER_PACKET;
+    constexpr int bytesPerIntegration = (2 * 2); // 2 bytes per diode, 2 diodes
+    std::cout<<"processMegsPPacket packetoffset "<< packetoffset << std::endl;
     for (int i=0; i<MEGSP_INTEGRATIONS_PER_PACKET; ++i) {
-        int incr = (i*4) + firstbyteoffset; // 4 is bytes per integration, 2 bytes per diode * 2 diodes per integration
+
+        int incr = (i*bytesPerIntegration) + firstbyteoffset; // 4 is bytes per integration, 2 bytes per diode * 2 diodes per integration
         int index = packetoffset + i;
+        std::cout<<"processMegsPPacket 2l " << i << " "<<incr << " "<<index << " "<< sizeof(payload)<<std::endl;
+
         oneMEGSPStructure.MP_lya[index] = (uint16_t (payload[incr]) << 8) | (uint16_t (payload[incr + 1]));
         oneMEGSPStructure.MP_dark[index] = (uint16_t (payload[incr+2]) << 8) | (uint16_t (payload[incr+3]));
     }
 
     processedPacketCounter++;
-    //std::cout<<"processMegsPPacket processedPacketCounter "<< processedPacketCounter << std::endl;
 
-    // Write packet data to a FITS file if applicable
-    std::unique_ptr<FITSWriter> fitsFileWriter;
-    fitsFileWriter = std::unique_ptr<FITSWriter>(new FITSWriter());
-    // the c++14 way fitsFileWriter = std::make_unique<FITSWriter>();
+    //if (!globalState.megsPUpdated) {
+        //globalState.megsp = oneMEGSPStructure;
+    //    globalState.megsPUpdated = true;
+    //}
+
 
     // ONLY WRITE WHEN STRUCTURE IS FULL
     if ( processedPacketCounter == MEGSP_PACKETS_PER_FILE ) {
+        // Write packet data to a FITS file if applicable
+        std::cout<<"processMegsPPacket 3" << std::endl;
+
+        std::unique_ptr<FITSWriter> fitsFileWriter;
+        std::cout<<"processMegsPPacket 4" << std::endl;
+
+        fitsFileWriter = std::unique_ptr<FITSWriter>(new FITSWriter());
+        std::cout<<"processMegsPPacket 5" << std::endl;
+
+        // the c++14 way fitsFileWriter = std::make_unique<FITSWriter>();
+
         if (fitsFileWriter) {
             std::cout << "procesMegsPPacket: tai_time_seconds = " << oneMEGSPStructure.tai_time_seconds << std::endl;
 
@@ -484,11 +500,15 @@ void processESPPacket(std::vector<uint8_t> payload,
     ESP_PACKET oneESPStructure = {0};
     static uint16_t processedPacketCounter=0;
 
-    populateStructureTimes(oneESPStructure, payload);
+    printBytes(&payload[0], 40);
 
+    populateStructureTimes(oneESPStructure, payload);
+    //populateStructureTimes(globalState.esp, payload);
+    
     int firstbyteoffset = 10;
 
-    int packetoffset = processedPacketCounter * ESP_PACKETS_PER_FILE;
+    //int packetoffset = processedPacketCounter * ESP_PACKETS_PER_FILE;
+    int packetoffset = processedPacketCounter * ESP_INTEGRATIONS_PER_PACKET;
     //std::cout<<"processESPPacket packetoffset "<< packetoffset << std::endl;
     // integrations are sequentially adjacent in the packet
     // pri hdr, sec hdr, mode, integration 1, integrtion 2, etc
@@ -507,17 +527,39 @@ void processESPPacket(std::vector<uint8_t> payload,
         oneESPStructure.ESP_304[index] = (uint16_t (payload[incr+14]) << 8) | (uint16_t (payload[incr+15]));
         oneESPStructure.ESP_366[index] = (uint16_t (payload[incr+16]) << 8) | (uint16_t (payload[incr+17]));
         oneESPStructure.ESP_dark[index] = (uint16_t (payload[incr+18]) << 8) | (uint16_t (payload[incr+19]));
+
+        globalState.esp.ESP_xfer_cnt[index] = oneESPStructure.ESP_xfer_cnt[index];
+        globalState.esp.ESP_q0[index] = oneESPStructure.ESP_q0[index];
+        globalState.esp.ESP_q1[index] = oneESPStructure.ESP_q1[index];
+        globalState.esp.ESP_q2[index] = oneESPStructure.ESP_q2[index];
+        globalState.esp.ESP_q3[index] = oneESPStructure.ESP_q3[index];
+        globalState.esp.ESP_171[index] = oneESPStructure.ESP_171[index];
+        globalState.esp.ESP_257[index] = oneESPStructure.ESP_257[index];
+        globalState.esp.ESP_304[index] = oneESPStructure.ESP_304[index];
+        globalState.esp.ESP_366[index] = oneESPStructure.ESP_366[index];
+        globalState.esp.ESP_dark[index] = oneESPStructure.ESP_dark[index];
     }
 
     processedPacketCounter++;
+    if (!globalState.espUpdated) {
+        //std::cout<<"copying oneESPStructure to globalState"<<std::endl;
+        //globalState.esp = oneESPStructure; // this causes a segfault
+        globalState.espUpdated = false;
+        //std::cout<< oneESPStructure.iso8601 <<std::endl;
+        //globalState.esp.iso8601 = oneESPStructure.iso8601;
 
-    // Write packet data to a FITS file if applicable
-    std::unique_ptr<FITSWriter> fitsFileWriter;
-    fitsFileWriter = std::unique_ptr<FITSWriter>(new FITSWriter());
-    // the c++14 way fitsFileWriter = std::make_unique<FITSWriter>();
+        //std::cout<<"setting espUpdated to true"<<std::endl;
+        globalState.espUpdated = true;
+    }
+
 
     // ONLY WRITE WHEN STRUCTURE IS FULL
-    if ( processedPacketCounter == ESP_PACKETS_PER_FILE ) {
+        if ( processedPacketCounter == ESP_PACKETS_PER_FILE ) {
+        // Write packet data to a FITS file if applicable
+        std::unique_ptr<FITSWriter> fitsFileWriter;
+        fitsFileWriter = std::unique_ptr<FITSWriter>(new FITSWriter());
+        // the c++14 way fitsFileWriter = std::make_unique<FITSWriter>();
+
         if (fitsFileWriter) {
             std::cout << "procesESPPacket: tai_time_seconds = " << oneESPStructure.tai_time_seconds << std::endl;
 
@@ -616,15 +658,19 @@ void processHKPacket(std::vector<uint8_t> payload,
     }
 
     processedPacketCounter++;
-    //std::cout<<"procesHKPacket processedPacketCounter "<< processedPacketCounter << std::endl;
+    //if (!globalState.shkUpdated) {
+        //globalState.shk = oneSHKStructure;
+    //    globalState.shkUpdated = true;
+    //}
 
-    // Write packet data to a FITS file if applicable
-    std::unique_ptr<FITSWriter> fitsFileWriter;
-    fitsFileWriter = std::unique_ptr<FITSWriter>(new FITSWriter());
-    // the c++14 way fitsFileWriter = std::make_unique<FITSWriter>();
 
     // ONLY WRITE WHEN STRUCTURE IS FULL
     if ( processedPacketCounter == SHK_PACKETS_PER_FILE ) {
+        // Write packet data to a FITS file if applicable
+        std::unique_ptr<FITSWriter> fitsFileWriter;
+        fitsFileWriter = std::unique_ptr<FITSWriter>(new FITSWriter());
+        // the c++14 way fitsFileWriter = std::make_unique<FITSWriter>();
+
         if (fitsFileWriter) {
             std::cout << "procesESPPacket: tai_time_seconds = " << oneSHKStructure.tai_time_seconds << std::endl;
 
