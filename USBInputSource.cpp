@@ -585,21 +585,22 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
         uint32_t waitCounter=0;
 
         // check for overflow
-        checkLinkStatus();
+        //checkLinkStatus();
 
-        while (isReceiveFIFOEmpty()) {
-            waitCounter++;
-            if ((waitCounter % (numberOfCountersPerSecond)) == 0) {
-                resetInterface(milliSecondWaitTimeBetweenReads);
-            } 
-            //handleReceiveFIFOError();
-            //std::cout<<"ReceiveFIFOEmpty: waiting"<<std::endl;
-            Sleep(2); // 2 millisec - need to tune
-        }
-        if (waitCounter > 100) {
-            std::cout<<"Warning: CGProcRx slow data transfer, waitCounter is high "<<waitCounter<<std::endl;
-            LogFileWriter::getInstance().logWarning("CGProxRx slow data transfer, waitCounter is high {}", waitCounter);
-        }
+        //while (isReceiveFIFOEmpty()) {
+        //    waitCounter++;
+        //    //if ((waitCounter % (numberOfCountersPerSecond)) == 0) {
+        //        //resetInterface(milliSecondWaitTimeBetweenReads);
+        //    //} 
+        //    //handleReceiveFIFOError();
+        //    //std::cout<<"ReceiveFIFOEmpty: waiting"<<std::endl;
+        //    Sleep(1); // 2 millisec - need to tune
+        //}
+        //if (waitCounter > 100) {
+        //    std::cout<<"Warning: CGProcRx slow data transfer, waitCounter is high "<<waitCounter<<std::endl;
+        //    LogFileWriter::getInstance().logWarning("CGProxRx slow data transfer, waitCounter is high {}", waitCounter);
+        //    waitCounter = 0;
+        //}
 
         int32_t blockPipeOutStatus = readDataFromUSB();
         // returns number of bytes or <0 for errors
@@ -615,13 +616,6 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
         }
 
 
-        // process the blocks of data
-        //for (uint32_t blk = 0; blk <= 64; ++blk) {
-            //GSEprocessBlock(&RxBuff[256 * blk]); // 1024 bytes at a time
-            //GSEprocessBlock(&rxBuffer[256 * blk]); // 1024 bytes at a time
-        //}
-    
-
 	    // cycle through 64 blocks
 	    for (blk = 0; blk <= 63; ++blk)
 	    {
@@ -629,7 +623,6 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
 		    pBlk = &RxBuff[256 * blk];
 		    nBlkLeft = pBlk[0];
 		    blkIdx = 1;
-            //uint16_t i;
 
 		    while (nBlkLeft > 0)
 		    {
@@ -642,7 +635,6 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
 			    		pktIdx = 0;
 			    		state = 1;
 			    		++ctrRxPkts;
-                        //std::cout << "CGProxRx Found sync marker" << std::endl;
 			    	}
 			    	++blkIdx;
 			    	--nBlkLeft;
@@ -679,7 +671,7 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
     						// remaining packet is less then data in block
     						nPktLeft &= 0xFF;
                             //std::cout << "CGProxRx Case 1dd -copying - state "<<state << std::endl;
-    						memcpy(PktBuff, &pBlk[blkIdx], 4 * nPktLeft);
+    						memcpy(PktBuff, &pBlk[blkIdx], nPktLeft << 2);
     						nBlkLeft -= nPktLeft;
     						blkIdx += nPktLeft;
 
@@ -691,7 +683,7 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
 		    				// packet data is longer than data remaining in block
 		    				nBlkLeft &= 0xFF;
                             //std::cout << "CGProxRx Case 1ddd -copying - state "<<state << std::endl;
-		    				memcpy(PktBuff, &pBlk[blkIdx], 4 * nBlkLeft);
+		    				memcpy(PktBuff, &pBlk[blkIdx], nBlkLeft << 2);
 		    				pktIdx += nBlkLeft;
 		    				nPktLeft -= nBlkLeft;
 		    				nBlkLeft = 0;
@@ -715,7 +707,7 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
 		    			// remaing packet data is less than data left in block
 		    			nPktLeft &= 0xFF;
                         //std::cout << "Case 1ee -contination copy - state "<<state << std::endl;
-		    			memcpy(&PktBuff[pktIdx], &pBlk[blkIdx], 4 * nPktLeft);
+		    			memcpy(&PktBuff[pktIdx], &pBlk[blkIdx], nPktLeft << 2);
 		    			nBlkLeft -= nPktLeft;
 		    			blkIdx += nPktLeft;
 
@@ -728,7 +720,7 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
     					// packet data is longer than data remaining in block
     					nBlkLeft &= 0xFF;
                         //std::cout << "Case 1f - memcpy - state " <<state<< std::endl;
-    					memcpy(&PktBuff[pktIdx], &pBlk[blkIdx], 4 * nBlkLeft);
+    					memcpy(&PktBuff[pktIdx], &pBlk[blkIdx], nBlkLeft << 2);
     					pktIdx += nBlkLeft;
     					nPktLeft -= nBlkLeft;
     					nBlkLeft = 0;
@@ -821,8 +813,8 @@ void USBInputSource::checkLinkStatus(void)
 	{
 		std::cout << StatusStr << "checkLinkStatus: FIFO Overflow ************** "<< " " << r2 << std::endl;
         // to resolve, read until overflow is cleared
-        int32_t blockPipeOutStatus = readDataFromUSB();
-        std::cout << "checkLinkStatus blockPipeOutStatus: " << blockPipeOutStatus << std::endl;
+        //int32_t blockPipeOutStatus = readDataFromUSB();
+        //std::cout << "checkLinkStatus blockPipeOutStatus: " << blockPipeOutStatus << std::endl;
         // read status again
         resetInterface(1);  
     	//r0 = readGSERegister(0);
@@ -875,9 +867,8 @@ unsigned short USBInputSource::readGSERegister(int addr)
 	return stat;
 }
 
-// called from Alan's code, fill it out
 void USBInputSource::GSEProcessPacket(uint32_t *PktBuff, uint16_t APID, CCSDSReader& usbReader) {
-
+    
     // extract the pktlength in the byte reversed 32-bit array
     // for MEGS-A, PktBuff[1] is e106, which should be 06e1
     uint16_t packetLength = ((PktBuff[1] >> 8) & 0xFF) | ((PktBuff[1] << 8) & 0xFF00);
