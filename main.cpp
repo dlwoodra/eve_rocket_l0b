@@ -35,10 +35,10 @@ void extern processESPPacket(std::vector<uint8_t> payload,
     uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp);
 void extern processHKPacket(std::vector<uint8_t> payload, 
     uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp);
-int imgui_thread();
 
 ProgramState globalState;
 #ifdef ENABLEGUI
+int imgui_thread();
 // Start the ImGui loop in a new thread object imguiThread
 // passing function pointer imgui_thread
 std::thread imguiThread(imgui_thread);
