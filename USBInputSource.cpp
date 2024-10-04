@@ -594,7 +594,7 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
             } 
             //handleReceiveFIFOError();
             //std::cout<<"ReceiveFIFOEmpty: waiting"<<std::endl;
-            Sleep(5); // 2 millisec - need to tune
+            Sleep(2); // 2 millisec - need to tune
         }
         if (waitCounter > 100) {
             std::cout<<"Warning: CGProcRx slow data transfer, waitCounter is high "<<waitCounter<<std::endl;
@@ -807,18 +807,27 @@ void USBInputSource::processReceive() {
 // *********************************************************************/
 void USBInputSource::checkLinkStatus(void)
 {
-	uint16_t r;
+	//uint16_t r;
 
 	// get GSE status
-	r = readGSERegister(0); //(0x02);
-	if ((r && 0x01) == 1)
+    // bit definitions
+    // r0 : 0 = tx FIFO empty
+    // r0 : 1 = rx FIFO empty (we do not use this feature)
+    // r0 : 2 = rx error
+	//uint16_t r0 = readGSERegister(0);
+	uint16_t r2 = readGSERegister(2); 
+    // we think r0 bit 2, 3rd bit, is FIFO error bit
+	while (r2 > 0)
 	{
-		//snprintf(StatusStr, sizeof(StatusStr), "FIFO Overflow                 ");
-		std::cout << StatusStr << "checkLinkStatus: FIFO Overflow ************** " << std::endl;
+		std::cout << StatusStr << "checkLinkStatus: FIFO Overflow ************** "<< " " << r2 << std::endl;
+        // to resolve, read until overflow is cleared
+        int32_t blockPipeOutStatus = readDataFromUSB();
+        std::cout << "checkLinkStatus blockPipeOutStatus: " << blockPipeOutStatus << std::endl;
+        // read status again
+        resetInterface(1);  
+    	//r0 = readGSERegister(0);
+        r2 = readGSERegister(2);
 	}
-
-	//printf("\r%i\t%i\t%s", ctrTxPkts, ctrRxPkts, StatusStr);
-    //std::cout << "\r" << ctrTxPkts << "\t" << ctrRxPkts << "\t" << StatusStr << std::endl;
 
     LogFileWriter::getInstance().logError("checkLinkStatus: FIFO Overflow - not keeping up");
 
