@@ -1,6 +1,7 @@
 //This deals with running the demo. Main runs this in a separate thread.
 
 #include "eve_l0b.hpp"
+#include "commonFunctions.hpp"
 #include "imgui/imgui.h"
 #include "imgui/backends/imgui_impl_glfw.h"
 #include "imgui/backends/imgui_impl_opengl3.h"
@@ -44,12 +45,18 @@ GLuint createTextureFromMEGSImage(uint16_t* data, int width, int height, bool mo
     glGenTextures(1, &textureID);        // Generate the texture ID
     glBindTexture(GL_TEXTURE_2D, textureID);  // Bind the texture
 
+    // Set texture filtering parameters
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
     // Upload the texture data to OpenGL
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, textureData.data());
 
-    // Set texture filtering parameters
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     // Unbind the texture
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -65,36 +72,45 @@ void updateTextureFromMEGSAImage(GLuint textureID)
     glBindTexture(GL_TEXTURE_2D, textureID);
 }
 
-void updateTextureFromMEGSBImage(GLuint textureID)
+void updateTextureFromMEGSBImage(GLuint megsBTextureID)
 {
-    glBindTexture(GL_TEXTURE_2D, textureID);
+    glBindTexture(GL_TEXTURE_2D, megsBTextureID);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, globalState.megsb.image);
-    glBindTexture(GL_TEXTURE_2D, textureID);
+    glBindTexture(GL_TEXTURE_2D, megsBTextureID);
 
-    // this gets called a lot
 }
 
+void renderMAImageWithZoom(GLuint megsATextureID, uint16_t* data, int fullWidth, int fullHeight, float zoom, ImVec2 viewportSize, bool modulo256, bool scale)
+{
+    // Calculate the zoom level
+    float value = 1.0 / zoom;
+    
+    // default
+    ImVec2 uv0(value, 0.0f); 
+    ImVec2 uv1(0.0f, value); 
+
+    // Render the image using the texture ID
+    ImGui::Image((void*)(intptr_t)megsATextureID, viewportSize, uv0, uv1);
+}
 
 void renderMBImageWithZoom(GLuint megsBTextureID, uint16_t* data, int fullWidth, int fullHeight, float zoom, ImVec2 viewportSize, bool modulo256, bool scale)
 {
-    //static bool alreadyCreated = false;
-    //static GLuint megsBTextureID;
-
-    //if (!alreadyCreated) {
-    //    // Get the texture ID
-    //    megsBTextureID = createTextureFromMEGSImage(data, fullWidth, fullHeight, modulo256, scale);
-    //    alreadyCreated = true;
-    //}
-
-    // Calculate zoom level
-    float texWidth = fullWidth / zoom;
-    float texHeight = fullHeight / zoom;
+    // Calculate the zoom level
+    float value = 1.0 / zoom;
     
-    ImVec2 uv0(0.0f, 0.0f);        // Starting UV coordinates
-    ImVec2 uv1(texWidth / fullWidth, texHeight / fullHeight);  // Ending UV coordinates
+    //ImVec2 uv0(0.0f, 0.0f);        // Starting UV coordinates - this displays value 0,0 int top right corner, image is rotated90 deg clockwise
+    //ImVec2 uv1(texWidth / fullWidth, texHeight / fullHeight);  // Ending UV coordinates
 
-    //ImVec2 uv0(0.0f, texHeight/fullHeight); 
-    //ImVec2 uv1(texWidth/fullWidth, 0.0f);
+    // default
+    ImVec2 uv0(value, 0.0f); 
+    ImVec2 uv1(0.0f, value); 
+
+    // These supposedly rotate 90 deg
+    //ImVec2 uv0(0.0f, value); 
+    //ImVec2 uv1(value, 0.0f); 
+
+    //ImVec2 uv0(0.0f, 0.0f); 
+    //ImVec2 uv1(value, value); 
 
     // Render the image using the texture ID
     ImGui::Image((void*)(intptr_t)megsBTextureID, viewportSize, uv0, uv1);
@@ -103,16 +119,16 @@ void renderMBImageWithZoom(GLuint megsBTextureID, uint16_t* data, int fullWidth,
     //glDeleteTextures(1, &textureID);
 }
 
-void displayMAImageWithControls()
+void displayMAImageWithControls(GLuint megsATextureID)
 {
     static float zooma = 1.0f;         // Zoom level (1.0 = full resolution)
     static bool modulo256a = true;    // Modulo 256 display
     static bool scalea = false;         // Scaled view
 
-    ImGui::Begin("Image Viewer");
+    ImGui::Begin("MEGS-A Image Viewer");
 
     // Viewport size for display (1024x512)
-    ImVec2 viewportSize = ImVec2(1024.0f, 512.0f);
+    ImVec2 viewportSizea = ImVec2(1024.0f, 512.0f);
     
     // Zoom slider
     ImGui::SliderFloat("MA Zoom", &zooma, 0.25f, 4.0f, "MA Zoom %.1fx");
@@ -121,22 +137,22 @@ void displayMAImageWithControls()
     ImGui::Checkbox("MA Modulo 256", &modulo256a);
     scalea = !modulo256a;
 
-    ImGui::Text("MA Time %s",globalState.megsa.iso8601.c_str());
+    ImGui::Text("MA Time: %s",globalState.megsa.iso8601.c_str());
 
-    ImGui::Text("MA ParityErrorCount %ld",globalState.parityErrorsMA);
+    //ImGui::Text("MA ParityErrorCount %ld",globalState.parityErrorsMA);
 
     // Render the image with the current zoom level
-    //renderMAImageWithZoom(reinterpret_cast<uint16_t*>(globalState.megsa.image), MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, zooma, viewportSize, modulo256a, scalea);
+    renderMAImageWithZoom(megsATextureID, reinterpret_cast<uint16_t*>(globalState.megsa.image), MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, zooma, viewportSizea, modulo256a, scalea);
 
     ImGui::End();
 }
 void displayMBImageWithControls(GLuint megsBTextureID)
 {
-    static float zoom = 0.5f;         // Zoom level (1.0 = full resolution)
+    static float zoom = 1.0f;         // Zoom level (1.0 = full resolution)
     static bool modulo256 = true;    // Modulo 256 display
     static bool scale = false;         // Scaled view
 
-    ImGui::Begin("Image Viewer");
+    ImGui::Begin("MEGS-B Image Viewer");
 
     // Viewport size for display (1024x512)
     ImVec2 viewportSize = ImVec2(1024.0f, 512.0f);
@@ -148,41 +164,89 @@ void displayMBImageWithControls(GLuint megsBTextureID)
     ImGui::Checkbox("MB Modulo 256", &modulo256);
     scale = !modulo256;
 
-    ImGui::Text("MB Time %s",globalState.megsb.iso8601.c_str());
+    ImGui::Text("MB Time: %s",globalState.megsb.iso8601.c_str());
 
+
+    // Render the image with the current zoom level
+    renderMBImageWithZoom(megsBTextureID, reinterpret_cast<uint16_t*>(globalState.megsb.image), MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, zoom, viewportSize, modulo256, scale);
+    //renderMBImageWithZoom(megsBTextureID, transposeImage(globalState.megsb.image).data(), MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, zoom, viewportSize, modulo256, scale);
+    
+    ImGui::End();
+}
+
+void updateStatusWindow()
+{
     ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
     ImGui::InputText("MEGS-A Pkts", strdup((std::to_string(globalState.packetsReceived.MA)).c_str()), 12, ImGuiInputTextFlags_ReadOnly);
-    ImGui::SameLine();
     ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
     ImGui::InputText("MEGS-B Pkts", strdup((std::to_string(globalState.packetsReceived.MB)).c_str()), 10, ImGuiInputTextFlags_ReadOnly);
-    ImGui::SameLine();
     ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
     ImGui::InputText("ESP Pkts", strdup((std::to_string(globalState.packetsReceived.ESP)).c_str()), 10, ImGuiInputTextFlags_ReadOnly);
-    ImGui::SameLine();
     ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
     ImGui::InputText("MEGS-P Pkts", strdup((std::to_string(globalState.packetsReceived.MP)).c_str()), 10, ImGuiInputTextFlags_ReadOnly);
-    ImGui::SameLine();
     ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
     ImGui::InputText("SHK Pkts", strdup((std::to_string(globalState.packetsReceived.SHK)).c_str()), 10, ImGuiInputTextFlags_ReadOnly);
-    ImGui::SameLine();
     ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
     ImGui::InputText("Unknown Pkts", strdup((std::to_string(globalState.packetsReceived.Unknown)).c_str()), 10, ImGuiInputTextFlags_ReadOnly);
 
 
     ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
     ImGui::InputText("MEGS-A Parity Errors", strdup((std::to_string(globalState.parityErrorsMA)).c_str()), 10, ImGuiInputTextFlags_ReadOnly);
-    ImGui::SameLine();
     ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
     ImGui::InputText("MEGS-B Parity Errors", strdup((std::to_string(globalState.parityErrorsMB)).c_str()), 10, ImGuiInputTextFlags_ReadOnly);
-
-    // Render the image with the current zoom level
-    renderMBImageWithZoom(megsBTextureID, reinterpret_cast<uint16_t*>(globalState.megsb.image), MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, zoom, viewportSize, modulo256, scale);
-    
-    ImGui::End();
 }
 
+void updateESPWindow()
+{
+    // need to find the last populated index
+    int index = ESP_INTEGRATIONS_PER_FILE - 1;
+    while ((index > 1) && (globalState.esp.ESP_xfer_cnt[index] == 0)) 
+    {
+        index--;
+    }
+    // std::cout<< "index: " << index << std::endl;
+    //int index=0;
+
+    // Column 1
+    ImGui::Columns(2,"ESP Columns");
+    ImGui::Text("ESP Status Column");
+    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 10);
+    ImGui::Text("ESP packet time: %s",globalState.esp.iso8601.c_str());
+
+    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
+    ImGui::InputText("ESP xfer cnt", strdup((std::to_string(globalState.esp.ESP_xfer_cnt[index])).c_str()), 12, ImGuiInputTextFlags_ReadOnly);
+    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
+    ImGui::InputText("ESP q0", strdup((std::to_string(globalState.esp.ESP_q0[index])).c_str()), 12, ImGuiInputTextFlags_ReadOnly);
+    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
+    ImGui::InputText("ESP q1", strdup((std::to_string(globalState.esp.ESP_q1[index])).c_str()), 12, ImGuiInputTextFlags_ReadOnly);
+    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
+    ImGui::InputText("ESP q2", strdup((std::to_string(globalState.esp.ESP_q2[index])).c_str()), 12, ImGuiInputTextFlags_ReadOnly);
+    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
+    ImGui::InputText("ESP q3", strdup((std::to_string(globalState.esp.ESP_q3[index])).c_str()), 12, ImGuiInputTextFlags_ReadOnly);
+    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
+    ImGui::InputText("ESP 171", strdup((std::to_string(globalState.esp.ESP_171[index])).c_str()), 12, ImGuiInputTextFlags_ReadOnly);
+    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
+    ImGui::InputText("ESP 257", strdup((std::to_string(globalState.esp.ESP_257[index])).c_str()), 12, ImGuiInputTextFlags_ReadOnly);
+    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
+    ImGui::InputText("ESP 304", strdup((std::to_string(globalState.esp.ESP_304[index])).c_str()), 12, ImGuiInputTextFlags_ReadOnly);
+    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
+    ImGui::InputText("ESP 366", strdup((std::to_string(globalState.esp.ESP_366[index])).c_str()), 12, ImGuiInputTextFlags_ReadOnly);
+    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
+    ImGui::InputText("ESP dark", strdup((std::to_string(globalState.esp.ESP_dark[index])).c_str()), 12, ImGuiInputTextFlags_ReadOnly);
+
+    // Column 2
+    ImGui::NextColumn();
+    ImGui::Text("ESP Plots Column");
+
+    // reset to single column layout
+    ImGui::Columns(1);
+    globalState.espUpdated = false;
+
+}
 
 int imgui_thread() {
+
+    globalState.guiEnabled = true;
 
     glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit())
@@ -310,39 +374,47 @@ int imgui_thread() {
             ImGui::End();
         }
 
-//        {
-//            ImGui::Begin("MEGS-A");
-//            displayMAImageWithControls();
-//            ImGui::End();
-//        }
+        {
+            displayMAImageWithControls(megsATextureID);
+        }
 
         {
-            ImGui::Begin("MEGS-B");
             displayMBImageWithControls(megsBTextureID);
-            ImGui::End();
         }
 
         // 3. Show another simple window.
-        if (show_another_window)
         {
-            ImGui::Begin("Another Window", &show_another_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
+            ImGui::Begin("Status Window");
             ImGui::Text("Hello from another window!");
-            if (ImGui::Button("Close Me"))
-                show_another_window = false;
+            updateStatusWindow();
             ImGui::End();
+        }
+
+        {
+            //if (globalState.espUpdated)
+            {
+                ImGui::Begin("ESP Window");
+                updateESPWindow();
+                ImGui::End();
+            }
         }
 
         // Rendering
         ImGui::Render();
         int display_w, display_h;
 
-//        if (globalState.megsAUpdated) {
-//            updateTextureFromMEGSAImage(megsATextureID);
-//            globalState.megsAUpdated = false;  // Reset flag after updating texture
-//        }
+        // this is the part that draws stuff to the screen
+        if (globalState.megsAUpdated) {
+            updateTextureFromMEGSAImage(megsATextureID);
+            globalState.megsAUpdated = false;  // Reset flag after updating texture
+        }
         if (globalState.megsBUpdated) {
             updateTextureFromMEGSBImage(megsBTextureID);
             globalState.megsBUpdated = false;  // Reset flag after updating texture
+        }
+        if (globalState.espUpdated) {
+            updateESPWindow();
+            globalState.espUpdated = false;
         }
 
         glfwGetFramebufferSize(window, &display_w, &display_h);
