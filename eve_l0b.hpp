@@ -422,15 +422,22 @@ extern TLM_ERRORS tlm_errors;
 
 // There is only one programState structure, and it is defined in main.cpp as a global to pass info to the imgui instance.
 struct ProgramState {
+	bool guiEnabled = false;
     int count = 0; // Number of iterations
     bool running = true; // Whether the program is still running
 	MEGS_IMAGE_REC megsa; // useful parts are vcdu_count, iso8601, and image
-	bool megsAUpdated = false;
+	bool megsAUpdated = true;
 	MEGS_IMAGE_REC megsb;
-	bool megsBUpdated = false;
+	bool megsBUpdated = true;
 	PKT_COUNT_REC packetsReceived;
 	long parityErrorsMA = 0;
 	long parityErrorsMB = 0;
+	ESP_PACKET esp;
+	bool espUpdated = true;
+	MEGSP_PACKET megsp;
+	bool megsPUpdated = true;
+	SHK_PACKET shk;
+	bool shkUpdated = true;
 };
 
 
