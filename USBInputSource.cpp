@@ -585,7 +585,7 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
         uint32_t waitCounter=0;
 
         // check for overflow
-        //checkLinkStatus();
+        checkLinkStatus();
 
         //while (isReceiveFIFOEmpty()) {
         //    waitCounter++;
@@ -737,60 +737,60 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
 	}
 }
 
-// unused
-void USBInputSource::processReceive() {
-    unsigned char* pBlkStart = rxBuffer;
+// // unused
+// void USBInputSource::processReceive() {
+//     unsigned char* pBlkStart = rxBuffer;
 
-    // Check if receive FIFO is empty
-    if (readGSERegister(0) & 0x02) return;
+//     // Check if receive FIFO is empty
+//     if (readGSERegister(0) & 0x02) return;
 
-    // First read a whole block of data from the FPGA
-    // The buffer may be full, partly full, or empty
-    // and it contains the frame marker at the start of each block.
-    // The code skips that block and joins packets that span blocks.
-    // After that, search for the sync marker
-    // then get the 6-byte packet header
-    // then get the rest of the packet
+//     // First read a whole block of data from the FPGA
+//     // The buffer may be full, partly full, or empty
+//     // and it contains the frame marker at the start of each block.
+//     // The code skips that block and joins packets that span blocks.
+//     // After that, search for the sync marker
+//     // then get the 6-byte packet header
+//     // then get the rest of the packet
     
 
-    // Get data, 64k at a time
-    if (dev->ReadFromBlockPipeOut(0xA3, 1024, 65536, rxBuffer) != 65536) {
-        std::cout << "\nAll data not returned" << std::endl;
-        return;
-    }
+//     // Get data, 64k at a time
+//     if (dev->ReadFromBlockPipeOut(0xA3, 1024, 65536, rxBuffer) != 65536) {
+//         std::cout << "\nAll data not returned" << std::endl;
+//         return;
+//     }
 
-    for (int i = 0; i <= 63; ++i) {
-        long dataLength = 4 * (*(reinterpret_cast<long*>(pBlkStart)));
-        if (dataLength > 1020) {
-            std::cout << "\nInvalid amount of data" << std::endl;
-            return;
-        }
+//     for (int i = 0; i <= 63; ++i) {
+//         long dataLength = 4 * (*(reinterpret_cast<long*>(pBlkStart)));
+//         if (dataLength > 1020) {
+//             std::cout << "\nInvalid amount of data" << std::endl;
+//             return;
+//         }
 
-        if (dataLength) {
-            if (!telemetryOpen) {
+//         if (dataLength) {
+//             if (!telemetryOpen) {
 
-                // This appears to be writing telemetry to a file, but not doing anything with it.
-                pFileTelemetry = fopen("CSIE_Telemetry.bin", "wb");
-                if (!pFileTelemetry) {
-                    std::cout << "Could not open Telemetry file" << std::endl;
-                    return;
-                }
-                telemetryOpen = true;
-                ctrRxBytes = 0;
-                openRxTime.updateNow();
-            }
+//                 // This appears to be writing telemetry to a file, but not doing anything with it.
+//                 pFileTelemetry = fopen("CSIE_Telemetry.bin", "wb");
+//                 if (!pFileTelemetry) {
+//                     std::cout << "Could not open Telemetry file" << std::endl;
+//                     return;
+//                 }
+//                 telemetryOpen = true;
+//                 ctrRxBytes = 0;
+//                 openRxTime.updateNow();
+//             }
 
-            pBlkStart += 4;
-            fwrite(pBlkStart, 1, dataLength, pFileTelemetry);
-            ctrRxBytes += dataLength;
-            pBlkStart += 1020;
+//             pBlkStart += 4;
+//             fwrite(pBlkStart, 1, dataLength, pFileTelemetry);
+//             ctrRxBytes += dataLength;
+//             pBlkStart += 1020;
 
-            lastRxTime.updateNow();
-        } else {
-            pBlkStart += 1024;
-        }
-    }
-}
+//             lastRxTime.updateNow();
+//         } else {
+//             pBlkStart += 1024;
+//         }
+//     }
+// }
 
 
 // *********************************************************************/
