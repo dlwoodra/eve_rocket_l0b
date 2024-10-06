@@ -61,6 +61,9 @@ constexpr int32_t SHK_INTEGRATIONS_PER_FILE = SHK_INTEGRATIONS_PER_PACKET * SECO
 constexpr uint32_t MEGS_IMAGE_WIDTH = 2048;	// The CCD images are 2048 x 1024 pixels
 constexpr uint32_t MEGS_IMAGE_HEIGHT = 1024;
 
+constexpr uint32_t MEGS_IMAGE_T_WIDTH = 1024; //transposed
+constexpr uint32_t MEGS_IMAGE_T_HEIGHT = 2048; //transposed
+
 #define PHOTO_SAMPLES_PER_10SEC 	40		// ESP is sampled at 4 Hz
 #define Y_TOP 						0		// Image orientation
 #define Y_MIDDLE 					511		//  The middle row
@@ -116,12 +119,6 @@ constexpr uint32_t MEGS_IMAGE_HEIGHT = 1024;
 
 //  Storage for file names on command line
 //char filenames[2][MAX_STRING_LENGTH];		
-
-// Define arrays for test images
-//uint16_t testAimage[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT];
-//uint16_t testBimage[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT];
-//uint16_t testAimageSW[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT];
-//uint16_t testBimageSW[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT];
 
 // Command line switches
 //bool ImagesMade;
@@ -406,7 +403,8 @@ struct MEGS_IMAGE_REC {
   uint32_t rec_tai_subseconds;
   uint16_t vcdu_count;
   std::string iso8601;
-  uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT];
+  uint16_t image[MEGS_IMAGE_T_WIDTH][MEGS_IMAGE_T_HEIGHT];
+  //uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT];
 }; // __attribute__ ((packed));
 
 extern struct MEGS_IMAGE_REC megs_image_rec;
