@@ -19,7 +19,7 @@ endif
 
 PCH_FLAGS = -include spdlog_pch.hpp
 
-FAST_FLAGS = -O3 -Wall # -g
+FAST_FLAGS = -O2 -Wall #-g
 TEST_FLAGS = -Wall #-g
 DEBUG_FLAGS = -g -Wall
 
