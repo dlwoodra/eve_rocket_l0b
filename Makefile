@@ -19,8 +19,8 @@ endif
 
 PCH_FLAGS = -include spdlog_pch.hpp
 
-FAST_FLAGS = -O3 -Wall
-TEST_FLAGS = -Wall
+FAST_FLAGS = -O3 -Wall # -g
+TEST_FLAGS = -Wall #-g
 DEBUG_FLAGS = -g -Wall
 
 LFLAGS = -lcfitsio -lm -lspdlog -lfmt -lokFrontPanel -fopenmp
