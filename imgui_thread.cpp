@@ -68,15 +68,18 @@ GLuint createTextureFromMEGSImage(uint16_t* data, int width, int height, bool mo
 void updateTextureFromMEGSAImage(GLuint textureID)
 {
     glBindTexture(GL_TEXTURE_2D, textureID);
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, globalState.megsa.image);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, globalState.transMegsA);
+    //glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, globalState.megsa.image);
     glBindTexture(GL_TEXTURE_2D, textureID);
 }
 
 void updateTextureFromMEGSBImage(GLuint megsBTextureID)
 {
     glBindTexture(GL_TEXTURE_2D, megsBTextureID);
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, globalState.megsb.image);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, globalState.transMegsB);
     glBindTexture(GL_TEXTURE_2D, megsBTextureID);
+
+    //glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, globalState.megsb.image);
 
 }
 
@@ -86,8 +89,8 @@ void renderMAImageWithZoom(GLuint megsATextureID, uint16_t* data, int fullWidth,
     float value = 1.0 / zoom;
     
     // default
-    ImVec2 uv0(value, 0.0f); 
-    ImVec2 uv1(0.0f, value); 
+    ImVec2 uv0(0.0f, 0.0f); 
+    ImVec2 uv1(value, value); 
 
     // Render the image using the texture ID
     ImGui::Image((void*)(intptr_t)megsATextureID, viewportSize, uv0, uv1);
@@ -102,8 +105,8 @@ void renderMBImageWithZoom(GLuint megsBTextureID, uint16_t* data, int fullWidth,
     //ImVec2 uv1(texWidth / fullWidth, texHeight / fullHeight);  // Ending UV coordinates
 
     // default
-    ImVec2 uv0(value, 0.0f); 
-    ImVec2 uv1(0.0f, value); 
+    ImVec2 uv0(0.0f, 0.0f); 
+    ImVec2 uv1(value, value); 
 
     // These supposedly rotate 90 deg
     //ImVec2 uv0(0.0f, value); 
@@ -121,7 +124,7 @@ void renderMBImageWithZoom(GLuint megsBTextureID, uint16_t* data, int fullWidth,
 
 void displayMAImageWithControls(GLuint megsATextureID)
 {
-    static float zooma = 1.0f;         // Zoom level (1.0 = full resolution)
+    static float zooma = 0.5f;         // Zoom level (1.0 = full resolution)
     static bool modulo256a = true;    // Modulo 256 display
     static bool scalea = false;         // Scaled view
 
@@ -142,13 +145,13 @@ void displayMAImageWithControls(GLuint megsATextureID)
     //ImGui::Text("MA ParityErrorCount %ld",globalState.parityErrorsMA);
 
     // Render the image with the current zoom level
-    renderMAImageWithZoom(megsATextureID, reinterpret_cast<uint16_t*>(globalState.megsa.image), MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, zooma, viewportSizea, modulo256a, scalea);
+    renderMAImageWithZoom(megsATextureID, reinterpret_cast<uint16_t*>(globalState.transMegsA), MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, zooma, viewportSizea, modulo256a, scalea);
 
     ImGui::End();
 }
 void displayMBImageWithControls(GLuint megsBTextureID)
 {
-    static float zoom = 1.0f;         // Zoom level (1.0 = full resolution)
+    static float zoom = 0.5f;         // Zoom level (1.0 = full resolution)
     static bool modulo256 = true;    // Modulo 256 display
     static bool scale = false;         // Scaled view
 
@@ -168,7 +171,8 @@ void displayMBImageWithControls(GLuint megsBTextureID)
 
 
     // Render the image with the current zoom level
-    renderMBImageWithZoom(megsBTextureID, reinterpret_cast<uint16_t*>(globalState.megsb.image), MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, zoom, viewportSize, modulo256, scale);
+    renderMBImageWithZoom(megsBTextureID, reinterpret_cast<uint16_t*>(globalState.transMegsB), MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, zoom, viewportSize, modulo256, scale);
+    //renderMBImageWithZoom(megsBTextureID, reinterpret_cast<uint16_t*>(globalState.megsb.image), MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, zoom, viewportSize, modulo256, scale);
     //renderMBImageWithZoom(megsBTextureID, transposeImage(globalState.megsb.image).data(), MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, zoom, viewportSize, modulo256, scale);
     
     ImGui::End();
