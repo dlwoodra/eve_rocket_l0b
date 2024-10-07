@@ -579,8 +579,8 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
     // for these params we should call this every ~65-75 milliseconds
     // for now just read the buffer iloop times as fast as possible
     // note 8/30/24 blockPipeOutStatus is 65536
-    uint32_t milliSecondWaitTimeBetweenReads = 2;
-    uint32_t numberOfCountersPerSecond = 1000 / milliSecondWaitTimeBetweenReads - 1;
+    //uint32_t milliSecondWaitTimeBetweenReads = 2;
+    //uint32_t numberOfCountersPerSecond = 1000 / milliSecondWaitTimeBetweenReads - 1;
     while (true) {
         uint32_t waitCounter=0;
 
@@ -596,11 +596,11 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
         //    //std::cout<<"ReceiveFIFOEmpty: waiting"<<std::endl;
         //    Sleep(1); // 2 millisec - need to tune
         //}
-        //if (waitCounter > 100) {
-        //    std::cout<<"Warning: CGProcRx slow data transfer, waitCounter is high "<<waitCounter<<std::endl;
+        if (waitCounter > 100) {
+            std::cout<<"Warning: CGProcRx slow data transfer, waitCounter is high "<<waitCounter<<std::endl;
         //    LogFileWriter::getInstance().logWarning("CGProxRx slow data transfer, waitCounter is high {}", waitCounter);
-        //    waitCounter = 0;
-        //}
+            waitCounter = 0;
+        }
 
         int32_t blockPipeOutStatus = readDataFromUSB();
         // returns number of bytes or <0 for errors
