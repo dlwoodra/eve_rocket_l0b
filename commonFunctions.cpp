@@ -45,7 +45,7 @@ bool create_directory_if_not_exists(const std::string& path) {
 }
 
 // Convert 2d image into 1d image in transpose order for writing to a FITS image HDU
-std::vector<uint16_t> transposeImage(const uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT]) {
+std::vector<uint16_t> transposeImageTo1D(const uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT]) {
     const uint32_t width = MEGS_IMAGE_WIDTH;
     const uint32_t height = MEGS_IMAGE_HEIGHT;
     std::vector<uint16_t> transposedData(width * height);
@@ -60,6 +60,18 @@ std::vector<uint16_t> transposeImage(const uint16_t image[MEGS_IMAGE_WIDTH][MEGS
     return transposedData;
 }
 
+// switch x and y 
+void transposeImage2D(const uint16_t (*image)[MEGS_IMAGE_HEIGHT], uint16_t (*transposeData)[MEGS_IMAGE_WIDTH]) {
+    const uint32_t width = MEGS_IMAGE_WIDTH;
+    const uint32_t height = MEGS_IMAGE_HEIGHT;
+
+    #pragma omp parallel for
+    for (uint32_t y = 0; y < height; ++y) {
+        for (uint32_t x = 0; x < width; ++x) {
+            transposeData[y][x] = image[x][y];
+        }
+    }
+}
 
 // reads a packet and writes it to the recordfile
 void processPackets(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& recordWriter, bool skipRecord) {
@@ -280,7 +292,8 @@ void processMegsAPacket(std::vector<uint8_t> payload,
     // The oneMEGSStructure is the one that is written to FITS and is initialized to 0
     int parityErrors = assemble_image(vcdu, &oneMEGSStructure, sourceSequenceCounter, testPattern, &status);
     // The globalState.megsa image is NOT initialized and just overwrites each packet location as it is received
-    globalState.parityErrorsMA += assemble_image(vcdu, &globalState.megsa, sourceSequenceCounter, testPattern, &status);
+    globalState.parityErrorsMA += parityErrors; //(vcdu, &globalState.megsa, sourceSequenceCounter, testPattern, &status);
+    transposeImage2D(oneMEGSStructure.image, globalState.transMegsA);
     globalState.megsAUpdated = true;
 
     if ( parityErrors > 0 ) {
@@ -394,7 +407,8 @@ void processMegsBPacket(std::vector<uint8_t> payload,
     // assing pixel values from the packet into the proper locations in the image
     int parityErrors = assemble_image(vcdu, &oneMEGSStructure, sourceSequenceCounter, testPattern, &status);
     // The globalState.megsa image is NOT initialized and just overwrites each packet location as it is received
-    globalState.parityErrorsMB += assemble_image(vcdu, &globalState.megsb, sourceSequenceCounter, testPattern, &status);
+    globalState.parityErrorsMB += parityErrors; // assemble_image(vcdu, &globalState.megsb, sourceSequenceCounter, testPattern, &status);
+    transposeImage2D(oneMEGSStructure.image, globalState.transMegsB);
     globalState.megsBUpdated = true;
     if ( parityErrors > 0 ) {
         LogFileWriter::getInstance().logError("MB parity errors: {}", parityErrors);
@@ -442,7 +456,6 @@ void processMegsPPacket(std::vector<uint8_t> payload,
 
     int firstbyteoffset = 10; //time=8,mode=2
 
-    //int packetoffset = processedPacketCounter * MEGSP_PACKETS_PER_FILE;
     int packetoffset = processedPacketCounter * MEGSP_INTEGRATIONS_PER_PACKET;
     constexpr int bytesPerIntegration = (2 * 2); // 2 bytes per diode, 2 diodes
     std::cout<<"processMegsPPacket packetoffset "<< packetoffset << std::endl;
@@ -501,7 +514,6 @@ void processESPPacket(std::vector<uint8_t> payload,
     
     int firstbyteoffset = 10;
 
-    //int packetoffset = processedPacketCounter * ESP_PACKETS_PER_FILE;
     int packetoffset = processedPacketCounter * ESP_INTEGRATIONS_PER_PACKET;
     //std::cout<<"processESPPacket packetoffset "<< packetoffset << std::endl;
     // integrations are sequentially adjacent in the packet
@@ -584,7 +596,7 @@ void processHKPacket(std::vector<uint8_t> payload,
 
     int firstbyteoffset = 10; // offset into payload after 4 bytes TAI sec, 4 bytes TAIsubsec, 2 bytes modeword
 
-    int packetoffset = processedPacketCounter * SHK_PACKETS_PER_FILE;
+    int packetoffset = processedPacketCounter * SHK_INTEGRATIONS_PER_PACKET;
     //std::cout<<"processESPPacket packetoffset "<< packetoffset << std::endl;
     // integrations are sequentially adjacent in the packet
     // pri hdr, sec hdr, mode, integration 1, integrtion 2, etc
