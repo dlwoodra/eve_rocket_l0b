@@ -419,6 +419,7 @@ bool FITSWriter::writeMegsFITS(const MEGS_IMAGE_REC& megsStructure, uint16_t api
     checkFitsStatus(status);
 
     int result = writeMegsFITSBinaryTable(filename, megsStructure, extname, apid);
+    fits_close_file(fptr, &status);
     if (result != 0) {
         std::cerr << "Failed to write binary table to FITS file: " << filename << std::endl;
         return false;
@@ -513,6 +514,7 @@ bool FITSWriter::writeMegsPFITS( const MEGSP_PACKET& megsPStructure) {
     checkFitsStatus(status);
 
     int result = writeMegsPFITSBinaryTable(filename, megsPStructure);
+    fits_close_file(fptr, &status);
     if (result != 0) {
         std::cerr << "Failed to write binary table to MEGSP FITS file: " << filename << std::endl;
         return false;
@@ -618,6 +620,7 @@ bool FITSWriter::writeESPFITS( const ESP_PACKET& ESPStructure) {
     checkFitsStatus(status);
 
     int result = writeESPFITSBinaryTable(filename, ESPStructure);
+    fits_close_file(fptr, &status);
     if (result != 0) {
         std::cerr << "Failed to write binary table to ESP FITS file: " << filename << std::endl;
         return false;
@@ -867,9 +870,18 @@ bool FITSWriter::writeSHKFITS( const SHK_PACKET& SHKStructure) {
 
     checkFitsStatus(status);
 
+    // Write the binary table to the FITS file
     int result = writeSHKFITSBinaryTable(filename, SHKStructure);
     if (result != 0) {
         std::cerr << "Failed to write binary table to SHK FITS file: " << filename << std::endl;
+        return false;
+    }
+
+    // Close the FITS file adn check for errors
+    fits_close_file(fptr, &status);
+    if (status) {
+        std::cerr << "ERROR: Failed to close FITS file: " << filename << std::endl;
+        LogFileWriter::getInstance().logError("FITSWriter::writeSHKFITS: Failed to close FITS file: {}", filename);
         return false;
     }
 
