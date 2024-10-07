@@ -151,8 +151,10 @@ int32_t assemble_image( uint8_t * vcdu, MEGS_IMAGE_REC * ptr, uint16_t sourceSeq
           
     // Insert the pixel value into the image in memory            
     ptr->image[xpos][ypos] = (uint16_t) pix_val14;
+    // the less complicated way is to have 1024x2048, so here we do all the math using 2048x1024 then switch x and y
+    //ptr->image[ypos][xpos] = (uint16_t) pix_val14;
 
-  } //endfor
+  } //end of j for loop
          
   // increment vcdu counter for assembling the image
   ptr->vcdu_count++;
