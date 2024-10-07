@@ -292,9 +292,11 @@ void processMegsAPacket(std::vector<uint8_t> payload,
     // The oneMEGSStructure is the one that is written to FITS and is initialized to 0
     int parityErrors = assemble_image(vcdu, &oneMEGSStructure, sourceSequenceCounter, testPattern, &status);
     // The globalState.megsa image is NOT initialized and just overwrites each packet location as it is received
-    globalState.parityErrorsMA += parityErrors; //(vcdu, &globalState.megsa, sourceSequenceCounter, testPattern, &status);
-    transposeImage2D(oneMEGSStructure.image, globalState.transMegsA);
-    globalState.megsAUpdated = true;
+    globalState.parityErrorsMA += assemble_image(vcdu, &globalState.megsa, sourceSequenceCounter, testPattern, &status);
+    if ((processedPacketCounter % 7) == 0) {
+        transposeImage2D(globalState.megsa.image, globalState.transMegsA);
+        globalState.megsAUpdated = true;
+    }
 
     if ( parityErrors > 0 ) {
         LogFileWriter::getInstance().logError("MA parity errors: {} SSC: {}", parityErrors, sourceSequenceCounter);
@@ -407,9 +409,11 @@ void processMegsBPacket(std::vector<uint8_t> payload,
     // assing pixel values from the packet into the proper locations in the image
     int parityErrors = assemble_image(vcdu, &oneMEGSStructure, sourceSequenceCounter, testPattern, &status);
     // The globalState.megsa image is NOT initialized and just overwrites each packet location as it is received
-    globalState.parityErrorsMB += parityErrors; // assemble_image(vcdu, &globalState.megsb, sourceSequenceCounter, testPattern, &status);
-    transposeImage2D(oneMEGSStructure.image, globalState.transMegsB);
-    globalState.megsBUpdated = true;
+    globalState.parityErrorsMB += assemble_image(vcdu, &globalState.megsb, sourceSequenceCounter, testPattern, &status);
+    if ((processedPacketCounter % 7) == 0) {
+        transposeImage2D(globalState.megsb.image, globalState.transMegsB);
+        globalState.megsBUpdated = true;
+    }
     if ( parityErrors > 0 ) {
         LogFileWriter::getInstance().logError("MB parity errors: {}", parityErrors);
         std::cout << "processMegsBPacket - assemble_image returned parity errors: " << parityErrors << " ssc:"<<sourceSequenceCounter<<"\n";
