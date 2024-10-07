@@ -1,7 +1,7 @@
 #include "FITSWriter.hpp"
 #include "commonFunctions.hpp"
 
-extern std::vector<uint16_t> transposeImage(const uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT]);
+extern std::vector<uint16_t> transposeImageTo1D(const uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT]);
 
 // Constructor
 FITSWriter::FITSWriter() {}
@@ -384,7 +384,7 @@ bool FITSWriter::writeMegsFITS(const MEGS_IMAGE_REC& megsStructure, uint16_t api
     }
 
     // Create a primary array image (e.g., 16-bit unsigned integer)
-    long naxes[2] = {MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT}; // dimensions, can be adjusted as needed
+    long naxes[2] = {MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT}; // dimensions
     if (fits_create_img(fptr, USHORT_IMG, 2, naxes, &status)) {
         fits_report_error(stderr, status);
         return false;
@@ -395,10 +395,21 @@ bool FITSWriter::writeMegsFITS(const MEGS_IMAGE_REC& megsStructure, uint16_t api
         return false;
     }
 
-    std::vector<uint16_t> transposedData = transposeImage(megsStructure.image);
+    std::vector<uint16_t> transposedData = transposeImageTo1D(megsStructure.image);
+    // uint16_t tData[MEGS_IMAGE_T_WIDTH][MEGS_IMAGE_T_HEIGHT];
+    // // reverse in x direction
+    // #pragma omp parallel for
+    // for (int32_t i = 0; i < MEGS_IMAGE_T_WIDTH; ++i) { //1024
+    //     for (int32_t j = 0; j < MEGS_IMAGE_T_HEIGHT; ++j) { //2048
+    //         tData[i][j] = megsStructure.image[i][MEGS_IMAGE_T_HEIGHT - j]; // reverse data along x axis
+    //     }
+    // }
+
+    //void* ptrimage = (void*) (tData); //1024x2048
 
     LONGLONG fpixel = 1;
     if (fits_write_img(fptr, TUSHORT, fpixel, transposedData.size(), transposedData.data(), &status)) {
+    //if (fits_write_img(fptr, TUSHORT, fpixel, MEGS_IMAGE_T_HEIGHT * MEGS_IMAGE_T_WIDTH, ptrimage, &status)) {
         LogFileWriter::getInstance().logError("Failed to write image data to FITS file: {}", filename);
         fits_close_file(fptr, &status);
         return false;
