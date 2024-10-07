@@ -403,8 +403,8 @@ struct MEGS_IMAGE_REC {
   uint32_t rec_tai_subseconds;
   uint16_t vcdu_count;
   std::string iso8601;
-  uint16_t image[MEGS_IMAGE_T_WIDTH][MEGS_IMAGE_T_HEIGHT];
-  //uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT];
+  //uint16_t image[MEGS_IMAGE_T_WIDTH][MEGS_IMAGE_T_HEIGHT];
+  uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT];
 }; // __attribute__ ((packed));
 
 extern struct MEGS_IMAGE_REC megs_image_rec;
@@ -425,7 +425,9 @@ struct ProgramState {
     bool running = true; // Whether the program is still running
 	MEGS_IMAGE_REC megsa; // useful parts are vcdu_count, iso8601, and image
 	bool megsAUpdated = true;
+	uint16_t transMegsA[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH];
 	MEGS_IMAGE_REC megsb;
+	uint16_t transMegsB[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH];
 	bool megsBUpdated = true;
 	PKT_COUNT_REC packetsReceived;
 	long parityErrorsMA = 0;
