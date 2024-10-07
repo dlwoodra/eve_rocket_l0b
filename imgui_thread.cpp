@@ -76,7 +76,7 @@ void updateTextureFromMEGSAImage(GLuint textureID)
 void updateTextureFromMEGSBImage(GLuint megsBTextureID)
 {
     glBindTexture(GL_TEXTURE_2D, megsBTextureID);
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, globalState.transMegsB);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, MEGS_IMAGE_T_WIDTH, MEGS_IMAGE_T_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, globalState.transMegsB);
     glBindTexture(GL_TEXTURE_2D, megsBTextureID);
 
     //glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, globalState.megsb.image);
@@ -101,19 +101,9 @@ void renderMBImageWithZoom(GLuint megsBTextureID, uint16_t* data, int fullWidth,
     // Calculate the zoom level
     float value = 1.0 / zoom;
     
-    //ImVec2 uv0(0.0f, 0.0f);        // Starting UV coordinates - this displays value 0,0 int top right corner, image is rotated90 deg clockwise
-    //ImVec2 uv1(texWidth / fullWidth, texHeight / fullHeight);  // Ending UV coordinates
-
     // default
     ImVec2 uv0(0.0f, 0.0f); 
     ImVec2 uv1(value, value); 
-
-    // These supposedly rotate 90 deg
-    //ImVec2 uv0(0.0f, value); 
-    //ImVec2 uv1(value, 0.0f); 
-
-    //ImVec2 uv0(0.0f, 0.0f); 
-    //ImVec2 uv1(value, value); 
 
     // Render the image using the texture ID
     ImGui::Image((void*)(intptr_t)megsBTextureID, viewportSize, uv0, uv1);
@@ -171,7 +161,7 @@ void displayMBImageWithControls(GLuint megsBTextureID)
 
 
     // Render the image with the current zoom level
-    renderMBImageWithZoom(megsBTextureID, reinterpret_cast<uint16_t*>(globalState.transMegsB), MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, zoom, viewportSize, modulo256, scale);
+    renderMBImageWithZoom(megsBTextureID, reinterpret_cast<uint16_t*>(globalState.transMegsB), MEGS_IMAGE_T_WIDTH, MEGS_IMAGE_T_HEIGHT, zoom, viewportSize, modulo256, scale);
     //renderMBImageWithZoom(megsBTextureID, reinterpret_cast<uint16_t*>(globalState.megsb.image), MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, zoom, viewportSize, modulo256, scale);
     //renderMBImageWithZoom(megsBTextureID, transposeImage(globalState.megsb.image).data(), MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, zoom, viewportSize, modulo256, scale);
     
@@ -322,7 +312,7 @@ int imgui_thread() {
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
     GLuint megsATextureID = createTextureFromMEGSImage( &globalState.megsa.image[0][0], MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, true, true);
-    GLuint megsBTextureID = createTextureFromMEGSImage( &globalState.megsb.image[0][0], MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, true, true);
+    GLuint megsBTextureID = createTextureFromMEGSImage( &globalState.megsb.image[0][0], MEGS_IMAGE_T_WIDTH, MEGS_IMAGE_T_HEIGHT, true, true);
 
     // Main loop
 #ifdef __EMSCRIPTEN__
