@@ -50,24 +50,25 @@ std::vector<uint16_t> transposeImageTo1D(const uint16_t image[MEGS_IMAGE_WIDTH][
     const uint32_t height = MEGS_IMAGE_HEIGHT;
     std::vector<uint16_t> transposedData(width * height);
 
-    #pragma omp parallel for
     for (uint32_t y = 0; y < height; ++y) {
         for (uint32_t x = 0; x < width; ++x) {
             transposedData[x + (y * width)] = image[x][y];
         }
     }
-
     return transposedData;
 }
 
+// This function is only thread-safe if image and transposeData are not accessed elsewhere during execution.
+// Callers are expected to use megsAUpdated and megsBUpdated flags to prevent access during modification.
 // switch x and y 
 void transposeImage2D(const uint16_t (*image)[MEGS_IMAGE_HEIGHT], uint16_t (*transposeData)[MEGS_IMAGE_WIDTH]) {
     const uint32_t width = MEGS_IMAGE_WIDTH;
     const uint32_t height = MEGS_IMAGE_HEIGHT;
 
-    #pragma omp parallel for
-    for (uint32_t y = 0; y < height; ++y) {
-        for (uint32_t x = 0; x < width; ++x) {
+    // approx mean time 17-19 ms - Winner!
+    // single thread
+    for (uint32_t x = 0; x < width; ++x) {
+        for (uint32_t y = 0; y < height; ++y) {
             transposeData[y][x] = image[x][y];
         }
     }
@@ -293,7 +294,7 @@ void processMegsAPacket(std::vector<uint8_t> payload,
     int parityErrors = assemble_image(vcdu, &oneMEGSStructure, sourceSequenceCounter, testPattern, &status);
     // The globalState.megsa image is NOT initialized and just overwrites each packet location as it is received
     globalState.parityErrorsMA += assemble_image(vcdu, &globalState.megsa, sourceSequenceCounter, testPattern, &status);
-    if ((processedPacketCounter % 7) == 0) {
+    if ((processedPacketCounter % IMAGE_UPDATE_INTERVAL) == 0) {
         transposeImage2D(globalState.megsa.image, globalState.transMegsA);
         globalState.megsAUpdated = true;
     }
@@ -410,7 +411,7 @@ void processMegsBPacket(std::vector<uint8_t> payload,
     int parityErrors = assemble_image(vcdu, &oneMEGSStructure, sourceSequenceCounter, testPattern, &status);
     // The globalState.megsa image is NOT initialized and just overwrites each packet location as it is received
     globalState.parityErrorsMB += assemble_image(vcdu, &globalState.megsb, sourceSequenceCounter, testPattern, &status);
-    if ((processedPacketCounter % 7) == 0) {
+    if ((processedPacketCounter % IMAGE_UPDATE_INTERVAL) == 0) {
         transposeImage2D(globalState.megsb.image, globalState.transMegsB);
         globalState.megsBUpdated = true;
     }
