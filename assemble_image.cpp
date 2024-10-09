@@ -52,18 +52,16 @@ int32_t assemble_image( uint8_t * vcdu, MEGS_IMAGE_REC * ptr, uint16_t sourceSeq
   uint16_t expectedparity=0;
   uint16_t pixelparity=0;
   uint32_t src_seq = sourceSequenceCounter;
-  constexpr uint32_t MEGS_IMAGE_WIDTH_SHIFT=11; // number of bits to shift
-  constexpr uint32_t MEGS_IMAGE_HEIGHT_LESS1 = MEGS_IMAGE_HEIGHT - 1;
-  constexpr uint32_t MEGS_IMAGE_WIDTH_LESS1 = MEGS_IMAGE_WIDTH - 1;
+  constexpr int32_t MEGS_IMAGE_WIDTH_SHIFT=11; // number of bits to shift
+  constexpr int32_t MEGS_IMAGE_HEIGHT_LESS1 = MEGS_IMAGE_HEIGHT - 1;
+  constexpr int32_t MEGS_IMAGE_WIDTH_LESS1 = MEGS_IMAGE_WIDTH - 1;
   uint16_t pix_val14;
-  const uint32_t src_seq_times_pixels_per_half_vcdu = sourceSequenceCounter * PIXELS_PER_HALF_VCDU;
+  const int32_t src_seq_times_pixels_per_half_vcdu = sourceSequenceCounter * PIXELS_PER_HALF_VCDU;
 
-  int32_t xpos, ypos, kk;
-  uint32_t not_testpattern;
+  int32_t xpos, ypos, kk, jrel;
   uint32_t not_tp2043;
 
-  not_testpattern = static_cast<uint32_t>(!testPattern);
-  not_tp2043 = not_testpattern * 2044; /* 2047 - 4 compensates for virtual column insertion */
+  not_tp2043 = (!testPattern) * 2044; /* 2047 - 4 compensates for virtual column insertion */
 
   // print the byte in the vcdu
   if (sourceSequenceCounter == 0) {
@@ -93,7 +91,7 @@ int32_t assemble_image( uint8_t * vcdu, MEGS_IMAGE_REC * ptr, uint16_t sourceSeq
     pix_val14 = pixval16 & 0x3FFF; // 14 bits of data
 
     // Only do twos comp for ccd data (not test patterns)
-    if( not_testpattern )
+    if( !testPattern )
     {
       // for David's new rocketFPGA, do both parity and 2s complement
       // Decode (2's complement) the 14 bit (with sign) pixel value
@@ -116,41 +114,54 @@ int32_t assemble_image( uint8_t * vcdu, MEGS_IMAGE_REC * ptr, uint16_t sourceSeq
 
     // assemble regardless of whether the parity check fails
       
-    uint32_t jrel = ((j - 30)>>1); // the pixel number offset in the vcdu
+    jrel = ((j - 30)>>1); // the pixel number offset in the vcdu
+    // jrel is the pixel number in the VCDU, 0 to 875 with top/bottom interleaved
     // when combined with the src_seq number, a pixel location can be determined
     // jrel is the pixel index 0,1,2... where evens are top and odds are bottom
-    // jrel spans from 0 to 875
 
     // assign pix_val14 to proper x,y or xpos,ypos location in image
     // find whether the jrel pixel is from the top (even) or bottom (odd) half of the CCD
-    if ((jrel & 0x1) == 0)
-    {
-      /* jrel is even, so pixel is in top half */
-              
-      kk = int32_t (src_seq_times_pixels_per_half_vcdu) + int32_t ((jrel) >> 1);
-      ypos = int32_t (kk >> MEGS_IMAGE_WIDTH_SHIFT);
-      xpos = (int32_t (kk + not_tp2043) & MEGS_IMAGE_WIDTH_LESS1); 
-      // for the mode is fixed topmode=0 always
-      // if ( topmode == 1)
-      // {
-      //   xpos = MEGS_IMAGE_WIDTH_LESS1 - xpos; /* the old simple way */
-      // }
-    }
-      else 
-    {
-      /* jrel is odd, so pixel is in bottom half */
 
-      kk = int32_t (src_seq_times_pixels_per_half_vcdu) + (int32_t (jrel-1) >> 1);
-      ypos = int32_t (MEGS_IMAGE_HEIGHT_LESS1) - (int32_t) (kk >> MEGS_IMAGE_WIDTH_SHIFT);
-      xpos = (int32_t (kk + not_tp2043) & MEGS_IMAGE_WIDTH_LESS1); //assumes left
-      //if ( bottommode == 1) // always true
-      //{
-        xpos = MEGS_IMAGE_WIDTH_LESS1 - xpos; 
-      //}
+    // This code is correct, but the new code is supposed to be faster.
+    // if ((jrel & 0x1) == 0)
+    // {
+    //   /* jrel is even, so pixel is in top half */
+              
+    //   kk = (src_seq_times_pixels_per_half_vcdu) + ((jrel) >> 1);
+    //   ypos = (kk >> MEGS_IMAGE_WIDTH_SHIFT);
+    //   xpos = ((kk + not_tp2043) & MEGS_IMAGE_WIDTH_LESS1); 
+    //   // for the mode is fixed topmode=0 always
+    //   // if ( topmode == 1)
+    //   // {
+    //   //   xpos = MEGS_IMAGE_WIDTH_LESS1 - xpos; /* the old simple way */
+    //   // }
+    // }
+    //   else 
+    // {
+    //   /* jrel is odd, so pixel is in bottom half */
+
+    //   kk = (src_seq_times_pixels_per_half_vcdu) +  ((jrel-1) >> 1);
+    //   ypos = (MEGS_IMAGE_HEIGHT_LESS1) - (kk >> MEGS_IMAGE_WIDTH_SHIFT);
+    //   xpos = ((kk + not_tp2043) & MEGS_IMAGE_WIDTH_LESS1); //assumes left
+    //   //if ( bottommode == 1) // always true
+    //   //{
+    //     xpos = MEGS_IMAGE_WIDTH_LESS1 - xpos; 
+    //   //}
+    // }
+    jrel = (j-30)>>1;
+    kk = src_seq_times_pixels_per_half_vcdu + (jrel>>1);
+    ypos = (jrel & 0x1) == 0 ? (kk >> MEGS_IMAGE_WIDTH_SHIFT) : (MEGS_IMAGE_HEIGHT_LESS1) - (kk >> MEGS_IMAGE_WIDTH_SHIFT);
+    xpos = ((kk + not_tp2043) & MEGS_IMAGE_WIDTH_LESS1);
+    if ((jrel & 0x1) == 1) {
+      xpos = MEGS_IMAGE_WIDTH_LESS1 - xpos;
     }
-          
+    // if (newxpos != xpos || newypos != ypos) {
+    //   std::cout << "assemble_image: xpos, ypos, newxpos, newypos " << xpos << " " << ypos << " " << newxpos << " " << newypos << std::endl;
+    // } // this proves the two calculations for xpos and ypos are equivalent
+
+
     // Insert the pixel value into the image in memory            
-    ptr->image[xpos][ypos] = (uint16_t) pix_val14;
+    ptr->image[xpos][ypos] = pix_val14;
     // the less complicated way is to have 1024x2048, so here we do all the math using 2048x1024 then switch x and y
     //ptr->image[ypos][xpos] = (uint16_t) pix_val14;
 
