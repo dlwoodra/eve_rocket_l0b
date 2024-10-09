@@ -17,7 +17,6 @@
 #include <GLFW/glfw3.h> 
 
 extern ProgramState globalState;
-//extern std::vector<uint16_t> transposeImage(const uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT]);
 
 static void glfw_error_callback(int error, const char* description)
 {
@@ -130,7 +129,7 @@ void displayMAImageWithControls(GLuint megsATextureID)
     ImGui::Checkbox("MA Modulo 256", &modulo256a);
     scalea = !modulo256a;
 
-    ImGui::Text("MA Time: %s",globalState.megsa.iso8601.c_str());
+    //ImGui::Text("MA Time: %s",globalState.megsa.iso8601.c_str());
 
     //ImGui::Text("MA ParityErrorCount %ld",globalState.parityErrorsMA);
 
@@ -170,6 +169,8 @@ void displayMBImageWithControls(GLuint megsBTextureID)
 
 void updateStatusWindow()
 {
+    ImGuiIO& io = ImGui::GetIO();
+    ImGui::Text("Refresh rate: %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
     ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
     ImGui::InputText("MEGS-A Pkts", strdup((std::to_string(globalState.packetsReceived.MA)).c_str()), 12, ImGuiInputTextFlags_ReadOnly);
     ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
@@ -279,7 +280,7 @@ int imgui_thread() {
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // Enable Docking
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;       // Enable Multi-Viewport / Platform Windows
     //io.ConfigViewportsNoAutoMerge = true;
@@ -311,8 +312,10 @@ int imgui_thread() {
     bool show_another_window = false;
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
-    GLuint megsATextureID = createTextureFromMEGSImage( &globalState.megsa.image[0][0], MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, true, true);
-    GLuint megsBTextureID = createTextureFromMEGSImage( &globalState.megsb.image[0][0], MEGS_IMAGE_T_WIDTH, MEGS_IMAGE_T_HEIGHT, true, true);
+    //GLuint megsATextureID = createTextureFromMEGSImage( &globalState.megsa.image[0][0], MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, true, true);
+    //GLuint megsBTextureID = createTextureFromMEGSImage( &globalState.megsb.image[0][0], MEGS_IMAGE_T_WIDTH, MEGS_IMAGE_T_HEIGHT, true, true);
+    GLuint megsATextureID = createTextureFromMEGSImage( &globalState.transMegsA[0][0], MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, true, true);
+    GLuint megsBTextureID = createTextureFromMEGSImage( &globalState.transMegsB[0][0], MEGS_IMAGE_T_WIDTH, MEGS_IMAGE_T_HEIGHT, true, true);
 
     // Main loop
 #ifdef __EMSCRIPTEN__
@@ -350,14 +353,14 @@ int imgui_thread() {
             static float f = 0.0f;
             static int counter = 0;
 
-            ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
+            ImGui::Begin("SDO-EVE Rocket Data Display");                          // Create a window called "Hello, world!" and append into it.
 
-            ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-            ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
-            ImGui::Checkbox("Another Window", &show_another_window);
+            //ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
+            //ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
+            //ImGui::Checkbox("Another Window", &show_another_window);
 
-            ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-            ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
+            //ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
+            //ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
 
             if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
                 counter++;
@@ -379,7 +382,6 @@ int imgui_thread() {
         // 3. Show another simple window.
         {
             ImGui::Begin("Status Window");
-            ImGui::Text("Hello from another window!");
             updateStatusWindow();
             ImGui::End();
         }
