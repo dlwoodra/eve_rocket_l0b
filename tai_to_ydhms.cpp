@@ -86,7 +86,7 @@ int tai_to_ydhms(uint32_t tai_in, uint16_t* year, uint16_t* doy, uint32_t* sod, 
     *hh = (uint16_t) ((*sod)/3600);
 
     iso8601 = toISO8601(npyear, dayofyear, *hh, *mm, *ss);
-    std::cout<<"tai_to_ydhms - iso "<<iso8601<<std::endl;
+    //std::cout<<"tai_to_ydhms - iso "<<iso8601<<std::endl;
 
     return 0;
 }
