@@ -206,7 +206,7 @@ void populateStructureTimes(T& oneStructure, const std::vector<uint8_t>& payload
     oneStructure.yyyydoy = (uint32_t)(year * 1000 + doy);
     oneStructure.iso8601 = iso8601;
     
-    std::cout << "structure iso time " << iso8601 << std::endl;
+    //std::cout << "structure iso time " << iso8601 << std::endl;
 }
 
 // the payload starts with the secondary header timestamp
@@ -463,7 +463,7 @@ void processMegsPPacket(std::vector<uint8_t> payload,
 
     int packetoffset = processedPacketCounter * MEGSP_INTEGRATIONS_PER_PACKET;
     constexpr int bytesPerIntegration = (2 * 2); // 2 bytes per diode, 2 diodes
-    std::cout<<"processMegsPPacket packetoffset "<< packetoffset << std::endl;
+    //std::cout<<"processMegsPPacket packetoffset "<< packetoffset << std::endl;
     for (int i=0; i<MEGSP_INTEGRATIONS_PER_PACKET; ++i) {
 
         int incr = (i*bytesPerIntegration) + firstbyteoffset; // 4 is bytes per integration, 2 bytes per diode * 2 diodes per integration
