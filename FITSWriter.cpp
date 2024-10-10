@@ -415,15 +415,16 @@ bool FITSWriter::writeMegsFITS(const MEGS_IMAGE_REC& megsStructure, uint16_t api
         return false;
     }
 
-    fits_close_file(fptr, &status);
-    checkFitsStatus(status);
+    //fits_close_file(fptr, &status);
 
     int result = writeMegsFITSBinaryTable(filename, megsStructure, extname, apid);
-    fits_close_file(fptr, &status);
     if (result != 0) {
         std::cerr << "Failed to write binary table to FITS file: " << filename << std::endl;
         return false;
     }
+
+    fits_close_file(fptr, &status);
+    checkFitsStatus(status);
 
     std::cout << "FITSWriter::writeMegsFITS successfully wrote " << filename << std::endl;
     LogFileWriter::getInstance().logInfo("FITSWriter::writeMegsFITS successfully wrote {}", filename);
