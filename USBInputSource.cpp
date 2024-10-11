@@ -522,7 +522,7 @@ void USBInputSource::resetInterface(int32_t milliSeconds) {
 
     LogFileWriter::getInstance().logWarning("USBInputSource::resetInterface called");
 
-    Sleep(milliSeconds);
+    //Sleep(milliSeconds);
 }
 void USBInputSource::powerOnLED() {
     std::cout << "powerLED: turning on LED" << "\n";
@@ -636,17 +636,14 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
 			    		state = 1;
 			    		++ctrRxPkts;
 			    	}
-			    	++blkIdx;
-			    	--nBlkLeft;
+			    	++blkIdx; //move to the next 32-bit word
+			    	--nBlkLeft; //decrement the number of 32-bit words left in the block
 			    	break;
 
     			case 1:
-                    //std::cout << "CGProxRx Case 1a state " <<state << std::endl;
     				// get APID index (MSB = 0, LSB = 1)
-    				APID = (pBlk[blkIdx] << 8) & 0x700; //Alan used 0x300, 10 bits, APID is 11 bits;
+    				APID = (pBlk[blkIdx] << 8) & 0x0700; //Alan used 0x300, 10 bits, APID is 11 bits;
     				APID |= ((pBlk[blkIdx] >> 8) & 0xFF);
-                    //std::cout << "CGProcRx Case 1b apid:" <<APID<< std::endl;
-
 
     				// find APID index
 	    			for (i = 0; i < nAPID; ++i)
@@ -663,20 +660,49 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
     				{
                         //std::cout << "CGProxRx Case 1d recognized apid" << std::endl;
     					APIDidx = i;
-    					nPktLeft = LUT_PktLen[APIDidx];
+    					nPktLeft = (LUT_PktLen[APIDidx] / 4) + 3; // 11 bytes (fits into 3 32-bit words) for primary header and sync
 
     					// check to see if packet is completed in block
     					if (nPktLeft <= nBlkLeft)
     					{
     						// remaining packet is less then data in block
-    						nPktLeft &= 0xFF;
+    						//nPktLeft &= 0xFF; // not sure what this does
                             //std::cout << "CGProxRx Case 1dd -copying - state "<<state << std::endl;
     						memcpy(PktBuff, &pBlk[blkIdx], nPktLeft << 2);
-    						nBlkLeft -= nPktLeft;
-    						blkIdx += nPktLeft;
+                            LogFileWriter::getInstance().logInfo("CGProxRx: ProcessPacket case 1 nPktLeft:{} nBlkLeft:{} ",nPktLeft,nBlkLeft);
+    						nBlkLeft -= (nPktLeft);
+    						blkIdx += (nPktLeft-2);
 
-	    					state = 0;
+	    					state = 0; // this should make it start looking for the sync marker again
+
+                            LogFileWriter::getInstance().logInfo("CGProxRx: Blockdata dump, APID:{} blkIdx:{} nPktLeft:{}",APID,blkIdx-(nPktLeft-2),nPktLeft);
+
+                            std::ostringstream oss;
+                            int count = 0;
+                            for (uint32_t icnt=0; icnt<256; ++icnt)
+                            {
+                                oss << fmt::format("{:08x} ", byteswap_32(pBlk[icnt])); //[blkIdx - nPktLeft + icnt]);
+                                count++;
+
+                                if (count == 255) // Long line
+                                {
+                                    LogFileWriter::getInstance().logInfo(oss.str());
+                                    oss.str(""); // Clear the stringstream
+                                    oss.clear();
+                                    count = 0;
+                                }
+                            }
+
+                            // Log any remaining values if less than 10 in the final line
+                            if (count != 0)
+                            {
+                                LogFileWriter::getInstance().logInfo(oss.str());
+                            }
+
+                            //std::cout << "CGProxRx Case 1ddd -call GSEProcessPacket - state " <<state<< std::endl;
     						GSEProcessPacket(PktBuff, APID, usbReader);
+
+	    					//state = 0; // this should make it start looking for the sync marker again
 		    			}
 		    			else
 		    			{
@@ -694,7 +720,8 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
 	    			else
 	    			{
 	    				state = 0;
-	    				snprintf(StatusStr, sizeof(StatusStr),"CGProxRx Unrecognized APID             ");
+                        LogFileWriter::getInstance().logError("CGProxRx: Unrecognized APID {}",APID);
+	    				//snprintf(StatusStr, sizeof(StatusStr),"CGProxRx Unrecognized APID             ");
 	    			}
 	    			break;
 
@@ -704,14 +731,54 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
 		    		pktIdx &= 0x7FF;
 		    		if (nPktLeft <= nBlkLeft)
 		    		{
-		    			// remaing packet data is less than data left in block
+		    			// remaining packet data is less than data left in block
 		    			nPktLeft &= 0xFF;
                         //std::cout << "Case 1ee -contination copy - state "<<state << std::endl;
 		    			memcpy(&PktBuff[pktIdx], &pBlk[blkIdx], nPktLeft << 2);
+                        LogFileWriter::getInstance().logInfo("CGProxRx: ProcessPacket case 2 nPktLeft:{} nBlkLeft:{} ",nPktLeft,nBlkLeft);
 		    			nBlkLeft -= nPktLeft;
 		    			blkIdx += nPktLeft;
 
     					state = 0;
+
+                        LogFileWriter::getInstance().logInfo("CGProxRx: Blockdata dump, APID:{} blkIdx:{} nPktLeft:{}",APID,blkIdx-nPktLeft,nPktLeft);
+
+                        std::ostringstream oss;
+                        int count = 0;
+                        // previous block is &RxBuff[256 * (blk-1)]
+                        for (uint32_t icnt=0; icnt<256; ++icnt)
+                        {
+                            oss << fmt::format("{:08x} ", byteswap_32(*reinterpret_cast<uint32_t*>(&RxBuff[256*(blk-1) + icnt])));
+                            count++;
+
+                            if (count == 255) // Roughly 80 characters (10 * 9 = 90 chars including spaces)
+                            {
+                                LogFileWriter::getInstance().logInfo(oss.str());
+                                oss.str(""); // Clear the stringstream
+                                oss.clear();
+                                count = 0;
+                            }
+                        }
+                        count=0;
+                        for (uint32_t icnt=0; icnt<256; ++icnt)
+                        {
+                            oss << fmt::format("{:08x} ", byteswap_32(pBlk[icnt]));
+                            count++;
+
+                            if (count == 255) // Roughly 80 characters (10 * 9 = 90 chars including spaces)
+                            {
+                                LogFileWriter::getInstance().logInfo(oss.str());
+                                oss.str(""); // Clear the stringstream
+                                oss.clear();
+                                count = 0;
+                            }
+                        }
+                        // Log any remaining values if less than 10 in the final line
+                        if (count != 0)
+                        {
+                            LogFileWriter::getInstance().logInfo(oss.str());
+                        }
+
                         //std::cout << "Case 1eee -call GSEProcessPacket - state " <<state<< std::endl;
     					GSEProcessPacket(PktBuff, APID, usbReader);
     				}
@@ -809,7 +876,7 @@ void USBInputSource::checkLinkStatus(void)
 	//uint16_t r0 = readGSERegister(0);
 	uint16_t r2 = readGSERegister(2); 
     // we think r0 bit 2, 3rd bit, is FIFO error bit
-	while (r2 > 0)
+	while (r2 == 1)
 	{
 		std::cout << StatusStr << "checkLinkStatus: FIFO Overflow ************** "<< " " << r2 << std::endl;
         // to resolve, read until overflow is cleared
@@ -819,9 +886,8 @@ void USBInputSource::checkLinkStatus(void)
         resetInterface(1);  
     	//r0 = readGSERegister(0);
         r2 = readGSERegister(2);
+        LogFileWriter::getInstance().logError("checkLinkStatus: FIFO Overflow - not keeping up");
 	}
-
-    LogFileWriter::getInstance().logError("checkLinkStatus: FIFO Overflow - not keeping up");
 
 }
 
