@@ -172,15 +172,15 @@ void updateStatusWindow()
     ImGuiIO& io = ImGui::GetIO();
     ImGui::Text("Refresh rate: %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
     ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
-    ImGui::InputText("601 MEGS-A Pkts", strdup((std::to_string(globalState.packetsReceived.MA)).c_str()), 12, ImGuiInputTextFlags_ReadOnly);
+    ImGui::InputText("601 a59 MEGS-A Pkts", strdup((std::to_string(globalState.packetsReceived.MA)).c_str()), 12, ImGuiInputTextFlags_ReadOnly);
     ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
-    ImGui::InputText("602 MEGS-B Pkts", strdup((std::to_string(globalState.packetsReceived.MB)).c_str()), 10, ImGuiInputTextFlags_ReadOnly);
+    ImGui::InputText("602 a5a MEGS-B Pkts", strdup((std::to_string(globalState.packetsReceived.MB)).c_str()), 10, ImGuiInputTextFlags_ReadOnly);
     ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
-    ImGui::InputText("604 ESP Pkts", strdup((std::to_string(globalState.packetsReceived.ESP)).c_str()), 10, ImGuiInputTextFlags_ReadOnly);
+    ImGui::InputText("604 a5c ESP Pkts", strdup((std::to_string(globalState.packetsReceived.ESP)).c_str()), 10, ImGuiInputTextFlags_ReadOnly);
     ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
-    ImGui::InputText("605 MEGS-P Pkts", strdup((std::to_string(globalState.packetsReceived.MP)).c_str()), 10, ImGuiInputTextFlags_ReadOnly);
+    ImGui::InputText("605 a5d MEGS-P Pkts", strdup((std::to_string(globalState.packetsReceived.MP)).c_str()), 10, ImGuiInputTextFlags_ReadOnly);
     ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
-    ImGui::InputText("606 SHK Pkts", strdup((std::to_string(globalState.packetsReceived.SHK)).c_str()), 10, ImGuiInputTextFlags_ReadOnly);
+    ImGui::InputText("606 a5e HK Pkts", strdup((std::to_string(globalState.packetsReceived.SHK)).c_str()), 10, ImGuiInputTextFlags_ReadOnly);
     ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
     ImGui::InputText("Unknown Pkts", strdup((std::to_string(globalState.packetsReceived.Unknown)).c_str()), 10, ImGuiInputTextFlags_ReadOnly);
 
