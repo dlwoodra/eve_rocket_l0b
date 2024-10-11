@@ -1,6 +1,7 @@
 #ifndef USB_INPUT_SOURCE_HPP
 #define USB_INPUT_SOURCE_HPP
 
+#include "byteswap.hpp"
 #include "CCSDSReader.hpp"
 #include "InputSource.hpp"
 #include "LogFileWriter.hpp"
