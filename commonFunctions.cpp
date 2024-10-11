@@ -175,7 +175,7 @@ uint32_t payloadToTAITimeSeconds(const std::vector<uint8_t>& payload) {
 uint32_t payloadToTAITimeSubseconds(const std::vector<uint8_t>& payload) {
     if (payload.size() < 6) {
         // Handle the error case, perhaps by throwing an exception
-        throw std::invalid_argument("payloadToTAITimeSubseconds - Payload must contain at least 4 bytes.");
+        throw std::invalid_argument("payloadToTAITimeSubseconds - Payload must contain at least 6 bytes.");
     }
 
     return (static_cast<uint32_t>(payload[5]) << 24) |
