@@ -220,6 +220,7 @@ struct SHK_PACKET
 	uint32_t tai_time_subseconds;
 	uint32_t rec_tai_seconds;
  	uint32_t rec_tai_subseconds;
+// 10/22/2024 mode will be used for integration rate in seconds 1=1sec, 10 will be max seconds
 
 	//uint32_t spare0; 						// 0
 	uint32_t FPGA_Board_Temperature[SHK_INTEGRATIONS_PER_FILE];
@@ -302,7 +303,7 @@ struct SHK_CONVERTED_PACKET
 	uint32_t tai_time_subseconds;
 	uint32_t rec_tai_seconds;
  	uint32_t rec_tai_subseconds;
-
+// 10/22/2024 mode will be used for integration rate in seconds 1=1sec, 10 will be max seconds
 	//uint32_t spare0; 						// 0
 	double FPGA_Board_Temperature[SHK_INTEGRATIONS_PER_FILE];
 	double FPGA_Board_p5_0_Voltage[SHK_INTEGRATIONS_PER_FILE];
