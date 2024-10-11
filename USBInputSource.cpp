@@ -660,7 +660,7 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
     				{
                         //std::cout << "CGProxRx Case 1d recognized apid" << std::endl;
     					APIDidx = i;
-    					nPktLeft = (LUT_PktLen[APIDidx] / 4) + 3; // 11 bytes (fits into 3 32-bit words) for primary header and sync
+    					nPktLeft = (LUT_PktLen[APIDidx] >> 2) + 3; // 11 bytes (fits into 3 32-bit words) for primary header and sync
 
     					// check to see if packet is completed in block
     					if (nPktLeft <= nBlkLeft)
@@ -669,9 +669,9 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
     						//nPktLeft &= 0xFF; // not sure what this does
                             //std::cout << "CGProxRx Case 1dd -copying - state "<<state << std::endl;
     						memcpy(PktBuff, &pBlk[blkIdx], nPktLeft << 2);
-                            LogFileWriter::getInstance().logInfo("CGProxRx: ProcessPacket case 1 nPktLeft:{} nBlkLeft:{} ",nPktLeft,nBlkLeft);
+                            LogFileWriter::getInstance().logInfo("CGProxRx: ProcessPacket case 1 blk:{} nPktLeft:{} nBlkLeft:{} ",blk,nPktLeft,nBlkLeft);
     						nBlkLeft -= (nPktLeft);
-    						blkIdx += (nPktLeft-2);
+    						blkIdx += (nPktLeft-2); // -2 because we are already at the next word
 
 	    					state = 0; // this should make it start looking for the sync marker again
 
@@ -735,13 +735,13 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
 		    			nPktLeft &= 0xFF;
                         //std::cout << "Case 1ee -contination copy - state "<<state << std::endl;
 		    			memcpy(&PktBuff[pktIdx], &pBlk[blkIdx], nPktLeft << 2);
-                        LogFileWriter::getInstance().logInfo("CGProxRx: ProcessPacket case 2 nPktLeft:{} nBlkLeft:{} ",nPktLeft,nBlkLeft);
+                        LogFileWriter::getInstance().logInfo("CGProxRx: ProcessPacket case 2 nPktLeft:{} nBlkLeft:{} blkIdx:{}",nPktLeft,nBlkLeft,blkIdx);
 		    			nBlkLeft -= nPktLeft;
-		    			blkIdx += nPktLeft;
+		    			blkIdx += (nPktLeft-2);
 
     					state = 0;
 
-                        LogFileWriter::getInstance().logInfo("CGProxRx: Blockdata dump, APID:{} blkIdx:{} nPktLeft:{}",APID,blkIdx-nPktLeft,nPktLeft);
+                        LogFileWriter::getInstance().logInfo("CGProxRx: Blockdata dump, APID:{} blkIdx:{} nPktLeft:{}",APID,blkIdx-(nPktLeft-2),nPktLeft);
 
                         std::ostringstream oss;
                         int count = 0;
