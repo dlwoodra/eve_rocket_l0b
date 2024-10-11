@@ -189,8 +189,8 @@ int FITSWriter::writeBinaryTable(const std::string& filename,
     std::vector<char*> typeArray = convertTypesToCharPtrArray(types); // "U,V, etc"
     std::vector<char*> tFormArray = convertTypesToTFormPtrArray(types, columnLengths); // "1U,1V, etc"
 
-    std::cout<<"writeBinaryTable sizeof(tFormArray) " <<sizeof(tFormArray.data())<< std::endl;
-    printBytes(tFormArray.data(), sizeof(tFormArray.data()));
+    //std::cout<<"writeBinaryTable sizeof(tFormArray) " <<sizeof(tFormArray.data())<< std::endl;
+    //printBytes(tFormArray.data(), sizeof(tFormArray.data()));
 
     // Open or create FITS file
     if (fits_open_file(&fptr, filename.c_str(), READWRITE, &status)) {
