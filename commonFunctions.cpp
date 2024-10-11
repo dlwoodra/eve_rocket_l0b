@@ -450,9 +450,18 @@ void processMegsBPacket(std::vector<uint8_t> payload,
 // MEGS-P packet
 void processMegsPPacket(std::vector<uint8_t> payload, 
     uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp) {
-
+    
     MEGSP_PACKET oneMEGSPStructure = {0};
     static uint16_t processedPacketCounter=0;
+    static uint16_t lastSourceSequenceCounter = 0;
+
+    if ( (lastSourceSequenceCounter + 1) != sourceSequenceCounter) {
+        LogFileWriter::getInstance().logError("MEGS-P packet out of sequence: {} {}", lastSourceSequenceCounter, sourceSequenceCounter);
+        std::cout << "MEGS-P packet out of sequence: " << lastSourceSequenceCounter << " " << sourceSequenceCounter << std::endl;
+    }
+    lastSourceSequenceCounter = sourceSequenceCounter;
+
+    //LogFileWriter::getInstance().logInfo("processMegsPPacket");
 
     //std::cout<<"processMegsPPacket 1" << std::endl;
 
@@ -511,6 +520,14 @@ void processESPPacket(std::vector<uint8_t> payload,
 
     ESP_PACKET oneESPStructure = {0};
     static uint16_t processedPacketCounter=0;
+    static uint16_t lastSourceSequenceCounter = 0;
+
+
+    if ( (lastSourceSequenceCounter + 1) != sourceSequenceCounter) {
+        LogFileWriter::getInstance().logError("ESP packet out of sequence: {} {}", lastSourceSequenceCounter, sourceSequenceCounter);
+        std::cout << "ESP packet out of sequence: " << lastSourceSequenceCounter << " " << sourceSequenceCounter << std::endl;
+    }
+    lastSourceSequenceCounter = sourceSequenceCounter;
 
     printBytes(&payload[0], 40);
 
@@ -596,6 +613,12 @@ void processHKPacket(std::vector<uint8_t> payload,
 
     SHK_PACKET oneSHKStructure = {0};
     static uint16_t processedPacketCounter=0;
+    static uint16_t lastSourceSequenceCounter = 0;
+
+    if ( (lastSourceSequenceCounter + 1) != sourceSequenceCounter) {
+        LogFileWriter::getInstance().logError("SHK packet out of sequence: {} {}", lastSourceSequenceCounter, sourceSequenceCounter);
+        std::cout << "SHK packet out of sequence: " << lastSourceSequenceCounter << " " << sourceSequenceCounter << std::endl;
+    }
 
     populateStructureTimes(oneSHKStructure, payload);
 
