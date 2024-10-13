@@ -93,7 +93,7 @@ private:
 
     // buffers
     uint32_t RxBuff[16384];
-    uint32_t strippedRxBuff[16384];
+    uint32_t strippedRxBuff[16384]; //64*256 32-bit values is 16384 32-bit words or 65535 bytes
     uint32_t PktBuff[4096];
     uint32_t PktNull[4096];
 
