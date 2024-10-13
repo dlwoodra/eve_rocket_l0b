@@ -40,6 +40,8 @@ public:
     //CCSDSReader usbReader;
     void ProcRx(CCSDSReader& usbReader);
     void CGProcRx(CCSDSReader& usbReader);
+    void replaceCGProxRx(CCSDSReader& usbReader);
+
 
 private:
     
@@ -91,6 +93,7 @@ private:
 
     // buffers
     uint32_t RxBuff[16384];
+    uint32_t strippedRxBuff[16384];
     uint32_t PktBuff[4096];
     uint32_t PktNull[4096];
 
