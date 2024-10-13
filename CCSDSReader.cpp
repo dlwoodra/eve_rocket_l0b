@@ -56,7 +56,7 @@ bool CCSDSReader::readNextPacket(std::vector<uint8_t>& packet) {
   // slow down for debugging
   if ( globalState.guiEnabled ) {
     //During file processing we should pause
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    std::this_thread::sleep_for(std::chrono::milliseconds(2));
   }
 
 
