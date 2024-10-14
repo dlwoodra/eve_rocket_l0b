@@ -143,6 +143,7 @@ int main(int argc, char* argv[]) {
     std::time_t end_time = std::chrono::system_clock::to_time_t(end);
     std::cout << "Finished at " << std::ctime(&end_time) << std::endl;
 
+    handleSigint(SIGINT); // call the signal handler to clean up and exit
     return EXIT_SUCCESS;
 }
 
