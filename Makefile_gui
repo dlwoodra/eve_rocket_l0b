@@ -26,7 +26,7 @@ CXXFLAGS += -DENABLEGUI
 
 PCH_FLAGS = -include spdlog_pch.hpp
 
-FAST_FLAGS = -O3 -Wall -g
+FAST_FLAGS =  -Wall -g
 TEST_FLAGS = -Wall -g
 DEBUG_FLAGS = -g -Wall
 
