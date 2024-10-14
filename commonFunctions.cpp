@@ -58,21 +58,21 @@ std::vector<uint16_t> transposeImageTo1D(const uint16_t image[MEGS_IMAGE_WIDTH][
     return transposedData;
 }
 
-// This function is only thread-safe if image and transposeData are not accessed elsewhere during execution.
-// Callers are expected to use megsAUpdated and megsBUpdated flags to prevent access during modification.
-// switch x and y 
-void transposeImage2D(const uint16_t (*image)[MEGS_IMAGE_HEIGHT], uint16_t (*transposeData)[MEGS_IMAGE_WIDTH]) {
-    const uint32_t width = MEGS_IMAGE_WIDTH;
-    const uint32_t height = MEGS_IMAGE_HEIGHT;
+// // This function is only thread-safe if image and transposeData are not accessed elsewhere during execution.
+// // Callers are expected to use megsAUpdated and megsBUpdated flags to prevent access during modification.
+// // switch x and y 
+// void transposeImage2D(const uint16_t (*image)[MEGS_IMAGE_HEIGHT], uint16_t (*transposeData)[MEGS_IMAGE_WIDTH]) {
+//     const uint32_t width = MEGS_IMAGE_WIDTH;
+//     const uint32_t height = MEGS_IMAGE_HEIGHT;
 
-    // approx mean time 17-19 ms - Winner!
-    // single thread
-    for (uint32_t x = 0; x < width; ++x) {
-        for (uint32_t y = 0; y < height; ++y) {
-            transposeData[y][x] = image[x][y];
-        }
-    }
-}
+//     // approx mean time 17-19 ms - Winner!
+//     // single thread
+//     for (uint32_t x = 0; x < width; ++x) {
+//         for (uint32_t y = 0; y < height; ++y) {
+//             transposeData[y][x] = image[x][y];
+//         }
+//     }
+// }
 
 // reads a packet and writes it to the recordfile
 void processPackets(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& recordWriter, bool skipRecord) {
@@ -285,6 +285,12 @@ void processMegsAPacket(std::vector<uint8_t> payload,
 
         processedPacketCounter=0;
     }
+    if (((previousSrcSeqCount + 1) % 65536) != sourceSequenceCounter) {
+        // there is a gap in the data
+        LogFileWriter::getInstance().logError("MA data gap SSC: {} previous SSC: {}", sourceSequenceCounter, previousSrcSeqCount);
+        std::cout << "processMegsAPacket - data gap SSC: " << sourceSequenceCounter << " previous SSC: " << previousSrcSeqCount << std::endl;
+        globalState.dataGapsMA++;
+    }
     previousSrcSeqCount = sourceSequenceCounter;
 
     // begin assigning data into oneMEGSStructure
@@ -294,8 +300,9 @@ void processMegsAPacket(std::vector<uint8_t> payload,
     int parityErrors = assemble_image(vcdu, &oneMEGSStructure, sourceSequenceCounter, testPattern, &status);
     // The globalState.megsa image is NOT initialized and just overwrites each packet location as it is received
     globalState.parityErrorsMA += assemble_image(vcdu, &globalState.megsa, sourceSequenceCounter, testPattern, &status);
-    if ((processedPacketCounter % IMAGE_UPDATE_INTERVAL) == 0) {
-        transposeImage2D(globalState.megsa.image, globalState.transMegsA);
+    if (((processedPacketCounter % IMAGE_UPDATE_INTERVAL) == 0) && (!globalState.megsAUpdated) ) {
+        // tranpose moved into imgui_thread
+        //transposeImage2D(globalState.megsa.image, globalState.transMegsA);
         globalState.megsAUpdated = true;
     }
 
@@ -403,6 +410,11 @@ void processMegsBPacket(std::vector<uint8_t> payload,
 
         processedPacketCounter=0;
     }
+    if (((previousSrcSeqCount + 1) % 65536) != sourceSequenceCounter) {
+        LogFileWriter::getInstance().logError("MEGS-B packet out of sequence: {} {}", previousSrcSeqCount, sourceSequenceCounter);
+        std::cout << "MEGS-B packet out of sequence: " << previousSrcSeqCount << " " << sourceSequenceCounter << std::endl;
+        globalState.dataGapsMB++;
+    }
     previousSrcSeqCount = sourceSequenceCounter;
 
     // begin assigning data into oneMEGSStructure
@@ -411,8 +423,9 @@ void processMegsBPacket(std::vector<uint8_t> payload,
     int parityErrors = assemble_image(vcdu, &oneMEGSStructure, sourceSequenceCounter, testPattern, &status);
     // The globalState.megsa image is NOT initialized and just overwrites each packet location as it is received
     globalState.parityErrorsMB += assemble_image(vcdu, &globalState.megsb, sourceSequenceCounter, testPattern, &status);
-    if ((processedPacketCounter % IMAGE_UPDATE_INTERVAL) == 0) {
-        transposeImage2D(globalState.megsb.image, globalState.transMegsB);
+    if (((processedPacketCounter % IMAGE_UPDATE_INTERVAL) == 0) && (!globalState.megsBUpdated)) {
+        // tranpose moved into imgui_thread
+        //transposeImage2D(globalState.megsb.image, globalState.transMegsB);
         globalState.megsBUpdated = true;
     }
     if ( parityErrors > 0 ) {
@@ -455,9 +468,10 @@ void processMegsPPacket(std::vector<uint8_t> payload,
     static uint16_t processedPacketCounter=0;
     static uint16_t lastSourceSequenceCounter = 0;
 
-    if ( (lastSourceSequenceCounter + 1) != sourceSequenceCounter) {
+    if ( ((lastSourceSequenceCounter + 1) % 65536) != sourceSequenceCounter) {
         LogFileWriter::getInstance().logError("MEGS-P packet out of sequence: {} {}", lastSourceSequenceCounter, sourceSequenceCounter);
         std::cout << "MEGS-P packet out of sequence: " << lastSourceSequenceCounter << " " << sourceSequenceCounter << std::endl;
+        globalState.dataGapsMP++;
     }
     lastSourceSequenceCounter = sourceSequenceCounter;
 
@@ -521,18 +535,18 @@ void processESPPacket(std::vector<uint8_t> payload,
     ESP_PACKET oneESPStructure = {0};
     static uint16_t processedPacketCounter=0;
     static uint16_t lastSourceSequenceCounter = 0;
+    long dataGapsESP = 0;
 
-
-    if ( (lastSourceSequenceCounter + 1) != sourceSequenceCounter) {
+    if ( ((lastSourceSequenceCounter + 1) % 65536) != sourceSequenceCounter) {
         LogFileWriter::getInstance().logError("ESP packet out of sequence: {} {}", lastSourceSequenceCounter, sourceSequenceCounter);
         std::cout << "ESP packet out of sequence: " << lastSourceSequenceCounter << " " << sourceSequenceCounter << std::endl;
-    }
+        dataGapsESP++;
+        }
     lastSourceSequenceCounter = sourceSequenceCounter;
 
     printBytes(&payload[0], 40);
 
     populateStructureTimes(oneESPStructure, payload);
-    //populateStructureTimes(globalState.esp, payload);
     
     int firstbyteoffset = 10;
 
@@ -556,6 +570,7 @@ void processESPPacket(std::vector<uint8_t> payload,
         oneESPStructure.ESP_366[index] = (uint16_t (payload[incr+16]) << 8) | (uint16_t (payload[incr+17]));
         oneESPStructure.ESP_dark[index] = (uint16_t (payload[incr+18]) << 8) | (uint16_t (payload[incr+19]));
 
+        globalState.espUpdated = false; // set to false to prevent race condition here
         globalState.esp.ESP_xfer_cnt[index] = oneESPStructure.ESP_xfer_cnt[index];
         globalState.esp.ESP_q0[index] = oneESPStructure.ESP_q0[index];
         globalState.esp.ESP_q1[index] = oneESPStructure.ESP_q1[index];
@@ -569,20 +584,24 @@ void processESPPacket(std::vector<uint8_t> payload,
     }
 
     processedPacketCounter++;
-    if (!globalState.espUpdated) {
+    if ((!globalState.espUpdated) && ((processedPacketCounter % 2) == 0) ) {
         //std::cout<<"copying oneESPStructure to globalState"<<std::endl;
-        //globalState.esp = oneESPStructure; // this causes a segfault
-        globalState.espUpdated = false;
+        //globalState.esp = oneESPStructure; // this causes a segfault from std::vector copy
+
         //std::cout<< oneESPStructure.iso8601 <<std::endl;
         //globalState.esp.iso8601 = oneESPStructure.iso8601;
+        globalState.dataGapsESP += dataGapsESP;
+        globalState.espUpdated = true;
+        // give imgui a chance to not have a race condition
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
 
         //std::cout<<"setting espUpdated to true"<<std::endl;
-        globalState.espUpdated = true;
     }
 
 
     // ONLY WRITE WHEN STRUCTURE IS FULL
-        if ( processedPacketCounter == ESP_PACKETS_PER_FILE ) {
+    if ( processedPacketCounter == ESP_PACKETS_PER_FILE ) {
+
         // Write packet data to a FITS file if applicable
         std::unique_ptr<FITSWriter> fitsFileWriter;
         fitsFileWriter = std::unique_ptr<FITSWriter>(new FITSWriter());
@@ -615,9 +634,10 @@ void processHKPacket(std::vector<uint8_t> payload,
     static uint16_t processedPacketCounter=0;
     static uint16_t lastSourceSequenceCounter = 0;
 
-    if ( (lastSourceSequenceCounter + 1) != sourceSequenceCounter) {
+    if ( ((lastSourceSequenceCounter + 1) % 65536) != sourceSequenceCounter) {
         LogFileWriter::getInstance().logError("SHK packet out of sequence: {} {}", lastSourceSequenceCounter, sourceSequenceCounter);
         std::cout << "SHK packet out of sequence: " << lastSourceSequenceCounter << " " << sourceSequenceCounter << std::endl;
+        globalState.dataGapsSHK++;
     }
 
     populateStructureTimes(oneSHKStructure, payload);
