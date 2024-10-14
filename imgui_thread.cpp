@@ -18,6 +18,65 @@
 
 extern ProgramState globalState;
 
+enum LimitState {
+    NoCheck,
+    Green,
+    Yellow,
+    Red
+};
+
+// Function to determine the color based on state
+ImVec4 getColorForState(LimitState state) {
+    switch (state) {
+        case Green: return ImVec4(0.0f, 0.5f, 0.0f, 1.0f);  // Green
+        case Yellow: return ImVec4(0.4f, 0.4f, 0.0f, 1.0f); // Yellow
+        case Red: return ImVec4(0.5f, 0.0f, 0.0f, 1.0f);    // Red
+        default: return ImGui::GetStyleColorVec4(ImGuiCol_FrameBg); // Default color
+    }
+}
+
+// This function is only thread-safe if image and transposeData are not accessed elsewhere during execution.
+// Callers are expected to use megsAUpdated and megsBUpdated flags to prevent access during modification.
+// switch x and y 
+void transposeImage2D(const uint16_t (*image)[MEGS_IMAGE_HEIGHT], uint16_t (*transposeData)[MEGS_IMAGE_WIDTH]) {
+    const uint32_t width = MEGS_IMAGE_WIDTH;
+    const uint32_t height = MEGS_IMAGE_HEIGHT;
+
+    // approx mean time 17-19 ms - Winner!
+    // single thread
+    for (uint32_t x = 0; x < width; ++x) {
+        for (uint32_t y = 0; y < height; ++y) {
+            transposeData[y][x] = image[x][y];
+        }
+    }
+}
+
+void renderInputTextWithColor(const char* label, char* buffer, size_t bufferSize, bool limitCheck, float value, float lowerLimit, float upperLimit) {
+    LimitState state = NoCheck;
+    
+    float_t itemWidthValue = ImGui::GetFontSize() * 6;
+    ImGui::PushItemWidth(itemWidthValue);
+
+    if (limitCheck) {
+        if (value > upperLimit) {
+            state = Red;
+        } else if (value > upperLimit * 0.9f) { // Near violation (adjust the threshold as needed)
+            state = Yellow;
+        } else {
+            state = Green;
+        }
+    }
+
+    // Set color before rendering
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, getColorForState(state));
+
+    // Render the InputText
+    ImGui::InputText(label, buffer, bufferSize);
+
+    // Restore default color
+    ImGui::PopStyleColor();
+}
+
 static void glfw_error_callback(int error, const char* description)
 {
     fprintf(stderr, "GLFW Error %d: %s\n", error, description);
@@ -67,6 +126,7 @@ GLuint createTextureFromMEGSImage(uint16_t* data, int width, int height, bool mo
 void updateTextureFromMEGSAImage(GLuint textureID)
 {
     glBindTexture(GL_TEXTURE_2D, textureID);
+    transposeImage2D(globalState.megsa.image, globalState.transMegsA);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, globalState.transMegsA);
     //glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, globalState.megsa.image);
     glBindTexture(GL_TEXTURE_2D, textureID);
@@ -75,6 +135,7 @@ void updateTextureFromMEGSAImage(GLuint textureID)
 void updateTextureFromMEGSBImage(GLuint megsBTextureID)
 {
     glBindTexture(GL_TEXTURE_2D, megsBTextureID);
+    transposeImage2D(globalState.megsb.image, globalState.transMegsB);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, MEGS_IMAGE_T_WIDTH, MEGS_IMAGE_T_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, globalState.transMegsB);
     glBindTexture(GL_TEXTURE_2D, megsBTextureID);
 
@@ -171,24 +232,28 @@ void updateStatusWindow()
 {
     ImGuiIO& io = ImGui::GetIO();
     ImGui::Text("Refresh rate: %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
-    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
-    ImGui::InputText("601 a59 MEGS-A Pkts", strdup((std::to_string(globalState.packetsReceived.MA)).c_str()), 12, ImGuiInputTextFlags_ReadOnly);
-    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
-    ImGui::InputText("602 a5a MEGS-B Pkts", strdup((std::to_string(globalState.packetsReceived.MB)).c_str()), 10, ImGuiInputTextFlags_ReadOnly);
-    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
-    ImGui::InputText("604 a5c ESP Pkts", strdup((std::to_string(globalState.packetsReceived.ESP)).c_str()), 10, ImGuiInputTextFlags_ReadOnly);
-    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
-    ImGui::InputText("605 a5d MEGS-P Pkts", strdup((std::to_string(globalState.packetsReceived.MP)).c_str()), 10, ImGuiInputTextFlags_ReadOnly);
-    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
-    ImGui::InputText("606 a5e HK Pkts", strdup((std::to_string(globalState.packetsReceived.SHK)).c_str()), 10, ImGuiInputTextFlags_ReadOnly);
-    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
-    ImGui::InputText("Unknown Pkts", strdup((std::to_string(globalState.packetsReceived.Unknown)).c_str()), 10, ImGuiInputTextFlags_ReadOnly);
+    renderInputTextWithColor("601 a59 MEGS-A Pkts", strdup((std::to_string(globalState.packetsReceived.MA)).c_str()), 12, false, static_cast<float>(globalState.packetsReceived.MA), 0.0, 0.9);
+    //ImGui::InputText("601 a59 MEGS-A Pkts", strdup((std::to_string(globalState.packetsReceived.MA)).c_str()), 12, ImGuiInputTextFlags_ReadOnly);
+    renderInputTextWithColor("602 a5a MEGS-B Pkts", strdup((std::to_string(globalState.packetsReceived.MB)).c_str()), 12, false, static_cast<float>(globalState.packetsReceived.MB), 0.0, 0.9);
+    //ImGui::InputText("602 a5a MEGS-B Pkts", strdup((std::to_string(globalState.packetsReceived.MB)).c_str()), 10, ImGuiInputTextFlags_ReadOnly);
+    renderInputTextWithColor("604 a5c ESP Pkts", strdup((std::to_string(globalState.packetsReceived.ESP)).c_str()), 12, false, static_cast<float>(globalState.packetsReceived.ESP), 0.0, 0.9);
+    //ImGui::InputText("604 a5c ESP Pkts", strdup((std::to_string(globalState.packetsReceived.ESP)).c_str()), 10, ImGuiInputTextFlags_ReadOnly);
+    renderInputTextWithColor("605 a5d MEGS-P Pkts", strdup((std::to_string(globalState.packetsReceived.MP)).c_str()), 12, false, static_cast<float>(globalState.packetsReceived.MP), 0.0, 0.9);
+    //ImGui::InputText("605 a5d MEGS-P Pkts", strdup((std::to_string(globalState.packetsReceived.MP)).c_str()), 10, ImGuiInputTextFlags_ReadOnly);
+    renderInputTextWithColor("606 a5e SHK Pkts", strdup((std::to_string(globalState.packetsReceived.SHK)).c_str()), 12, false, static_cast<float>(globalState.packetsReceived.SHK), 0.0, 0.9);
+    //ImGui::InputText("606 a5e HK Pkts", strdup((std::to_string(globalState.packetsReceived.SHK)).c_str()), 10, ImGuiInputTextFlags_ReadOnly);
+    renderInputTextWithColor("Unknown Packets", strdup((std::to_string(globalState.packetsReceived.Unknown)).c_str()), 12, true, static_cast<float>(globalState.packetsReceived.Unknown), 0.0, 0.9);
+    //ImGui::InputText("Unknown Pkts", strdup((std::to_string(globalState.packetsReceived.Unknown)).c_str()), 10, ImGuiInputTextFlags_ReadOnly);
+
+    renderInputTextWithColor("MEGS-A Gap Count", strdup((std::to_string(globalState.dataGapsMA)).c_str()), 12, true, static_cast<float>(globalState.dataGapsMA), 0.0, 0.9);
+    renderInputTextWithColor("MEGS-B Gap Count", strdup((std::to_string(globalState.dataGapsMB)).c_str()), 12, true, static_cast<float>(globalState.dataGapsMB), 0.0, 0.9);
+    renderInputTextWithColor("MEGS-P Gap Count", strdup((std::to_string(globalState.dataGapsMP)).c_str()), 12, true, static_cast<float>(globalState.dataGapsMP), 0.0, 0.9);
+    renderInputTextWithColor("ESP Gap Count", strdup((std::to_string(globalState.dataGapsESP)).c_str()), 12, true, static_cast<float>(globalState.dataGapsESP), 0.0, 0.9);
+    renderInputTextWithColor("SHK Gap Count", strdup((std::to_string(globalState.dataGapsSHK)).c_str()), 12, true, static_cast<float>(globalState.dataGapsSHK), 0.0, 0.9);
 
 
-    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
-    ImGui::InputText("MEGS-A Parity Errors", strdup((std::to_string(globalState.parityErrorsMA)).c_str()), 10, ImGuiInputTextFlags_ReadOnly);
-    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
-    ImGui::InputText("MEGS-B Parity Errors", strdup((std::to_string(globalState.parityErrorsMB)).c_str()), 10, ImGuiInputTextFlags_ReadOnly);
+    renderInputTextWithColor("MEGS-A Parity Errors", strdup((std::to_string(globalState.parityErrorsMA)).c_str()), 12, true, static_cast<float>(globalState.parityErrorsMA), 0.0, 0.9);
+    renderInputTextWithColor("MEGS-B Parity Errors", strdup((std::to_string(globalState.parityErrorsMB)).c_str()), 12, true, static_cast<float>(globalState.parityErrorsMB), 0.0, 0.9);
 }
 
 void updateESPWindow()
@@ -387,10 +452,11 @@ int imgui_thread() {
         }
 
         {
-            //if (globalState.espUpdated)
+            if (globalState.espUpdated)
             {
                 ImGui::Begin("ESP Window");
                 updateESPWindow();
+                //globalState.espUpdated = false;
                 ImGui::End();
             }
         }
