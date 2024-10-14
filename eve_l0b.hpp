@@ -435,6 +435,11 @@ struct ProgramState {
 	PKT_COUNT_REC packetsReceived;
 	long parityErrorsMA = 0;
 	long parityErrorsMB = 0;
+	long dataGapsMA = 0;
+	long dataGapsMB = 0;
+	long dataGapsMP = 0;
+	long dataGapsESP = 0;
+	long dataGapsSHK = 0;
 	ESP_PACKET esp;
 	bool espUpdated = true;
 	MEGSP_PACKET megsp;
