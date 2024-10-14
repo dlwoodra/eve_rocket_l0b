@@ -285,7 +285,7 @@ void processMegsAPacket(std::vector<uint8_t> payload,
 
         processedPacketCounter=0;
     }
-    if (((previousSrcSeqCount + 1) % 65536) != sourceSequenceCounter) {
+    if (((previousSrcSeqCount + 1) % 16384) != sourceSequenceCounter) {
         // there is a gap in the data
         LogFileWriter::getInstance().logError("MA data gap SSC: {} previous SSC: {}", sourceSequenceCounter, previousSrcSeqCount);
         std::cout << "processMegsAPacket - data gap SSC: " << sourceSequenceCounter << " previous SSC: " << previousSrcSeqCount << std::endl;
@@ -410,7 +410,7 @@ void processMegsBPacket(std::vector<uint8_t> payload,
 
         processedPacketCounter=0;
     }
-    if (((previousSrcSeqCount + 1) % 65536) != sourceSequenceCounter) {
+    if (((previousSrcSeqCount + 1) % 16384) != sourceSequenceCounter) {
         LogFileWriter::getInstance().logError("MEGS-B packet out of sequence: {} {}", previousSrcSeqCount, sourceSequenceCounter);
         std::cout << "MEGS-B packet out of sequence: " << previousSrcSeqCount << " " << sourceSequenceCounter << std::endl;
         globalState.dataGapsMB++;
@@ -468,7 +468,7 @@ void processMegsPPacket(std::vector<uint8_t> payload,
     static uint16_t processedPacketCounter=0;
     static uint16_t lastSourceSequenceCounter = 0;
 
-    if ( ((lastSourceSequenceCounter + 1) % 65536) != sourceSequenceCounter) {
+    if ( ((lastSourceSequenceCounter + 1) % 16384) != sourceSequenceCounter) {
         LogFileWriter::getInstance().logError("MEGS-P packet out of sequence: {} {}", lastSourceSequenceCounter, sourceSequenceCounter);
         std::cout << "MEGS-P packet out of sequence: " << lastSourceSequenceCounter << " " << sourceSequenceCounter << std::endl;
         globalState.dataGapsMP++;
@@ -535,9 +535,9 @@ void processESPPacket(std::vector<uint8_t> payload,
     ESP_PACKET oneESPStructure = {0};
     static uint16_t processedPacketCounter=0;
     static uint16_t lastSourceSequenceCounter = 0;
-    long dataGapsESP = 0;
+    static long dataGapsESP = 0;
 
-    if ( ((lastSourceSequenceCounter + 1) % 65536) != sourceSequenceCounter) {
+    if ( ((lastSourceSequenceCounter + 1) % 16384) != sourceSequenceCounter) {
         LogFileWriter::getInstance().logError("ESP packet out of sequence: {} {}", lastSourceSequenceCounter, sourceSequenceCounter);
         std::cout << "ESP packet out of sequence: " << lastSourceSequenceCounter << " " << sourceSequenceCounter << std::endl;
         dataGapsESP++;
@@ -584,13 +584,14 @@ void processESPPacket(std::vector<uint8_t> payload,
     }
 
     processedPacketCounter++;
-    if ((!globalState.espUpdated) && ((processedPacketCounter % 2) == 0) ) {
+    if ((dataGapsESP == 0) && (!globalState.espUpdated) && ((processedPacketCounter % 2) == 0) ) {
         //std::cout<<"copying oneESPStructure to globalState"<<std::endl;
         //globalState.esp = oneESPStructure; // this causes a segfault from std::vector copy
 
         //std::cout<< oneESPStructure.iso8601 <<std::endl;
         //globalState.esp.iso8601 = oneESPStructure.iso8601;
         globalState.dataGapsESP += dataGapsESP;
+        dataGapsESP = 0; // reset to zero
         globalState.espUpdated = true;
         // give imgui a chance to not have a race condition
         std::this_thread::sleep_for(std::chrono::milliseconds(2));
@@ -634,7 +635,7 @@ void processHKPacket(std::vector<uint8_t> payload,
     static uint16_t processedPacketCounter=0;
     static uint16_t lastSourceSequenceCounter = 0;
 
-    if ( ((lastSourceSequenceCounter + 1) % 65536) != sourceSequenceCounter) {
+    if ( ((lastSourceSequenceCounter + 1) % 16384) != sourceSequenceCounter) {
         LogFileWriter::getInstance().logError("SHK packet out of sequence: {} {}", lastSourceSequenceCounter, sourceSequenceCounter);
         std::cout << "SHK packet out of sequence: " << lastSourceSequenceCounter << " " << sourceSequenceCounter << std::endl;
         globalState.dataGapsSHK++;
