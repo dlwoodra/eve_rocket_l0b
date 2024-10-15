@@ -1,0 +1,10 @@
+{
+    ignore_libokFrontPanel_leaks
+    Memcheck:Leak
+    obj:*/libokFrontPanel.so
+}
+{
+    ignore_LLVM_leaks
+    Memcheck:Leak
+    obj:*/libLLVM*so*
+}
