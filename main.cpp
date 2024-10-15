@@ -36,6 +36,7 @@ void extern processESPPacket(std::vector<uint8_t> payload,
 void extern processHKPacket(std::vector<uint8_t> payload, 
     uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp);
 
+std::mutex mtx;
 ProgramState globalState;
 #ifdef ENABLEGUI
 int imgui_thread();
@@ -134,7 +135,8 @@ int main(int argc, char* argv[]) {
         std::cout << "main: Created CCSDSReader usbReader object."  << std::endl;
 
         //pass usbReader by reference
-        usbSource.CGProcRx(usbReader); // receive, does not return until disconnect
+        //usbSource.CGProcRx(usbReader); // receive, does not return until disconnect
+        usbSource.replaceCGProxRx(usbReader); // receive, does not return until disconnect
         usbReader.close();
 
     }
@@ -175,9 +177,15 @@ void parseCommandLineArgs(int argc, char* argv[], std::string& filename, bool& s
 void globalStateInit() {
     std::cout << "globablStateInit executing" << std::endl;
     LogFileWriter::getInstance().logInfo("globalStateInit executing");
+    //std::lock_guard<std::mutex> lock(mtx); // lock the mutex
+    mtx.lock();
     globalState.megsa.image[0][0] = {0xff};
     globalState.megsb.image[0][0] = {0x3fff};
     globalState.running = true;
+#ifdef ENABLEGUI
+    globalState.guiEnabled = true;
+#endif
+    mtx.unlock(); // unlock the mutex
 }
 
 void print_help() {
