@@ -1,10 +1,11 @@
 #include "CCSDSReader.hpp"
-//#include "commonFunctions.hpp"
+#include "commonFunctions.hpp"
 #include "eve_l0b.hpp"
 
 constexpr double ONE_OVER_65536 = (double (1.0) / double (65536.0));
 
 extern ProgramState globalState;
+extern std::mutex mtx;
 
 // initialize to use filename
 CCSDSReader::CCSDSReader(InputSource* source) : source(source) {}
@@ -54,7 +55,10 @@ bool CCSDSReader::findSyncMarker() {
 bool CCSDSReader::readNextPacket(std::vector<uint8_t>& packet) {
 
   // slow down for debugging
-  if ( globalState.guiEnabled ) {
+  mtx.lock();
+  bool guiEnabled = globalState.guiEnabled;
+  mtx.unlock();
+  if ( guiEnabled ) {
     //During file processing we should pause
     std::this_thread::sleep_for(std::chrono::milliseconds(2));
   }
