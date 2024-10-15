@@ -17,6 +17,7 @@
 #include <GLFW/glfw3.h> 
 
 extern ProgramState globalState;
+extern std::mutex mtx;
 
 enum LimitState {
     NoCheck,
@@ -306,8 +307,6 @@ void updateESPWindow()
 
 int imgui_thread() {
 
-    globalState.guiEnabled = true;
-
     glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit())
         return 1;
@@ -377,10 +376,14 @@ int imgui_thread() {
     //bool show_another_window = false;
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
+    
+    //std::lock_guard<std::mutex> lock(mtx); // lock the mutex
+    mtx.lock();
     //GLuint megsATextureID = createTextureFromMEGSImage( &globalState.megsa.image[0][0], MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, true, true);
     //GLuint megsBTextureID = createTextureFromMEGSImage( &globalState.megsb.image[0][0], MEGS_IMAGE_T_WIDTH, MEGS_IMAGE_T_HEIGHT, true, true);
     GLuint megsATextureID = createTextureFromMEGSImage( &globalState.transMegsA[0][0], MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, true, true);
     GLuint megsBTextureID = createTextureFromMEGSImage( &globalState.transMegsB[0][0], MEGS_IMAGE_T_WIDTH, MEGS_IMAGE_T_HEIGHT, true, true);
+    mtx.unlock(); // unlock the mutex
 
     // Main loop
 #ifdef __EMSCRIPTEN__
@@ -437,21 +440,17 @@ int imgui_thread() {
         }
 
         {
+            mtx.lock();
             displayMAImageWithControls(megsATextureID);
-        }
-
-        {
             displayMBImageWithControls(megsBTextureID);
-        }
 
-        // 3. Show another simple window.
-        {
-            ImGui::Begin("Status Window");
-            updateStatusWindow();
-            ImGui::End();
-        }
+            // 3. Show another simple window.
+            {
+                ImGui::Begin("Status Window");
+                updateStatusWindow();
+                ImGui::End();
+            }
 
-        {
             if (globalState.espUpdated)
             {
                 ImGui::Begin("ESP Window");
@@ -459,6 +458,7 @@ int imgui_thread() {
                 //globalState.espUpdated = false;
                 ImGui::End();
             }
+            mtx.unlock();
         }
 
         // Rendering
@@ -466,17 +466,21 @@ int imgui_thread() {
         int display_w, display_h;
 
         // this is the part that draws stuff to the screen
-        if (globalState.megsAUpdated) {
-            updateTextureFromMEGSAImage(megsATextureID);
-            globalState.megsAUpdated = false;  // Reset flag after updating texture
-        }
-        if (globalState.megsBUpdated) {
-            updateTextureFromMEGSBImage(megsBTextureID);
-            globalState.megsBUpdated = false;  // Reset flag after updating texture
-        }
-        if (globalState.espUpdated) {
-            updateESPWindow();
-            globalState.espUpdated = false;
+        {
+            mtx.lock();
+            if (globalState.megsAUpdated) {
+                updateTextureFromMEGSAImage(megsATextureID);
+                globalState.megsAUpdated = false;  // Reset flag after updating texture
+            }
+            if (globalState.megsBUpdated) {
+                updateTextureFromMEGSBImage(megsBTextureID);
+                globalState.megsBUpdated = false;  // Reset flag after updating texture
+            }
+            if (globalState.espUpdated) {
+                updateESPWindow();
+                globalState.espUpdated = false;
+            }
+            mtx.unlock();
         }
 
         glfwGetFramebufferSize(window, &display_w, &display_h);
