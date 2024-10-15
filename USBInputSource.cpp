@@ -131,171 +131,12 @@ void USBInputSource::handleReceiveFIFOError() {
 int32_t USBInputSource::readDataFromUSB() {
     int16_t blockSize = 1024; // bytes
     int32_t transferLength = blockSize * 64; // bytes to read
-    //return dev->ReadFromBlockPipeOut(0xA3, blockSize, transferLength, (unsigned char*)this->rxBuffer);
-    //return dev->ReadFromBlockPipeOut(0xA3, blockSize, transferLength, (unsigned char*)this->RxBuff);
     return dev->ReadFromBlockPipeOut(0xA3, blockSize, transferLength, (unsigned char*)RxBuff);
 }
-
-// void USBInputSource::GSEprocessBlock(uint8_t* pBlk) {
-//     // * pBlk is a pointer to the current block of data in the buffer. (&RxBuff[256*blk])
-//     // This is where the function will read the data from
-
-//     // blkIdx is the index into the block tracking where we are as we process the block
-//     uint16_t blkIdx = 1; 
-//     // nBlkLeft is a reference to the number of data words left to process in the current block so we don't read beyond the data.
-//     uint16_t nBlkLeft = pBlk[0]; 
-
-
-//     while (nBlkLeft > 0) {
-//         switch (state) {   //(this->state) {
-//         case 0:
-//             //GSEprocessPacketHeader(pBlk, blkIdx, nBlkLeft, this->state, this->APID, this->pktIdx, this->nPktLeft);
-//             GSEprocessPacketHeader(pBlk, blkIdx, nBlkLeft, state, APID, pktIdx, nPktLeft);
-//             break;
-//         case 1:
-//             std::cout<<"state "<<state<<" nBlkLeft "<<nBlkLeft<<std::endl;
-//             //GSEprocessPacketContinuation(pBlk, blkIdx, nBlkLeft, this->pktIdx, this->nPktLeft, this->state);
-//             GSEprocessPacketContinuation(pBlk, blkIdx, nBlkLeft, pktIdx, nPktLeft, state);
-//             break;
-//         case 2:
-//             std::cout<<"state "<<state<<" nBlkLeft "<<nBlkLeft<<std::endl;
-//             //GSEContinuePacket(pBlk, blkIdx, nBlkLeft, this->state, this->pktIdx, this->nPktLeft, APIDidx);
-//             GSEContinuePacket(pBlk, blkIdx, nBlkLeft, state, pktIdx, nPktLeft, APIDidx);
-//             break;
-//         default:
-//             //this->state = 0;
-//             state = 0;
-//         }
-//     }
-// }
-
-// void USBInputSource::GSEprocessPacketHeader(uint8_t *& pBlk, uint16_t& blkIdx, uint16_t& nBlkLeft, int16_t& state, int16_t& APID, uint16_t& pktIdx, uint16_t& nPktLeft) {
-//     // The whole 32-bit pointer array is 32-bit byte swapped
-//     // When using data, use reinterpret_cast<char *> to access the bytes
-//     // the bytes are in correct network (big endian) order
-//     //if ( pBlk[blkIdx] != 0) {
-//     //    std::cout<<"GSEprocessPacketHeader: pBlk[blkdIdx] "<<std::hex<< (pBlk[blkIdx]) <<std::endl;
-//     //}
-//     if (pBlk[blkIdx] == 0x1DFCCF1A) {
-//         pktIdx = 0;
-//         state = 1;
-//         ++ctrRxPkts;
-//         std::cout << "GSEprocessPacketHeader: Found sync marker" << std::endl;
-//     }
-//     ++blkIdx;
-//     --nBlkLeft;
-// }
-
-
-// void USBInputSource::GSEprocessPacketContinuation(uint8_t*& pBlk, uint16_t& blkIdx, uint16_t& nBlkLeft, uint16_t& pktIdx, uint16_t& nPktLeft, int16_t& state) {
-
-//     // The 32-bit pointer is byte swapping the first 4 bytes
-//     APID = ((pBlk[blkIdx] & 0x07) << 8) | ((pBlk[blkIdx] >> 8) & 0xFF); // byte swap and extract 11-bit APID
-
-//     // find APIDidx into LUT_APID that matches APID
-//     uint16_t APIDidx = std::lower_bound(LUT_APID, LUT_APID + nAPID, APID) - LUT_APID;
-
-//     std::cout<<"GSEprocessPacketContinuation - APID: "<<APID<<" APIDidx "<<APIDidx<<std::endl;
-
-//     if (APIDidx < nAPID && LUT_APID[APIDidx] == APID) {
-//         nPktLeft = LUT_PktLen[APIDidx]; // the whole packet length
-//         // check to see if packet is completed in block
-//         if (nPktLeft <= nBlkLeft) {
-//             // remaining packet content is less than data left in block
-//             nPktLeft &= 0xFF;
-
-//             // Alan's code and magic counters
-//             memcpy(PktBuff, &pBlk[blkIdx], 4 * nPktLeft);
-//             nBlkLeft -= nPktLeft;
-//             blkIdx += nPktLeft;
-//             state = 0;
-
-//             // the sync marker is not included in pBlk, could decrement pBlk, but we need a vector anyway
-
-//             // we can just read the packet length from the primary header
-//             // total length is 6 byte pri hdr + pktlen field + 1
-//             uint16_t pktLen = (7 + ((static_cast<uint16_t>(RxBuff[4]) << 8) | static_cast<uint16_t>(RxBuff[5])));
-
-//             // define vector length to contain pktLen, the complete packet
-//             std::vector<uint8_t> pktVec(pktLen);
-//             // append the packet data into the vector
-//             std::copy(RxBuff, RxBuff + pktLen, pktVec.begin());
-
-//             std::cout<<"APID "<<APID<<" pktLen "<<pktLen<<std::endl;
-
-//             std::cout<<"PktVec hdr: "<<std::hex<< static_cast<int>(pktVec[0])<< static_cast<int>(pktVec[1])<<static_cast<int>(pktVec[2])<<static_cast<int>(pktVec[3])<<static_cast<int>(pktVec[4])<<static_cast<int>(pktVec[5])<<std::dec<<std::endl;
-
-//             // write to file
-//             //std::cout << "writing " << sizeof(RxBuff) << " " << std::endl; // says 20000?
-//             //outputFile.write(reinterpret_cast<const char* >(&RxBuff), sizeof(RxBuff));
-//             //outputFile.write(reinterpret_cast<const char* >(pktVec.data()), sizeof(pktVec.data()));
-
-//             // processPackets takes pktReader, recordWriter, skipRecord as args
-//             // here the "packet" includes the 4 byte sync marker
-//             if (!recordFileWriter->writeSyncAndPacketToRecordFile(pktVec)) {
-//                 std::cerr << "ERROR: processPackets failed to write packet to record file." << std::endl;
-//                 return;
-//             }
-//             //processOnePacket(pktReader, syncAndPktVec, 0);
-//         } else {
-//             // packet data is longer than data remining in block
-//             nBlkLeft &= 0xFF;
-//             memcpy(PktBuff, &pBlk[blkIdx], 4 * nBlkLeft);
-//             pktIdx += nBlkLeft;
-//             nPktLeft -= nBlkLeft;
-//             nBlkLeft = 0;
-//             state = 2;
-//         }
-//     } else {
-//         // for an unknown APID, we should search for the next sync marker
-//         state = 0;
-//         snprintf(StatusStr, sizeof(StatusStr), "Unrecognized APID");
-//     }
-// }
-
-// void USBInputSource::GSEContinuePacket(uint8_t*& pBlk, uint16_t& blkIdx, uint16_t& nBlkLeft, int16_t& state, uint16_t& pktIdx, uint16_t& nPktLeft, int16_t APIDidx) {
-//     // continuation of packet into new block
-//     pktIdx &= 0x7FF;
-//     if (nPktLeft <= nBlkLeft) {
-//         // remaining data is less than the data left in the block
-//         nPktLeft &= 0xFF;
-//         memcpy(&PktBuff[pktIdx], &pBlk[blkIdx], 4 * nPktLeft);
-//         nBlkLeft -= nPktLeft;
-//         blkIdx += nPktLeft;
-
-//         state = 0;
-
-//         //ProcessPacket(APIDidx);
-//         // same thing from case 1
-//         uint16_t pktLen = (7 + ((static_cast<uint16_t>(RxBuff[4]) << 8) | static_cast<uint16_t>(RxBuff[5])));
-//         // define vector length to contain pktLen, the complete packet
-//         std::vector<uint8_t> pktVec(pktLen);
-//         // append the packet data into the vector
-//         std::copy(RxBuff, RxBuff + pktLen, pktVec.begin());
-//         std::cout<<"APID "<<APID<<" pktLen "<<pktLen<<std::endl;
-//         std::cout<<"PktVec hdr: "<<std::hex<<pktVec[0]<<pktVec[1]<<pktVec[2]<<pktVec[3]<<pktVec[4]<<pktVec[5]<<std::dec<<std::endl;
-//         // processPackets takes pktReader, recordWriter, skipRecord as args
-//         // here the "packet" includes the 4 byte sync marker
-// //        if (!recordFileWriter->writeSyncAndPacketToRecordFile(pktVec)) {
-// //            std::cerr << "ERROR: processPackets failed to write packet to record file." << std::endl;
-// //            return;
-// //        }
-
-//     } else {
-//         // packet data is longer than data remaining in block
-//         nBlkLeft &= 0xFF;
-//         memcpy(&PktBuff[pktIdx], &pBlk[blkIdx], 4 * nBlkLeft);
-//         pktIdx += nBlkLeft;
-//         nPktLeft -= nBlkLeft;
-//         nBlkLeft = 0;
-//     }
-// }
-
 
 extern void processPackets(CCSDSReader& pktReader, \
     std::unique_ptr<RecordFileWriter>& recordWriter, \
     bool skipRecord);
-    //std::unique_ptr<FITSWriter>& fitsFileWriter
 
 // constructor implementation
 USBInputSource::USBInputSource(const std::string& serialNumber ) 
@@ -1069,62 +910,6 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
 	}
 }
 
-// // unused
-// void USBInputSource::processReceive() {
-//     unsigned char* pBlkStart = rxBuffer;
-
-//     // Check if receive FIFO is empty
-//     if (readGSERegister(0) & 0x02) return;
-
-//     // First read a whole block of data from the FPGA
-//     // The buffer may be full, partly full, or empty
-//     // and it contains the frame marker at the start of each block.
-//     // The code skips that block and joins packets that span blocks.
-//     // After that, search for the sync marker
-//     // then get the 6-byte packet header
-//     // then get the rest of the packet
-    
-
-//     // Get data, 64k at a time
-//     if (dev->ReadFromBlockPipeOut(0xA3, 1024, 65536, rxBuffer) != 65536) {
-//         std::cout << "\nAll data not returned" << std::endl;
-//         return;
-//     }
-
-//     for (int i = 0; i <= 63; ++i) {
-//         long dataLength = 4 * (*(reinterpret_cast<long*>(pBlkStart)));
-//         if (dataLength > 1020) {
-//             std::cout << "\nInvalid amount of data" << std::endl;
-//             return;
-//         }
-
-//         if (dataLength) {
-//             if (!telemetryOpen) {
-
-//                 // This appears to be writing telemetry to a file, but not doing anything with it.
-//                 pFileTelemetry = fopen("CSIE_Telemetry.bin", "wb");
-//                 if (!pFileTelemetry) {
-//                     std::cout << "Could not open Telemetry file" << std::endl;
-//                     return;
-//                 }
-//                 telemetryOpen = true;
-//                 ctrRxBytes = 0;
-//                 openRxTime.updateNow();
-//             }
-
-//             pBlkStart += 4;
-//             fwrite(pBlkStart, 1, dataLength, pFileTelemetry);
-//             ctrRxBytes += dataLength;
-//             pBlkStart += 1020;
-
-//             lastRxTime.updateNow();
-//         } else {
-//             pBlkStart += 1024;
-//         }
-//     }
-// }
-
-
 // *********************************************************************/
 // Function: CheckLinkStatus()
 // Description: Check link status
@@ -1144,10 +929,7 @@ void USBInputSource::checkLinkStatus(void)
 	while (r2 == 1)
 	{
 		std::cout << StatusStr << "checkLinkStatus: FIFO Overflow ************** "<< " " << r2 << std::endl;
-        // to resolve, read until overflow is cleared
-        //int32_t blockPipeOutStatus = readDataFromUSB();
-        //std::cout << "checkLinkStatus blockPipeOutStatus: " << blockPipeOutStatus << std::endl;
-        // read status again
+        // reset the interace to clear the buffer
         resetInterface(1);  
     	//r0 = readGSERegister(0);
         r2 = readGSERegister(2);
