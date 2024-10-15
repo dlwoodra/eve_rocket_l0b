@@ -43,8 +43,6 @@ private:
     std::string outputFile;
     std::ofstream recordFile;
 
-    int lastMinute;
-
 };
 
 #endif // RECORD_FILE_WRITER_HPP
