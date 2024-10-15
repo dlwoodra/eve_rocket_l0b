@@ -17,7 +17,7 @@
 //#include <fstream> // included in CCSDSReader.hpp
 //#include <iostream> // included in CCSDSReader.hpp
 #include <string>
-
+#include <mutex>
 #include <sys/stat.h> // For mkdir
 #include <sys/types.h> // For mode_t
 #include <errno.h>     // For errno
