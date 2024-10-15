@@ -98,11 +98,12 @@ bool RecordFileWriter::checkAndRotateFile() {
 
     TimeInfo currentTime;
     int currentMinute = currentTime.getMinute();
-    static int lastMinute = -1;
+    //int lastMinute = -1;
     
     if ((recordFileMinute == -1) || (recordFileMinute != currentMinute)) {
         // The minute has changed, close the current file and open a new one
-        if (lastMinute != -1) { close(); } // Close the old file
+        //if (lastMinute != -1) { close(); } // Close the old file
+        close(); // Close the old file
         outputFile = generateRecordFilename(); // Generate new filename
         recordFile.open(outputFile, std::ios::binary); // Open the new file
 
