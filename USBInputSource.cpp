@@ -406,6 +406,11 @@ void USBInputSource::initializeGSE() {
 
     // open device
     devptr = devices.Open(""); // get the first connected device
+    // valgrind says FrontPanel devices.Open has a bug
+    // ==22657== Source and destination overlap in memcpy(0x6e25018, 0x6e25018, 284)
+    // ==22657==    at 0x486CF7C: __GI_memcpy (in /usr/libexec/valgrind/vgpreload_memcheck-arm64-linux.so)
+    // ==22657==    by 0x4D24907: okCvFrontPanel::UpdateDeviceInfo() (in /usr/local/lib/libokFrontPanel.so)
+
     dev = devptr.get();
     if (!dev) {
         int deviceCount = devices.GetCount();
@@ -623,7 +628,7 @@ void USBInputSource::replaceCGProxRx(CCSDSReader& usbReader)
 	    //{
 		    // get amount of data in block
 		    pBlk = &strippedRxBuff[0];
-		    nBlkLeft = pBlk[0];
+		    nBlkLeft = 255*64; //pBlk[0]; // first 32-bit word is the number of 32-bit words of data in the block
 		    blkIdx = 0;
 
 		    while (nBlkLeft > 0)
@@ -636,7 +641,7 @@ void USBInputSource::replaceCGProxRx(CCSDSReader& usbReader)
 			    	{
 			    		pktIdx = 0;
 			    		state = 1;
-			    		++ctrRxPkts;
+			    		//++ctrRxPkts;
 			    	}
 			    	++blkIdx; //move to the next 32-bit word
 			    	--nBlkLeft; //decrement the number of 32-bit words left in the block
@@ -888,7 +893,7 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
 			    	{
 			    		pktIdx = 0;
 			    		state = 1;
-			    		++ctrRxPkts;
+			    		//++ctrRxPkts;
 			    	}
 			    	++blkIdx; //move to the next 32-bit word
 			    	--nBlkLeft; //decrement the number of 32-bit words left in the block
@@ -1004,7 +1009,10 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
                         // previous block is &RxBuff[256 * (blk-1)]
                         for (uint32_t icnt=0; icnt<256; ++icnt)
                         {
-                            oss << fmt::format("{:08x} ", byteswap_32(*reinterpret_cast<uint32_t*>(&RxBuff[256*(blk-1) + icnt])));
+                            if ( blk > 0 ) 
+                            {
+                                oss << fmt::format("{:08x} ", byteswap_32(*reinterpret_cast<uint32_t*>(&RxBuff[256*(blk-1) + icnt])));
+                            }
                             count++;
 
                             if (count == 255) // Roughly 80 characters (10 * 9 = 90 chars including spaces)
