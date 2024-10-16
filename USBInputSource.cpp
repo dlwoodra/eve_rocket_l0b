@@ -160,7 +160,7 @@ USBInputSource::USBInputSource(const std::string& serialNumber )
 
         std::cout << "USBInputSource constructor initialized." << std::endl;
 
-        powerOnLED();
+        //powerOnLED();
       }
 
 
@@ -207,8 +207,6 @@ bool USBInputSource::read(uint8_t* buffer, size_t maxSize) {
     std::cout << "USBSource::read calling ReadFromBlockPipeOut" << std::endl;
     size_t bytesRead = dev->ReadFromBlockPipeOut(0xA3, 1024, maxSize, reinterpret_cast<unsigned char*>(buffer));
     return bytesRead == maxSize;
-    //processReceive();
-    //return 0; // Modify as needed to return actual read size
 }
 
 bool USBInputSource::isOpen() const {
@@ -275,37 +273,36 @@ void USBInputSource::initializeGSE() {
     logDeviceInfo(m_devInfo);
 
     // std:endl also forces a flush, so could impact performance
-    //LogFileWriter::getInstance().logInfo("initializeGSE productName " + (m_devInfo.productName));
     std::cout << "Found a device: " << m_devInfo.productName << "\n"; //XEM7310-A75 
     std::cout << "deviceID    : " << m_devInfo.deviceID << "\n"; 
     std::cout << "serialNumber: " << m_devInfo.serialNumber << "\n"; 
-    std::cout << "productName : " << m_devInfo.productName << "\n"; 
-    std::cout << "productID   : " << m_devInfo.productID << "\n"; 
-    std::cout << "deviceMajorVersion deviceMinorVersion   : " << m_devInfo.deviceMajorVersion << " " << m_devInfo.deviceMinorVersion << "\n"; 
-    std::cout << "hostInterfaceMajorVersion hostInterfaceMinorVersion   : " << m_devInfo.hostInterfaceMajorVersion << " " << m_devInfo.hostInterfaceMinorVersion << "\n"; 
-    std::cout << "wireWidth   : " << m_devInfo.wireWidth << "\n"; 
-    std::cout << "triggerWidth: " << m_devInfo.triggerWidth << "\n"; 
-    std::cout << "pipeWidth   : " << m_devInfo.pipeWidth << "\n"; 
-    std::cout << "registerAddressWidth   : " << m_devInfo.registerAddressWidth << "\n"; 
-    std::cout << "registerDataWidth   : " << m_devInfo.registerDataWidth << "\n"; 
-    std::cout << "pipeWidth   : " << m_devInfo.pipeWidth << "\n"; 
-    // usbSpeed 0=unknown, 1=FULL, 2=HIGH, 3=SUPER
-    std::cout << "USBSpeed    : " << m_devInfo.usbSpeed << "\n";
-    // okDeviceInterface 0=Unknown, 1=USB2, 2=PCIE, 3=USB3
-    std::cout << "okDeviceInterface: " << m_devInfo.deviceInterface << "\n";
-    // fpgaVendor 0=unknown, 1=XILINX, 2=INTEL
-    std::cout << "fpgaVendor: " << m_devInfo.fpgaVendor << "\n";
+    // std::cout << "productName : " << m_devInfo.productName << "\n"; 
+    // std::cout << "productID   : " << m_devInfo.productID << "\n"; 
+    // std::cout << "deviceMajorVersion deviceMinorVersion   : " << m_devInfo.deviceMajorVersion << " " << m_devInfo.deviceMinorVersion << "\n"; 
+    // std::cout << "hostInterfaceMajorVersion hostInterfaceMinorVersion   : " << m_devInfo.hostInterfaceMajorVersion << " " << m_devInfo.hostInterfaceMinorVersion << "\n"; 
+    // std::cout << "wireWidth   : " << m_devInfo.wireWidth << "\n"; 
+    // std::cout << "triggerWidth: " << m_devInfo.triggerWidth << "\n"; 
+    // std::cout << "pipeWidth   : " << m_devInfo.pipeWidth << "\n"; 
+    // std::cout << "registerAddressWidth   : " << m_devInfo.registerAddressWidth << "\n"; 
+    // std::cout << "registerDataWidth   : " << m_devInfo.registerDataWidth << "\n"; 
+    // std::cout << "pipeWidth   : " << m_devInfo.pipeWidth << "\n"; 
+    // // usbSpeed 0=unknown, 1=FULL, 2=HIGH, 3=SUPER
+    // std::cout << "USBSpeed    : " << m_devInfo.usbSpeed << "\n";
+    // // okDeviceInterface 0=Unknown, 1=USB2, 2=PCIE, 3=USB3
+    // std::cout << "okDeviceInterface: " << m_devInfo.deviceInterface << "\n";
+    // // fpgaVendor 0=unknown, 1=XILINX, 2=INTEL
+    // std::cout << "fpgaVendor: " << m_devInfo.fpgaVendor << "\n";
 
 
     // Alan loads the GSE firmware from a file
     // this is the one David gave me
-    //dev->ConfigureFPGA("hss_usb_fpga_2024_08_28.bit");
+    //dev->ConfigureFPGA("firmware/hss_usb_fpga_2024_08_28.bit");
 
     // Load the default PLL config into EEPROM
     dev->LoadDefaultPLLConfiguration();
 
     resetInterface(10); 
-    powerOnLED();// turn on the light
+    //powerOnLED();// turn on the light
 
     // get device temperature
 	double DeviceTemp = (readGSERegister(3) >> 4) * 503.975 / 4096 - 273.15; //reports over 30 deg C at room temp
@@ -336,7 +333,7 @@ void USBInputSource::initializeGSE() {
     uint16_t firmwareVer = readGSERegister(1); // probably HW specific
     gseType = firmwareVer >> 12; 
     // Alan sees gseType as 1, Sync-Serial
-    std::cout << std::hex;
+    std::cout << std::hex; // set hex default for numbers
     switch (gseType) {
         case 1:
             std::cout << "Sync-Serial GSE. Firmware Version: " << firmwareVer << std::endl;
@@ -349,15 +346,13 @@ void USBInputSource::initializeGSE() {
             break;
         default:
             std::cout << "Error. Unrecognized firmware: " << firmwareVer << std::endl;
-            //return;
+            //raise(SIGINT); // fatal
     }
-    std::cout << std::dec;
+    std::cout << std::dec; // revert to decimal numbers
 
     // Set status string
     snprintf(StatusStr, sizeof(StatusStr), "GOOD");
-
     std::cout << "GSE initialized." << std::endl;
-
 }
 
 void USBInputSource::resetInterface(int32_t milliSeconds) {
@@ -365,11 +360,10 @@ void USBInputSource::resetInterface(int32_t milliSeconds) {
     // Reset Space interface
     setGSERegister(0, 1);
     setGSERegister(0, 0);
-
     LogFileWriter::getInstance().logWarning("USBInputSource::resetInterface called");
-
-    //Sleep(milliSeconds);
+    Sleep(milliSeconds);
 }
+
 void USBInputSource::powerOnLED() {
     std::cout << "powerLED: turning on LED" << "\n";
     // Turn on USB LED to show GSE is communicating
@@ -386,19 +380,54 @@ void USBInputSource::ProcRx(CCSDSReader& usbReader) {
     CGProcRx(usbReader);
 }
 
+int32_t USBInputSource::copyToPackedBuffer(uint32_t startIndex) {
+
+    // Attempt to properly handle the case where a packet is split across two 64k reads.
+    // The concept is to process the 64k buffer until the amount of valid data remaining 
+    // to be processed is the same as the largest packet length (in 32-bit words).
+    // The FPGA reports the number of valid transferred 32-bit words in the first word of each 1024 byte block.
+    // The first word only ranges from 0 to 255 because it is 32-bit words.
+
+    // Copy only the valid data from RxBuff into strippedRxBuff from each 1024 byte (256 32-bit word) block,
+    // stripping off the first 4 bytes from each 1024 byte block to fill the array similar to RxBuff.
+    // Count the number of valid words in the stripped buffer, so we can tell when we get within one 
+    // packet length of the end of the buffer.
+
+    uint32_t totalTransferredBytes = 0;
+    // arrays are defined private in the USBInputSource.hpp
+    // RxBuff[16384] is 64*256 32-bit values is 16384 32-bit words or 65535 bytes
+    // strippedRxBuff[16827] is sufficient to hold the max of 1020*64 bytes + the largest packet
+    // from RxBuff if it was full and have unsed 64*4 bytes
+    for (int32_t blk = 0; blk<=63; ++blk) 
+    {
+        int32_t validLengthInBytes = (RxBuff[blk*256] << 2);
+        //std::cout << "replaceCGProxRx blk: "<< blk <<" validLength: " << validLengthInBytes << " startIndex:" << startIndex <<std::endl;
+        if (validLengthInBytes > 0) {
+            totalTransferredBytes += validLengthInBytes;
+            memcpy(&strippedRxBuff[startIndex], (&RxBuff[(blk*256) + 1]), validLengthInBytes); // skip first 32-bit word and copy remaining 1020 bytes at a time (255 32-bit words)
+            startIndex += validLengthInBytes;
+        }
+    }
+    return totalTransferredBytes;
+}
+
 void USBInputSource::replaceCGProxRx(CCSDSReader& usbReader)
 {
-
     std::cout << "Running replaceCGProcRx" << std::endl;
+    static uint32_t numberOfRemainingUnusedBytes = 0;
 	static int16_t state = 0;
 	static int16_t APID = 0;
 	static uint32_t pktIdx = 0;
 	static uint32_t nPktLeft = 0;
 
 	uint16_t blkIdx = 0;
-	uint16_t nBlkLeft, blk, i;
+	uint16_t nBlkLeft;
 	uint32_t APIDidx;
     uint32_t* pBlk;
+
+    // largest packet is 1772 bytes with the sync, so 443 words is enough
+    static uint32_t PktBuff[443]; // size to largest packet in 32-bit words
+    //static uint32_t PktBuff[4096]; // size to largest packet in 32-bit words
 
     while (isReceiveFIFOEmpty()) {
         handleReceiveFIFOError();
@@ -450,26 +479,29 @@ void USBInputSource::replaceCGProxRx(CCSDSReader& usbReader)
 	    if ( blockPipeOutStatus < 0)
 	    {
             std::cerr << "ERROR: USB Read Error" << std::endl;
-            LogFileWriter::getInstance().logError("CGProxRx blockPipeOutStatus Read error {}",blockPipeOutStatus);
+            LogFileWriter::getInstance().logError("replaceCGProxRx blockPipeOutStatus Read error {}",blockPipeOutStatus);
 		    return;
 	    }
         if ( blockPipeOutStatus != 65536 ) {
-            std::cout << "ERROR: CGProxRx blockPipeOutStatus expected 65536 bytes read got "<<blockPipeOutStatus << std::endl;
+            std::cout << "ERROR: replaceCGProxRx blockPipeOutStatus expected 65536 bytes read got "<<blockPipeOutStatus << std::endl;
             LogFileWriter::getInstance().logError("CGProxRx blockPipeOutStatus expected 65536 bytes read got {}", blockPipeOutStatus);
         }
 
-        // copy the real data from RxBuff and strip off the first 4 bytes from each 1024 byte block to make a 64*1020/4 32-bit array similar to RxBuff
-        for (blk = 0; blk<=63; ++blk) 
-        {
-            memcpy(&strippedRxBuff[blk*255], (&RxBuff[(blk*256) + 1]), 1020); // skip first 32-bit word and copy remaining 1020 bytes at a time (255 32-bit words)
-        }
+        uint32_t startIndex = numberOfRemainingUnusedBytes;
+        numberOfRemainingUnusedBytes = 0; // reset for this read
+
+        // copy the new data to the buffer, after the previous remaining bytes from the last read
+        uint32_t totalValidBytesRead = USBInputSource::copyToPackedBuffer(startIndex);
+        LogFileWriter::getInstance().logInfo("replaceCGProxRx: totalValidBytesRead:{}",totalValidBytesRead);
+
+        //raise(SIGINT);
 
 	    // // cycle through the whole buffer, no loop over blocks
 	    //for (blk = 0; blk <= 63; ++blk)
 	    //{
 		    // get amount of data in block
 		    pBlk = &strippedRxBuff[0];
-		    nBlkLeft = 255*64; //pBlk[0]; // first 32-bit word is the number of 32-bit words of data in the block
+		    nBlkLeft = totalValidBytesRead; // first 32-bit word is the number of 32-bit words of data in the block
 		    blkIdx = 0;
 
 		    while (nBlkLeft > 0)
@@ -477,15 +509,31 @@ void USBInputSource::replaceCGProxRx(CCSDSReader& usbReader)
 			    switch (state)
 			    {
 			    case 0:
-			    	// search for sync code - 0x1ACFFC1D
-			    	if (pBlk[blkIdx] == 0x1DFCCF1A)
-			    	{
-			    		pktIdx = 0;
-			    		state = 1;
-			    		//++ctrRxPkts;
-			    	}
-			    	++blkIdx; //move to the next 32-bit word
-			    	--nBlkLeft; //decrement the number of 32-bit words left in the block
+                    if (nBlkLeft <= maxPacketWords) {
+                        // copy the remaining bytes to the beginning of the buffer for next time
+                        // if there are any unused byte in the previous read
+                        numberOfRemainingUnusedBytes = nBlkLeft << 2; // convert to bytes
+                        if (numberOfRemainingUnusedBytes > 0) {
+                            // copy the remaining bytes from the last read to the beginning of the buffer
+                            memcpy(&strippedRxBuff[0], &pBlk[blkIdx], numberOfRemainingUnusedBytes);
+
+                        }
+                        std::cout << "replaceCGProxRx case 0 copying tail of buffer into start for next time" << std::endl;
+                        std::cout << "nBlkLeft: " <<nBlkLeft<< std::endl;
+                        LogFileWriter::getInstance().logInfo("replaceCGProxRx case 0 copying tail of buffer into start for next time nBlkLeft:{}",nBlkLeft);
+                        // create return condition
+                        nBlkLeft = 0;
+                    } else {
+			    	    // search for sync code - 0x1ACFFC1D
+			    	    if (pBlk[blkIdx] == 0x1DFCCF1A)
+			    	    {
+			    		    pktIdx = 0;
+			    	    	state = 1;
+			    		    //++ctrRxPkts;
+			    	    }
+			    	    ++blkIdx; //move to the next 32-bit word
+			    	    --nBlkLeft; //decrement the number of 32-bit words left in the block
+                    }
 			    	break;
 
     			case 1:
@@ -494,9 +542,9 @@ void USBInputSource::replaceCGProxRx(CCSDSReader& usbReader)
     				APID |= ((pBlk[blkIdx] >> 8) & 0xFF);
 
     				// find APID index
-	    			for (i = 0; i < nAPID; ++i)
+	    			for (APIDidx = 0; APIDidx < nAPID; ++APIDidx)
 	    			{
-	    				if (LUT_APID[i] == APID)
+	    				if (LUT_APID[APIDidx] == APID)
 	    				{
                             //std::cout << "CGProxRx Case 1c - found apid" << APID <<" i="<<i<<std::endl;
 	    					break;
@@ -504,10 +552,10 @@ void USBInputSource::replaceCGProxRx(CCSDSReader& usbReader)
 	    			}
 
     				// APID is recognized
-    				if (i < nAPID)
+    				if (APIDidx < nAPID)
     				{
                         //std::cout << "CGProxRx Case 1d recognized apid" << std::endl;
-    					APIDidx = i;
+    					//APIDidx = i;
     					nPktLeft = (LUT_PktLen[APIDidx] >> 2) + 3; // 11 bytes (fits into 3 32-bit words) for primary header and sync
 
     					// check to see if packet is completed in block
@@ -517,13 +565,13 @@ void USBInputSource::replaceCGProxRx(CCSDSReader& usbReader)
     						//nPktLeft &= 0xFF; // not sure what this does
                             //std::cout << "CGProxRx Case 1dd -copying - state "<<state << std::endl;
     						memcpy(PktBuff, &pBlk[blkIdx], nPktLeft << 2); //the bitshift is a div by 4 to convert bytes to 32-bit words
-                            LogFileWriter::getInstance().logInfo("CGProxRx: ProcessPacket case 1 nPktLeft:{} nBlkLeft:{} ",nPktLeft,nBlkLeft);
+                            LogFileWriter::getInstance().logInfo("replaceCGProxRx: ProcessPacket case 1 nPktLeft:{} nBlkLeft:{} ",nPktLeft,nBlkLeft);
     						nBlkLeft -= (nPktLeft);
     						blkIdx += (nPktLeft-2); // -2 because we are already at the next word
 
 	    					state = 0; // this should make it start looking for the sync marker again
 
-                            LogFileWriter::getInstance().logInfo("CGProxRx: Blockdata dump, APID:{} blkIdx:{} nPktLeft:{}",APID,blkIdx-(nPktLeft-2),nPktLeft);
+                            LogFileWriter::getInstance().logInfo("replaceCGProxRx: Blockdata dump, APID:{} blkIdx:{} nPktLeft:{}",APID,blkIdx-(nPktLeft-2),nPktLeft);
 
                             std::ostringstream oss;
                             int count = 0;
@@ -568,7 +616,7 @@ void USBInputSource::replaceCGProxRx(CCSDSReader& usbReader)
 	    			else
 	    			{
 	    				state = 0;
-                        LogFileWriter::getInstance().logError("CGProxRx: Unrecognized APID {}",APID);
+                        LogFileWriter::getInstance().logError("replaceCGProxRx: Unrecognized APID {}",APID);
 	    				//snprintf(StatusStr, sizeof(StatusStr),"CGProxRx Unrecognized APID             ");
 	    			}
 	    			break;
@@ -583,13 +631,13 @@ void USBInputSource::replaceCGProxRx(CCSDSReader& usbReader)
 		    			nPktLeft &= 0xFF;
                         //std::cout << "Case 1ee -contination copy - state "<<state << std::endl;
 		    			memcpy(&PktBuff[pktIdx], &pBlk[blkIdx], nPktLeft << 2);
-                        LogFileWriter::getInstance().logInfo("CGProxRx: ProcessPacket case 2 nPktLeft:{} nBlkLeft:{} blkIdx:{}",nPktLeft,nBlkLeft,blkIdx);
+                        LogFileWriter::getInstance().logInfo("replaceCGProxRx: ProcessPacket case 2 nPktLeft:{} nBlkLeft:{} blkIdx:{}",nPktLeft,nBlkLeft,blkIdx);
 		    			nBlkLeft -= nPktLeft;
 		    			blkIdx += (nPktLeft-2);
 
     					state = 0;
 
-                        LogFileWriter::getInstance().logInfo("CGProxRx: Blockdata dump, APID:{} blkIdx:{} nPktLeft:{}",APID,blkIdx-(nPktLeft-2),nPktLeft);
+                        LogFileWriter::getInstance().logInfo("replaceCGProxRx: Blockdata dump, APID:{} blkIdx:{} nPktLeft:{}",APID,blkIdx-(nPktLeft-2),nPktLeft);
 
                         // logging the block data
 
@@ -656,6 +704,8 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
 	uint16_t blkIdx = 0;
 	uint16_t nBlkLeft, blk, i;
 	uint32_t* pBlk, APIDidx;
+
+    static uint32_t PktBuff[4096]; // size to largest packet in 32-bit words
 
     while (isReceiveFIFOEmpty()) {
         handleReceiveFIFOError();
