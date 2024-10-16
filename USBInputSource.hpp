@@ -2,6 +2,7 @@
 #define USB_INPUT_SOURCE_HPP
 
 #include "byteswap.hpp"
+#include <csignal>
 #include "CCSDSReader.hpp"
 #include "InputSource.hpp"
 #include "LogFileWriter.hpp"
@@ -17,6 +18,11 @@
 // these are used to implement Windows Sleep
 #include <chrono>
 #include <thread>
+
+constexpr uint32_t wordsInFullBuffer = 16384; //32-bit words
+constexpr uint32_t bytesInFullBuffer = 16384 * 4; //bytes
+constexpr uint32_t maxPacketWords = 443; //32-bit words
+
 
 class USBInputSource : public InputSource {
 public:
@@ -61,6 +67,7 @@ private:
     bool isReceiveFIFOEmpty();
     void handleReceiveFIFOError();
     int32_t readDataFromUSB();
+    int32_t copyToPackedBuffer(uint32_t startIndex);
 
     //void GSEprocessBlock(uint8_t * pBlk);
     //void GSEprocessPacketHeader(uint8_t *& pBlk, uint16_t & blkIdx, uint16_t & nBlkLeft, int16_t & state, int16_t & APID, uint16_t& pktIdx, uint16_t & nPktLeft);
@@ -84,21 +91,26 @@ private:
     //uint16_t blkSize;
 
     // flags
-    int flgTelOpen;
-    int flgCommandOpen;
-    int flgSendCommand;
+    //int flgTelOpen;
+    //int flgCommandOpen;
+    //int flgSendCommand;
 
     // states
-    int PPState;
+    //int PPState;
+
+    // sizes
 
     // buffers
-    uint32_t RxBuff[16384];
-    uint32_t strippedRxBuff[16384]; //64*256 32-bit values is 16384 32-bit words or 65535 bytes
-    uint32_t PktBuff[4096];
-    uint32_t PktNull[4096];
+    uint32_t RxBuff[wordsInFullBuffer];
+    // longest packetfield is 0x6e1 or 1761, need to add 6 byte header+1 + 4 byte sync
+    // that makes 1761+6+1+4 = 1772 bytes or 443 32-bit words
+    // 16384+1772/4 from max MEGS packet length = 16827 to leave margin
+    uint32_t strippedRxBuff[wordsInFullBuffer + maxPacketWords]; //32-bit words
+    //uint32_t PktBuff[4096];
+    //uint32_t PktNull[4096];
 
     int16_t GSEType;
-    int32_t ctrTxPkts;
+    //int32_t ctrTxPkts;
     int32_t ctrRxPkts;
     //long CommandBytesLeft;
     char StatusStr[256]; // reference string to hold status messages
@@ -114,8 +126,7 @@ private:
     bool commandOpen;
     bool continueProcessing;
 
-    //unsigned char rxBuffer[65536];
-    uint8_t rxBuffer[65536];
+    uint8_t rxBuffer[bytesInFullBuffer]; //65536 bytes
     int16_t gseType;
     int32_t ctrTxBytes;
     int32_t ctrRxBytes;
