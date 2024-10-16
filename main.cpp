@@ -85,15 +85,6 @@ int main(int argc, char* argv[]) {
     bool skipMP = false;
     bool skipRecord = false;
 
-    static const char* env_eve_data_root = std::getenv("eve_data_root");
-    if (env_eve_data_root == nullptr) {
-        std::cout<< "***";
-        std::cout << "ERROR: environment variable eve_data_root is undefined - aborting" <<std::endl;
-        std::cout << " make sure you have sourced the setup script setup_eve_rdp.csh or similar" <<std::endl;
-        std::cout<< "***";
-        exit(EXIT_FAILURE);
-    }
-
     // initialize the programState structure contents
     globalStateInit();
 
@@ -101,6 +92,18 @@ int main(int argc, char* argv[]) {
     std::signal(SIGINT, handleSigint);
 
     std::cout << "Program running. Press Ctrl-C to exit." << std::endl;
+
+    static const char* env_eve_data_root = std::getenv("eve_data_root");
+    if (env_eve_data_root == nullptr) {
+        std::cout<< "***";
+        std::cout << "ERROR: environment variable eve_data_root is undefined - aborting" <<std::endl;
+        std::cout << " Run the appropriate setup script:" <<std::endl;
+        std::cout << "  in tcsh, source setup_eve_rdp.csh" <<std::endl;
+        std::cout << "  in bash, . setup_eve_rdp.csh" <<std::endl;
+        std::cout<< "***";
+        handleSigint(SIGINT); // call the signal handler to clean up and exit
+        exit(EXIT_FAILURE);
+    }
 
     parseCommandLineArgs(argc, argv, filename, skipESP, skipMP, skipRecord);
 
