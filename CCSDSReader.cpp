@@ -34,13 +34,10 @@ bool CCSDSReader::findSyncMarker() {
   uint8_t onebyte = 0;
   uint32_t bytecounter = 0;
 
-  //std::cout << "findSyncMarker" << std::endl;
   // read one byte at a time shifting 8 bits each iteration - endian-safe
   while (buffer != SYNC_MARKER) {
-    //std::cout << "findSyncMarker: calling read" << std::endl;
     if (source->read((&onebyte), sizeof(onebyte))) {
       buffer = (static_cast<uint32_t>(buffer) << 8) | static_cast<uint32_t>(onebyte);
-      /* std::cout << "buffer value is " << std::hex << buffer << std::endl; */
       if (bytecounter++ > 4) {
         std::cout << "ERROR findSyncMarker read more than 4 bytes" << std::endl;
       }
@@ -102,7 +99,6 @@ bool CCSDSReader::readNextPacket(std::vector<uint8_t>& packet) {
   //std::cout << std::endl;
 
   // Read the packet data
-  //if (!source->read(reinterpret_cast<char*>(packet.data() + PACKET_HEADER_SIZE), packetLength + 1)) {
   if (!source->read((packet.data() + PACKET_HEADER_SIZE), packetLength + 1)) {
     std::cout << "ERROR: CCSDSREADER::readNextPacket failed to read data " << std::endl;
     return false; // Failed to read the packet data
@@ -134,23 +130,19 @@ double CCSDSReader::getPacketTimeStamp(const std::vector<uint8_t>& payload) {
   uint32_t offset = 0;
   double timestamp = 0.0;
 
-  //std::cout<<"CCSDS::getPacketTimeStamp - a"<<std::endl;
-  //std::cout<<"CCSDS::getPacketTimeStamp - payload.size "<<payload.size()<<std::endl;
-
   // Use static_cast to enforce data types 
   seconds = (static_cast<uint32_t>(payload[offset]) << 24) | 
     (static_cast<uint32_t>(payload[offset+1]) << 16) | 
     (static_cast<uint32_t>(payload[offset+2]) << 8) | 
     static_cast<uint32_t>(payload[offset+3]);
-  //std::cout<<"CCSDS::getPacketTimeStamp - b"<<std::endl;
+
   subseconds = (static_cast<uint16_t>(payload[offset+4]) << 8) | 
     static_cast<uint16_t>(payload[offset+5]);
+
   // byte 6 and 7 are allocated, but unused in the rocket fpga
   // only MSB 16-bits (offset+4 and 5) contain subseconds
-  //std::cout<<"CCSDS::getPacketTimeStamp - c"<<std::endl;
   timestamp = static_cast<double>(seconds) + 
     (static_cast<double>(subseconds) * (ONE_OVER_65536)); //multiplcation is faster than division
-  //std::cout<<"CCSDS::getPacketTimeStamp - d"<<std::endl;
 
   return timestamp;
 }
