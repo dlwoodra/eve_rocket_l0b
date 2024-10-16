@@ -234,17 +234,11 @@ void updateStatusWindow()
     ImGuiIO& io = ImGui::GetIO();
     ImGui::Text("Refresh rate: %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
     renderInputTextWithColor("601 a59 MEGS-A Pkts", strdup((std::to_string(globalState.packetsReceived.MA)).c_str()), 12, false, static_cast<float>(globalState.packetsReceived.MA), 0.0, 0.9);
-    //ImGui::InputText("601 a59 MEGS-A Pkts", strdup((std::to_string(globalState.packetsReceived.MA)).c_str()), 12, ImGuiInputTextFlags_ReadOnly);
     renderInputTextWithColor("602 a5a MEGS-B Pkts", strdup((std::to_string(globalState.packetsReceived.MB)).c_str()), 12, false, static_cast<float>(globalState.packetsReceived.MB), 0.0, 0.9);
-    //ImGui::InputText("602 a5a MEGS-B Pkts", strdup((std::to_string(globalState.packetsReceived.MB)).c_str()), 10, ImGuiInputTextFlags_ReadOnly);
     renderInputTextWithColor("604 a5c ESP Pkts", strdup((std::to_string(globalState.packetsReceived.ESP)).c_str()), 12, false, static_cast<float>(globalState.packetsReceived.ESP), 0.0, 0.9);
-    //ImGui::InputText("604 a5c ESP Pkts", strdup((std::to_string(globalState.packetsReceived.ESP)).c_str()), 10, ImGuiInputTextFlags_ReadOnly);
     renderInputTextWithColor("605 a5d MEGS-P Pkts", strdup((std::to_string(globalState.packetsReceived.MP)).c_str()), 12, false, static_cast<float>(globalState.packetsReceived.MP), 0.0, 0.9);
-    //ImGui::InputText("605 a5d MEGS-P Pkts", strdup((std::to_string(globalState.packetsReceived.MP)).c_str()), 10, ImGuiInputTextFlags_ReadOnly);
     renderInputTextWithColor("606 a5e SHK Pkts", strdup((std::to_string(globalState.packetsReceived.SHK)).c_str()), 12, false, static_cast<float>(globalState.packetsReceived.SHK), 0.0, 0.9);
-    //ImGui::InputText("606 a5e HK Pkts", strdup((std::to_string(globalState.packetsReceived.SHK)).c_str()), 10, ImGuiInputTextFlags_ReadOnly);
     renderInputTextWithColor("Unknown Packets", strdup((std::to_string(globalState.packetsReceived.Unknown)).c_str()), 12, true, static_cast<float>(globalState.packetsReceived.Unknown), 0.0, 0.9);
-    //ImGui::InputText("Unknown Pkts", strdup((std::to_string(globalState.packetsReceived.Unknown)).c_str()), 10, ImGuiInputTextFlags_ReadOnly);
 
     renderInputTextWithColor("MEGS-A Gap Count", strdup((std::to_string(globalState.dataGapsMA)).c_str()), 12, true, static_cast<float>(globalState.dataGapsMA), 0.0, 0.9);
     renderInputTextWithColor("MEGS-B Gap Count", strdup((std::to_string(globalState.dataGapsMB)).c_str()), 12, true, static_cast<float>(globalState.dataGapsMB), 0.0, 0.9);
@@ -418,23 +412,9 @@ int imgui_thread() {
 
         // 2. Show a simple window that we create ourselves. We use a Begin/End pair to create a named window.
         {
-            //static float f = 0.0f;
-            static int counter = 0;
+            //static int counter = 0;
 
             ImGui::Begin("SDO-EVE Rocket Data Display");                          // Create a window called "Hello, world!" and append into it.
-
-            //ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-            //ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
-            //ImGui::Checkbox("Another Window", &show_another_window);
-
-            //ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-            //ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
-
-            if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
-                counter++;
-            ImGui::SameLine();
-            ImGui::Text("counter = %d", counter);
-
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
             ImGui::End();
         }
@@ -455,7 +435,7 @@ int imgui_thread() {
             {
                 ImGui::Begin("ESP Window");
                 updateESPWindow();
-                //globalState.espUpdated = false;
+                globalState.espUpdated = false;
                 ImGui::End();
             }
             mtx.unlock();
@@ -487,6 +467,7 @@ int imgui_thread() {
         glViewport(0, 0, display_w, display_h);
         glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
         glClear(GL_COLOR_BUFFER_BIT);
+
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         // Update and Render additional Platform Windows
@@ -500,7 +481,7 @@ int imgui_thread() {
             glfwMakeContextCurrent(backup_current_context);
         }
 
-        glfwSwapBuffers(window);
+        glfwSwapBuffers(window); // swap the buffer with the screen
     }
 
 #ifdef __EMSCRIPTEN__
