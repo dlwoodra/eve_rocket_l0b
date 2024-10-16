@@ -593,7 +593,7 @@ void processESPPacket(std::vector<uint8_t> payload,
         oneESPStructure.ESP_dark[index] = (uint16_t (payload[incr+18]) << 8) | (uint16_t (payload[incr+19]));
 
         mtx.lock();
-        globalState.espUpdated = false; // set to false to prevent race condition here
+        //globalState.espUpdated = false; // set to false to prevent race condition here
         globalState.esp.ESP_xfer_cnt[index] = oneESPStructure.ESP_xfer_cnt[index];
         globalState.esp.ESP_q0[index] = oneESPStructure.ESP_q0[index];
         globalState.esp.ESP_q1[index] = oneESPStructure.ESP_q1[index];
