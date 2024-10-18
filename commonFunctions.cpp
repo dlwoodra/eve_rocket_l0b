@@ -117,21 +117,12 @@ void processOnePacket(CCSDSReader& pktReader, const std::vector<uint8_t>& packet
     switch (apid) {
         case MEGSA_APID:
             processMegsAPacket(payload, sourceSequenceCounter, packetLength, timeStamp);
-            mtx.lock();
-            globalState.packetsReceived.MA++;
-            mtx.unlock();
             break;
         case MEGSB_APID:
             processMegsBPacket(payload, sourceSequenceCounter, packetLength, timeStamp);
-            mtx.lock();
-            globalState.packetsReceived.MB++;
-            mtx.unlock();
             break;
         case ESP_APID:
             processESPPacket(payload, sourceSequenceCounter, packetLength, timeStamp);
-            mtx.lock();
-            globalState.packetsReceived.ESP++;
-            mtx.unlock();
             break;
         case MEGSP_APID:
             processMegsPPacket(payload, sourceSequenceCounter, packetLength, timeStamp);
@@ -172,6 +163,14 @@ uint32_t payloadBytesToUint32(const std::vector<uint8_t>&payload, const int32_t 
 uint32_t payloadToTAITimeSeconds(const std::vector<uint8_t>& payload) {
     if (payload.size() < 4) {
         // Handle the error case, perhaps by throwing an exception
+        // Iterate and print each value in hexadecimal format
+        std::cout<<"ERROR: payloadToTAITimeSeconds - Payload is not long enough sizeof:"<<sizeof(payload)<<std::endl;
+        std::cout<< "Payload: " << std::hex<<std::setw(2)<<std::setfill('0');
+        for (uint8_t val : payload) {
+            std::cout << " " << static_cast<int>(val) << " ";
+        }
+        std::cout << std::endl;
+        
         throw std::invalid_argument("payloadToTAITimeSeconds - Payload must contain at least 4 bytes.");
     }
 
@@ -315,13 +314,17 @@ void processMegsAPacket(std::vector<uint8_t> payload,
     // assing pixel values from the packet into the proper locations in the image
     // The oneMEGSStructure is the one that is written to FITS and is initialized to 0
     int parityErrors = assemble_image(vcdu, &oneMEGSStructure, sourceSequenceCounter, testPattern, &status);
-    // The globalState.megsa image is NOT initialized and just overwrites each packet location as it is received
-    mtx.lock();
-    globalState.parityErrorsMA += assemble_image(vcdu, &globalState.megsa, sourceSequenceCounter, testPattern, &status);
-    if (((processedPacketCounter % IMAGE_UPDATE_INTERVAL) == 0) && (!globalState.megsAUpdated) ) {
-        globalState.megsAUpdated = true;
+
+    {
+        mtx.lock();
+        globalState.packetsReceived.MA++;
+        // The globalState.megsa image is NOT initialized and just overwrites each packet location as it is received
+        globalState.parityErrorsMA += assemble_image(vcdu, &globalState.megsa, sourceSequenceCounter, testPattern, &status);
+        if (((processedPacketCounter % IMAGE_UPDATE_INTERVAL) == 0) && (!globalState.megsAUpdated) ) {
+            globalState.megsAUpdated = true;
+        }
+        mtx.unlock();
     }
-    mtx.unlock();
 
     if ( parityErrors > 0 ) {
         LogFileWriter::getInstance().logError("MA parity errors: {} SSC: {}", parityErrors, sourceSequenceCounter);
@@ -442,15 +445,17 @@ void processMegsBPacket(std::vector<uint8_t> payload,
 
     // assing pixel values from the packet into the proper locations in the image
     int parityErrors = assemble_image(vcdu, &oneMEGSStructure, sourceSequenceCounter, testPattern, &status);
-    // The globalState.megsa image is NOT initialized and just overwrites each packet location as it is received
-    mtx.lock();
-    globalState.parityErrorsMB += assemble_image(vcdu, &globalState.megsb, sourceSequenceCounter, testPattern, &status);
-    if (((processedPacketCounter % IMAGE_UPDATE_INTERVAL) == 0) && (!globalState.megsBUpdated)) {
-        // tranpose moved into imgui_thread
-        //transposeImage2D(globalState.megsb.image, globalState.transMegsB);
-        globalState.megsBUpdated = true;
+
+    {
+        mtx.lock();
+        globalState.packetsReceived.MB++;
+        // The globalState.megsa image is NOT re-initialized and just overwrites each packet location as it is received
+        globalState.parityErrorsMB += assemble_image(vcdu, &globalState.megsb, sourceSequenceCounter, testPattern, &status);
+        if (((processedPacketCounter % IMAGE_UPDATE_INTERVAL) == 0) && (!globalState.megsBUpdated)) {
+            globalState.megsBUpdated = true;
+        }
+        mtx.unlock();
     }
-    mtx.unlock();
     if ( parityErrors > 0 ) {
         LogFileWriter::getInstance().logError("MB parity errors: {}", parityErrors);
         std::cout << "processMegsBPacket - assemble_image returned parity errors: " << parityErrors << " ssc:"<<sourceSequenceCounter<<"\n";
@@ -608,18 +613,22 @@ void processESPPacket(std::vector<uint8_t> payload,
     }
 
     processedPacketCounter++;
-    mtx.lock();
-    if ((dataGapsESP == 0) && (!globalState.espUpdated) && ((processedPacketCounter % 2) == 0) ) {
-        //std::cout<<"copying oneESPStructure to globalState"<<std::endl;
-        //globalState.esp = oneESPStructure; // this causes a segfault from std::vector copy
 
-        //std::cout<< oneESPStructure.iso8601 <<std::endl;
-        //globalState.esp.iso8601 = oneESPStructure.iso8601;
-        globalState.dataGapsESP += dataGapsESP;
-        dataGapsESP = 0; // reset to zero
-        globalState.espUpdated = true;
+    {
+        mtx.lock();
+        globalState.packetsReceived.ESP++;
+        if ((dataGapsESP == 0) && (!globalState.espUpdated) && ((processedPacketCounter % 2) == 0) ) {
+            //std::cout<<"copying oneESPStructure to globalState"<<std::endl;
+            //globalState.esp = oneESPStructure; // this causes a segfault from std::vector copy
+
+            //std::cout<< oneESPStructure.iso8601 <<std::endl;
+            //globalState.esp.iso8601 = oneESPStructure.iso8601;
+            globalState.dataGapsESP += dataGapsESP;
+            dataGapsESP = 0; // reset to zero
+            globalState.espUpdated = true;
+        }
+        mtx.unlock();
     }
-    mtx.unlock();
 
 
     // ONLY WRITE WHEN STRUCTURE IS FULL
