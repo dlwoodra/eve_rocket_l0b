@@ -22,6 +22,8 @@
 constexpr uint32_t wordsInFullBuffer = 16384; //32-bit words
 constexpr uint32_t bytesInFullBuffer = 16384 * 4; //bytes
 constexpr uint32_t maxPacketWords = 443; //32-bit words
+constexpr uint32_t maxPacketBytes = 443 * 4; //bytes
+constexpr uint32_t lengthInWordsOfStrippedRxBuff = wordsInFullBuffer + maxPacketWords;
 
 
 class USBInputSource : public InputSource {
@@ -67,12 +69,8 @@ private:
     bool isReceiveFIFOEmpty();
     void handleReceiveFIFOError();
     int32_t readDataFromUSB();
-    int32_t copyToPackedBuffer(uint32_t startIndex);
+    int32_t copyToPackedBuffer(uint32_t startIndex, uint32_t* strippedRxBuff);
 
-    //void GSEprocessBlock(uint8_t * pBlk);
-    //void GSEprocessPacketHeader(uint8_t *& pBlk, uint16_t & blkIdx, uint16_t & nBlkLeft, int16_t & state, int16_t & APID, uint16_t& pktIdx, uint16_t & nPktLeft);
-    //void GSEprocessPacketContinuation(uint8_t *& pBlk, uint16_t& blkIdx, uint16_t& nBlkLeft, uint16_t & pktIdx, uint16_t & nPktLeft, int16_t & state);
-    //void GSEContinuePacket(uint8_t *& pBlk, uint16_t &blkIdx, uint16_t& nBlkLeft, int16_t& state, uint16_t& pktIdx, uint16_t& nPktLeft, int16_t APIDidx);
     void discardFirstFourBytes();
 
     void GSEProcessPacket(uint32_t *PktBuff, uint16_t APID, CCSDSReader& usbReader);
@@ -88,15 +86,6 @@ private:
     static uint16_t pktIdx; // an index into the packet buffer to join packets spread across 2 blocks
     static uint16_t nPktLeft; // number of remaining words in the packet
     uint16_t APIDidx;
-    //uint16_t blkSize;
-
-    // flags
-    //int flgTelOpen;
-    //int flgCommandOpen;
-    //int flgSendCommand;
-
-    // states
-    //int PPState;
 
     // sizes
 
@@ -105,14 +94,15 @@ private:
     // longest packetfield is 0x6e1 or 1761, need to add 6 byte header+1 + 4 byte sync
     // that makes 1761+6+1+4 = 1772 bytes or 443 32-bit words
     // 16384+1772/4 from max MEGS packet length = 16827 to leave margin
-    uint32_t strippedRxBuff[wordsInFullBuffer + maxPacketWords]; //32-bit words
+
+    // moved into replaceCGProcRx
+    //uint32_t strippedRxBuff[lengthInWordsOfStrippedRxBuff]; //32-bit words
+
     //uint32_t PktBuff[4096];
     //uint32_t PktNull[4096];
 
     int16_t GSEType;
-    //int32_t ctrTxPkts;
     int32_t ctrRxPkts;
-    //long CommandBytesLeft;
     char StatusStr[256]; // reference string to hold status messages
 
     // the string serialNumber is has the last 4 digits printed on the barcode sticker
@@ -136,9 +126,6 @@ private:
 
     const int16_t MAX_DEAD_TIME_MS = 200;
 
-    //void* dev;
-    //bool opened;
-    
     OpalKelly::FrontPanelDevices devices;
     OpalKelly::FrontPanelPtr devptr;
     okCFrontPanel* dev;
