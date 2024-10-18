@@ -52,7 +52,7 @@ public:
 
 
 private:
-    
+    void writeBinaryToFile(const std::string& filename, const uint32_t* data, size_t size);
     std::string selectUSBSerialNumber();
     void initializeGSE();
     void processTransmit();
