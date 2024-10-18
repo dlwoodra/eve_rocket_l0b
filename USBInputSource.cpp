@@ -1,6 +1,11 @@
 #include "USBInputSource.hpp"
 #include "RecordFileWriter.hpp"
 #include "FITSWriter.hpp"
+
+#include <fstream>   // For file I/O
+#include <cstdint>   // For uint32_t
+#include <iostream>  // For error checking/logging
+
 //#include <algorithm> // for lower_bound (searching for LUT_APID)
 
 #define WORDS_TO_BYTES(words) ((words) << 2)    // Multiply words by 4
@@ -89,9 +94,15 @@ const uint16_t USBInputSource::LUT_APID[USBInputSource::nAPID] = {
 const uint16_t USBInputSource::LUT_PktLen[USBInputSource::nAPID] = { 
     STANDARD_MEGSAB_PACKET_LENGTH, 
     STANDARD_MEGSAB_PACKET_LENGTH, 
-    STANDARD_ESP_PACKET_LENGTH, 
-    STANDARD_MEGSP_PACKET_LENGTH, 
-    STANDARD_HK_PACKET_LENGTH };
+    STANDARD_MEGSAB_PACKET_LENGTH, 
+    STANDARD_MEGSAB_PACKET_LENGTH, 
+    STANDARD_MEGSAB_PACKET_LENGTH };
+//const uint16_t USBInputSource::LUT_PktLen[USBInputSource::nAPID] = { 
+//    STANDARD_MEGSAB_PACKET_LENGTH, 
+//    STANDARD_MEGSAB_PACKET_LENGTH, 
+//    STANDARD_ESP_PACKET_LENGTH, 
+//    STANDARD_MEGSP_PACKET_LENGTH, 
+//    STANDARD_HK_PACKET_LENGTH };
 
 // replacement for Windows sleep
 void Sleep(int32_t milliSeconds) {
@@ -424,12 +435,12 @@ int32_t USBInputSource::copyToPackedBuffer(uint32_t startWordIndex, uint32_t* st
 void logBufferContents(const uint32_t *pBlk) {
     std::ostringstream oss;
     int count = 0;
-    for (uint32_t icnt=0; icnt<255; ++icnt)
+    for (uint32_t icnt=0; icnt<256; ++icnt)
     {
         oss << fmt::format("{:08x} ", byteswap_32(pBlk[icnt])); //[blkIdx - nPktLeft + icnt]);
         count++;
 
-        if (count == 254) // Long line
+        if (count == 255) // Long line
         {
             LogFileWriter::getInstance().logInfo(oss.str());
             oss.str(""); // Clear the stringstream
@@ -829,27 +840,21 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
     //uint32_t milliSecondWaitTimeBetweenReads = 2;
     //uint32_t numberOfCountersPerSecond = 1000 / milliSecondWaitTimeBetweenReads - 1;
     while (true) {
-        uint32_t waitCounter=0;
+        //uint32_t waitCounter=0;
 
         // check for overflow, reset linkif needed
         checkLinkStatus();
 
-        //while (isReceiveFIFOEmpty()) {
-        //    waitCounter++;
-        //    //if ((waitCounter % (numberOfCountersPerSecond)) == 0) {
-        //        //resetInterface(milliSecondWaitTimeBetweenReads);
-        //    //} 
-        //    //handleReceiveFIFOError();
-        //    //std::cout<<"ReceiveFIFOEmpty: waiting"<<std::endl;
-        //    Sleep(1); // 2 millisec - need to tune
-        //}
-        if (waitCounter > 100) {
-            std::cout<<"Warning: CGProcRx slow data transfer, waitCounter is high "<<waitCounter<<std::endl;
+        //if (waitCounter > 100) {
+        //    std::cout<<"Warning: CGProcRx slow data transfer, waitCounter is high "<<waitCounter<<std::endl;
         //    LogFileWriter::getInstance().logWarning("CGProxRx slow data transfer, waitCounter is high {}", waitCounter);
-            waitCounter = 0;
-        }
+        //    waitCounter = 0;
+        //}
 
         int32_t blockPipeOutStatus = readDataFromUSB();
+        // This is only used for testing. It generates a large file quickly.
+        //writeBinaryToFile("./tmp.bin", RxBuff, sizeof(RxBuff) / sizeof(RxBuff[0]));
+
         // returns number of bytes or <0 for errors
 	    if ( blockPipeOutStatus < 0)
 	    {
@@ -919,6 +924,7 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
                             LogFileWriter::getInstance().logInfo("CGProxRx: ProcessPacket case 1 blk:{} nPktLeft:{} nBlkLeft:{} ",blk,nPktLeft,nBlkLeft);
     						nBlkLeft -= (nPktLeft);
     						blkIdx += (nPktLeft-2); // -2 because we are already at the next word
+    						//blkIdx += (nPktLeft); // test
 
 	    					state = 0; // this should make it start looking for the sync marker again
 
@@ -964,6 +970,7 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
                         LogFileWriter::getInstance().logInfo("CGProxRx: ProcessPacket case 2 nPktLeft:{} nBlkLeft:{} blkIdx:{}",nPktLeft,nBlkLeft,blkIdx);
 		    			nBlkLeft -= nPktLeft;
 		    			blkIdx += (nPktLeft-2);
+		    			//blkIdx += (nPktLeft); // test
 
     					state = 0;
 
@@ -1135,3 +1142,27 @@ void USBInputSource::GSEProcessPacket(uint32_t *PktBuff, uint16_t APID, CCSDSRea
     return;
 }
 
+
+
+// Function to append 32-bit words to a binary file
+void USBInputSource::writeBinaryToFile(const std::string& filename, const uint32_t* data, size_t size) {
+    // Open the file in binary mode and append (std::ios::binary | std::ios::app)
+    std::ofstream file(filename, std::ios::binary | std::ios::app);
+
+    // Check if the file was opened successfully
+    if (!file.is_open()) {
+        std::cerr << "Error: Could not open the file: " << filename << std::endl;
+        return;
+    }
+
+    // Write the 32-bit words to the file
+    file.write(reinterpret_cast<const char*>(data), size * sizeof(uint32_t));
+
+    // Check if writing succeeded
+    if (!file) {
+        std::cerr << "Error: Failed to write to file: " << filename << std::endl;
+    }
+
+    // Close the file
+    file.close();
+}
