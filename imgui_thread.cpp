@@ -224,7 +224,6 @@ void displayMBImageWithControls(GLuint megsBTextureID)
     // Render the image with the current zoom level
     renderMBImageWithZoom(megsBTextureID, reinterpret_cast<uint16_t*>(globalState.transMegsB), MEGS_IMAGE_T_WIDTH, MEGS_IMAGE_T_HEIGHT, zoom, viewportSize, modulo256, scale);
     //renderMBImageWithZoom(megsBTextureID, reinterpret_cast<uint16_t*>(globalState.megsb.image), MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, zoom, viewportSize, modulo256, scale);
-    //renderMBImageWithZoom(megsBTextureID, transposeImage(globalState.megsb.image).data(), MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, zoom, viewportSize, modulo256, scale);
     
     ImGui::End();
 }
@@ -259,7 +258,7 @@ void updateESPWindow()
     {
         index--;
     }
-    // std::cout<< "index: " << index << std::endl;
+    //std::cout<< "***updateESPWindow: index: " << index << std::endl;
     //int index=0;
 
     // Column 1
@@ -423,22 +422,25 @@ int imgui_thread() {
             mtx.lock();
             displayMAImageWithControls(megsATextureID);
             displayMBImageWithControls(megsBTextureID);
+            mtx.unlock();
 
             // 3. Show another simple window.
             {
                 ImGui::Begin("Status Window");
+                mtx.lock();
                 updateStatusWindow();
+                mtx.unlock();
                 ImGui::End();
             }
 
-            if (globalState.espUpdated)
+            //if (globalState.espUpdated)
             {
                 ImGui::Begin("ESP Window");
+                mtx.lock();
                 updateESPWindow();
-                globalState.espUpdated = false;
+                mtx.unlock();
                 ImGui::End();
             }
-            mtx.unlock();
         }
 
         // Rendering
@@ -452,15 +454,15 @@ int imgui_thread() {
                 updateTextureFromMEGSAImage(megsATextureID);
                 globalState.megsAUpdated = false;  // Reset flag after updating texture
             }
+            mtx.unlock();
+
+            mtx.lock();
             if (globalState.megsBUpdated) {
                 updateTextureFromMEGSBImage(megsBTextureID);
                 globalState.megsBUpdated = false;  // Reset flag after updating texture
             }
-            if (globalState.espUpdated) {
-                updateESPWindow();
-                globalState.espUpdated = false;
-            }
             mtx.unlock();
+
         }
 
         glfwGetFramebufferSize(window, &display_w, &display_h);
