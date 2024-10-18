@@ -138,8 +138,8 @@ int main(int argc, char* argv[]) {
         std::cout << "main: Created CCSDSReader usbReader object."  << std::endl;
 
         //pass usbReader by reference
-        //usbSource.CGProcRx(usbReader); // receive, does not return until disconnect
-        usbSource.replaceCGProxRx(usbReader); // receive, does not return until disconnect
+        usbSource.CGProcRx(usbReader); // receive, does not return until disconnect
+        //usbSource.replaceCGProxRx(usbReader); // receive, does not return until disconnect
         usbReader.close();
 
     }
