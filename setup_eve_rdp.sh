@@ -2,6 +2,7 @@
 # need to call using   . setup_eve_rdp.sh
 # if you then run tcsh it will inherit these environment variables
 
+
 export eve_data_root=./data/
 export eve_log_root=./logs/
 export eve_code_root=./
