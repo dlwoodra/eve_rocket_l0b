@@ -8,6 +8,8 @@
 #include <stdio.h>
 #include <vector>
 #include <iostream>
+#include <string>
+#include <filesystem>
 
 #define GL_SILENCE_DEPRECATION
 #if defined(IMGUI_IMPL_OPENGL_ES2)
@@ -298,6 +300,81 @@ void updateESPWindow()
 
 }
 
+// Function to scan and collect TTF font files from /usr/share/fonts/truetype/
+std::vector<std::string> getAvailableFonts(const std::string& fontDir = "/usr/share/fonts/truetype/") {
+    std::vector<std::string> fontFiles;
+
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(fontDir)) {
+        if (entry.path().extension() == ".ttf") {
+            fontFiles.push_back(entry.path().string()); // Add the full path of the font
+        }
+    }
+
+    return fontFiles;
+}
+
+
+void displayFontSelector(std::vector<std::string>& fontFiles) {
+    static int currentFontIndex = 0;
+
+    ImGui::Text("Font Selector"); // Display a label for the section
+
+    // Create a combo box to show font options
+    if (ImGui::BeginCombo("Select Font", fontFiles[currentFontIndex].c_str())) {
+        for (std::size_t i = 0; i < fontFiles.size(); i++) {
+            bool isSelected = (currentFontIndex == static_cast<int>(i));
+            
+            if (ImGui::Selectable(fontFiles[i].c_str(), isSelected)) {
+                currentFontIndex = static_cast<int>(i); // Update the current selected font
+                
+                // Load the selected font
+                ImGuiIO& io = ImGui::GetIO();
+                io.Fonts->Clear();
+                io.Fonts->AddFontFromFileTTF(fontFiles[currentFontIndex].c_str(), 16.0f);
+                ImGui::GetStyle().ScaleAllSizes(1.0f); // Optional: reset style scaling
+                
+                // Rebuild the font atlas
+                ImGui::GetIO().Fonts->Build();
+            }
+            
+            if (isSelected) {
+                ImGui::SetItemDefaultFocus(); // Highlight the selected item
+            }
+        }
+        ImGui::EndCombo();
+    }
+
+    // Optionally, show a preview of the selected font
+    ImGui::Text("Selected Font: %s", fontFiles[currentFontIndex].c_str());
+}
+
+// Function to display ImGui font selector
+void fontSelector(const std::vector<std::string>& fontFiles) {
+    static int currentFontIndex = 0;
+
+    if (ImGui::BeginCombo("Select Font", fontFiles[currentFontIndex].c_str())) {
+        for (std::size_t i = 0; i < fontFiles.size(); i++) {
+            bool isSelected = (currentFontIndex == static_cast<int>(i));
+            if (ImGui::Selectable(fontFiles[i].c_str(), isSelected)) {
+                currentFontIndex = i;
+
+                // Load the selected font
+                ImGuiIO& io = ImGui::GetIO();
+                io.Fonts->Clear(); // Clear existing fonts
+                io.Fonts->AddFontFromFileTTF(fontFiles[currentFontIndex].c_str(), 16.0f);
+                ImGui::GetStyle().ScaleAllSizes(1.0f); // Optional: reset the style scaling
+
+                // You may need to rebuild ImGui font atlas after this.
+                ImGui::GetIO().Fonts->Build();
+            }
+            if (isSelected) {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
+    }
+}
+
 int imgui_thread() {
 
     glfwSetErrorCallback(glfw_error_callback);
@@ -342,6 +419,10 @@ int imgui_thread() {
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;       // Enable Multi-Viewport / Platform Windows
     //io.ConfigViewportsNoAutoMerge = true;
     //io.ConfigViewportsNoTaskBarIcon = true;
+
+    // setup a scaled larger font and switch to it
+
+
 
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
