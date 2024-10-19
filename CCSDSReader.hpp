@@ -28,7 +28,7 @@ constexpr uint16_t MEGSB_APID = 602; // same as SDO EVE
 constexpr uint16_t MEGSP_APID = 604; // was SHK in SDO EVE
 constexpr uint16_t ESP_APID = 605; // not used in SDO EVE, MEGS-P and ESP were both in 603
 constexpr uint16_t HK_APID = 606; // rocket housekeeping only
-constexpr uint8_t mask6bit = 0x3f; // upper byte of source sequence counter
+//constexpr uint8_t mask6bit = 0x3f; // upper byte of source sequence counter
 
 class CCSDSReader {
 public:
