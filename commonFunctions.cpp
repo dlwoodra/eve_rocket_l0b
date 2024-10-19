@@ -314,7 +314,7 @@ void processMegsAPacket(std::vector<uint8_t> payload,
         globalState.packetsReceived.MA++;
         // The globalState.megsa image is NOT initialized and just overwrites each packet location as it is received
         globalState.parityErrorsMA += assemble_image(vcdu, &globalState.megsa, sourceSequenceCounter, testPattern, &status);
-        if (((processedPacketCounter % IMAGE_UPDATE_INTERVAL) == 0) && (!globalState.megsAUpdated) ) {
+        if ((processedPacketCounter % IMAGE_UPDATE_INTERVAL) == 0) {
             globalState.megsAUpdated = true;
         }
         mtx.unlock();
@@ -445,7 +445,7 @@ void processMegsBPacket(std::vector<uint8_t> payload,
         globalState.packetsReceived.MB++;
         // The globalState.megsa image is NOT re-initialized and just overwrites each packet location as it is received
         globalState.parityErrorsMB += assemble_image(vcdu, &globalState.megsb, sourceSequenceCounter, testPattern, &status);
-        if (((processedPacketCounter % IMAGE_UPDATE_INTERVAL) == 0) && (!globalState.megsBUpdated)) {
+        if ((processedPacketCounter % IMAGE_UPDATE_INTERVAL) == 0) {
             globalState.megsBUpdated = true;
         }
         mtx.unlock();
