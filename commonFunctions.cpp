@@ -52,28 +52,13 @@ std::vector<uint16_t> transposeImageTo1D(const uint16_t image[MEGS_IMAGE_WIDTH][
     std::vector<uint16_t> transposedData(width * height);
 
     for (uint32_t y = 0; y < height; ++y) {
+        uint32_t yoffset = y * width;
         for (uint32_t x = 0; x < width; ++x) {
-            transposedData[x + (y * width)] = image[x][y];
+            transposedData[x + yoffset] = image[x][y];
         }
     }
     return transposedData;
 }
-
-// // This function is only thread-safe if image and transposeData are not accessed elsewhere during execution.
-// // Callers are expected to use megsAUpdated and megsBUpdated flags to prevent access during modification.
-// // switch x and y 
-// void transposeImage2D(const uint16_t (*image)[MEGS_IMAGE_HEIGHT], uint16_t (*transposeData)[MEGS_IMAGE_WIDTH]) {
-//     const uint32_t width = MEGS_IMAGE_WIDTH;
-//     const uint32_t height = MEGS_IMAGE_HEIGHT;
-
-//     // approx mean time 17-19 ms - Winner!
-//     // single thread
-//     for (uint32_t x = 0; x < width; ++x) {
-//         for (uint32_t y = 0; y < height; ++y) {
-//             transposeData[y][x] = image[x][y];
-//         }
-//     }
-// }
 
 // reads a packet and writes it to the recordfile
 void processPackets(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& recordWriter, bool skipRecord) {
