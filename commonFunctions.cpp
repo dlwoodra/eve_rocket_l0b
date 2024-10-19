@@ -126,15 +126,9 @@ void processOnePacket(CCSDSReader& pktReader, const std::vector<uint8_t>& packet
             break;
         case MEGSP_APID:
             processMegsPPacket(payload, sourceSequenceCounter, packetLength, timeStamp);
-            mtx.lock();
-            globalState.packetsReceived.MP++;
-            mtx.unlock();
             break;
         case HK_APID:
             processHKPacket(payload, sourceSequenceCounter, packetLength, timeStamp);
-            mtx.lock();
-            globalState.packetsReceived.SHK++;
-            mtx.unlock();
             break;
         default:
             std::cerr << "Unrecognized APID: " << apid << std::endl;
@@ -149,7 +143,7 @@ void processOnePacket(CCSDSReader& pktReader, const std::vector<uint8_t>& packet
     std::chrono::duration<double> elapsed_seconds = end - start;
 
     uint64_t elapsedMicrosec = 1.e6 * elapsed_seconds.count();
-    LogFileWriter::getInstance().logInfo("Elapsed microsec {}",elapsedMicrosec);
+    LogFileWriter::getInstance().logInfo("processOnePacket for APID: {} Elapsed mics {}",apid, elapsedMicrosec);
 }
 
 // payloadBytesToUint32 creates a 32-bit int from 4 bytes in TAI time order starting at offsetByte
@@ -522,15 +516,22 @@ void processMegsPPacket(std::vector<uint8_t> payload,
 
         oneMEGSPStructure.MP_lya[index] = (uint16_t (payload[incr]) << 8) | (uint16_t (payload[incr + 1]));
         oneMEGSPStructure.MP_dark[index] = (uint16_t (payload[incr+2]) << 8) | (uint16_t (payload[incr+3]));
+
+        mtx.lock();
+        globalState.megsp.MP_lya[index] = oneMEGSPStructure.MP_lya[index];
+        globalState.megsp.MP_dark[index] = oneMEGSPStructure.MP_dark[index];
+        mtx.unlock();
+
     }
 
     processedPacketCounter++;
 
-    //if (!globalState.megsPUpdated) {
-        //globalState.megsp = oneMEGSPStructure;
-    //    globalState.megsPUpdated = true;
-    //}
+    {
+        mtx.lock();
+        globalState.packetsReceived.MP++;
+        mtx.unlock();
 
+    }
 
     // ONLY WRITE WHEN STRUCTURE IS FULL
     if ( processedPacketCounter == MEGSP_PACKETS_PER_FILE ) {
@@ -547,7 +548,7 @@ void processMegsPPacket(std::vector<uint8_t> payload,
                 std::cout << "ERROR: writeMegsPFITS returned an error" << std::endl;
             }
             std::cout<<"processMegsPPacket - MP_lya values" << std::endl;
-            printBytes(oneMEGSPStructure.MP_lya,19);
+            //printBytes(oneMEGSPStructure.MP_lya,19);
 
             processedPacketCounter = 0;
             // reset the structure immediately after writing
@@ -598,7 +599,6 @@ void processESPPacket(std::vector<uint8_t> payload,
         oneESPStructure.ESP_dark[index] = (uint16_t (payload[incr+18]) << 8) | (uint16_t (payload[incr+19]));
 
         mtx.lock();
-        //globalState.espUpdated = false; // set to false to prevent race condition here
         globalState.esp.ESP_xfer_cnt[index] = oneESPStructure.ESP_xfer_cnt[index];
         globalState.esp.ESP_q0[index] = oneESPStructure.ESP_q0[index];
         globalState.esp.ESP_q1[index] = oneESPStructure.ESP_q1[index];
@@ -617,15 +617,12 @@ void processESPPacket(std::vector<uint8_t> payload,
     {
         mtx.lock();
         globalState.packetsReceived.ESP++;
-        if ((dataGapsESP == 0) && (!globalState.espUpdated) && ((processedPacketCounter % 2) == 0) ) {
-            //std::cout<<"copying oneESPStructure to globalState"<<std::endl;
-            //globalState.esp = oneESPStructure; // this causes a segfault from std::vector copy
+        if ((dataGapsESP == 0) && ((processedPacketCounter % 2) == 0) ) {
 
             //std::cout<< oneESPStructure.iso8601 <<std::endl;
             //globalState.esp.iso8601 = oneESPStructure.iso8601;
             globalState.dataGapsESP += dataGapsESP;
             dataGapsESP = 0; // reset to zero
-            globalState.espUpdated = true;
         }
         mtx.unlock();
     }
@@ -746,11 +743,12 @@ void processHKPacket(std::vector<uint8_t> payload,
     }
 
     processedPacketCounter++;
-    //if (!globalState.shkUpdated) {
-        //globalState.shk = oneSHKStructure;
-    //    globalState.shkUpdated = true;
-    //}
 
+    {
+        mtx.lock();
+        globalState.packetsReceived.SHK++;
+        mtx.unlock();
+    }
 
     // ONLY WRITE WHEN STRUCTURE IS FULL
     if ( processedPacketCounter == SHK_PACKETS_PER_FILE ) {
