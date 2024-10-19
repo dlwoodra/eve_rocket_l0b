@@ -5,6 +5,7 @@
 #include "imgui/imgui.h"
 #include "imgui/backends/imgui_impl_glfw.h"
 #include "imgui/backends/imgui_impl_opengl3.h"
+#include "implot.h"
 #include <stdio.h>
 #include <vector>
 #include <iostream>
@@ -54,16 +55,48 @@ void transposeImage2D(const uint16_t (*image)[MEGS_IMAGE_HEIGHT], uint16_t (*tra
     }
 }
 
-void renderInputTextWithColor(const char* label, char* buffer, size_t bufferSize, bool limitCheck, float value, float lowerLimit, float upperLimit) {
+// Replace image with histogram equalized version, 8-bits per pixel
+void histogramEqualization(uint8_t* image, int width, int height) {
+    // Step 1: Calculate the histogram
+    int histogram[256] = {0};
+    for (int i = 0; i < width * height; ++i) {
+        histogram[image[i]]++;
+    }
+
+    // Step 2: Compute the cumulative distribution function (CDF)
+    int cdf[256] = {0};
+    cdf[0] = histogram[0];
+    for (int i = 1; i < 256; ++i) {
+        cdf[i] = cdf[i - 1] + histogram[i];
+    }
+
+    // Step 3: Normalize the CDF
+    float cdf_min = *std::min_element(cdf, cdf + 256);
+    float cdf_range = width * height - cdf_min;
+    uint8_t new_image[width * height];
+    
+    for (int i = 0; i < width * height; ++i) {
+        new_image[i] = static_cast<uint8_t>(255.0f * (cdf[image[i]] - cdf_min) / cdf_range);
+    }
+
+    // Copy the new image back
+    std::memcpy(image, new_image, width * height);
+}
+
+void renderInputTextWithColor(const char* label, long value, size_t bufferSize, bool limitCheck, float lowerLimit, float upperLimit) {
     LimitState state = NoCheck;
     
     float_t itemWidthValue = ImGui::GetFontSize() * 6;
     ImGui::PushItemWidth(itemWidthValue);
 
+    char strval[bufferSize];
+    snprintf(strval, bufferSize, "%ld", value);
+
     if (limitCheck) {
-        if (value > upperLimit) {
+        const float fvalue = static_cast<float>(value); // fvallue is only used for limit checking
+        if (fvalue > upperLimit) {
             state = Red;
-        } else if (value > upperLimit * 0.9f) { // Near violation (adjust the threshold as needed)
+        } else if (fvalue > upperLimit * 0.9f) { // Near violation (adjust the threshold as needed)
             state = Yellow;
         } else {
             state = Green;
@@ -74,7 +107,9 @@ void renderInputTextWithColor(const char* label, char* buffer, size_t bufferSize
     ImGui::PushStyleColor(ImGuiCol_FrameBg, getColorForState(state));
 
     // Render the InputText
-    ImGui::InputText(label, buffer, bufferSize);
+    ImGui::InputText(label, strval, bufferSize);
+
+    // free(strval); // No need to free stack-allocated memory
 
     // Restore default color
     ImGui::PopStyleColor();
@@ -234,22 +269,21 @@ void updateStatusWindow()
 {
     ImGuiIO& io = ImGui::GetIO();
     ImGui::Text("Refresh rate: %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
-    renderInputTextWithColor("601 a59 MEGS-A Pkts", strdup((std::to_string(globalState.packetsReceived.MA)).c_str()), 12, false, static_cast<float>(globalState.packetsReceived.MA), 0.0, 0.9);
-    renderInputTextWithColor("602 a5a MEGS-B Pkts", strdup((std::to_string(globalState.packetsReceived.MB)).c_str()), 12, false, static_cast<float>(globalState.packetsReceived.MB), 0.0, 0.9);
-    renderInputTextWithColor("604 a5c ESP Pkts", strdup((std::to_string(globalState.packetsReceived.ESP)).c_str()), 12, false, static_cast<float>(globalState.packetsReceived.ESP), 0.0, 0.9);
-    renderInputTextWithColor("605 a5d MEGS-P Pkts", strdup((std::to_string(globalState.packetsReceived.MP)).c_str()), 12, false, static_cast<float>(globalState.packetsReceived.MP), 0.0, 0.9);
-    renderInputTextWithColor("606 a5e SHK Pkts", strdup((std::to_string(globalState.packetsReceived.SHK)).c_str()), 12, false, static_cast<float>(globalState.packetsReceived.SHK), 0.0, 0.9);
-    renderInputTextWithColor("Unknown Packets", strdup((std::to_string(globalState.packetsReceived.Unknown)).c_str()), 12, true, static_cast<float>(globalState.packetsReceived.Unknown), 0.0, 0.9);
+    renderInputTextWithColor("601 a59 MEGS-A Pkts", globalState.packetsReceived.MA, 12, false, 0.0, 0.9);
+    renderInputTextWithColor("602 a5a MEGS-B Pkts", globalState.packetsReceived.MB, 12, false, 0.0, 0.9);
+    renderInputTextWithColor("604 a5c ESP Pkts", globalState.packetsReceived.ESP, 12, false, 0.0, 0.9);
+    renderInputTextWithColor("605 a5d MEGS-P Pkts", globalState.packetsReceived.MP, 12, false, 0.0, 0.9);
+    renderInputTextWithColor("606 a5e SHK Pkts",globalState.packetsReceived.SHK, 12, false, 0.0, 0.9);
+    renderInputTextWithColor("Unknown Packets", globalState.packetsReceived.Unknown, 12, true, 0.0, 0.9);
 
-    renderInputTextWithColor("MEGS-A Gap Count", strdup((std::to_string(globalState.dataGapsMA)).c_str()), 12, true, static_cast<float>(globalState.dataGapsMA), 0.0, 0.9);
-    renderInputTextWithColor("MEGS-B Gap Count", strdup((std::to_string(globalState.dataGapsMB)).c_str()), 12, true, static_cast<float>(globalState.dataGapsMB), 0.0, 0.9);
-    renderInputTextWithColor("MEGS-P Gap Count", strdup((std::to_string(globalState.dataGapsMP)).c_str()), 12, true, static_cast<float>(globalState.dataGapsMP), 0.0, 0.9);
-    renderInputTextWithColor("ESP Gap Count", strdup((std::to_string(globalState.dataGapsESP)).c_str()), 12, true, static_cast<float>(globalState.dataGapsESP), 0.0, 0.9);
-    renderInputTextWithColor("SHK Gap Count", strdup((std::to_string(globalState.dataGapsSHK)).c_str()), 12, true, static_cast<float>(globalState.dataGapsSHK), 0.0, 0.9);
+    renderInputTextWithColor("MEGS-A Gap Count", globalState.dataGapsMA, 12, true, 0.0, 0.9);
+    renderInputTextWithColor("MEGS-B Gap Count", globalState.dataGapsMB, 12, true, 0.0, 0.9);
+    renderInputTextWithColor("MEGS-P Gap Count", globalState.dataGapsMP, 12, true, 0.0, 0.9);
+    renderInputTextWithColor("ESP Gap Count", globalState.dataGapsESP, 12, true, 0.0, 0.9);
+    renderInputTextWithColor("SHK Gap Count", globalState.dataGapsSHK, 12, true, 0.0, 0.9);
 
-
-    renderInputTextWithColor("MEGS-A Parity Errors", strdup((std::to_string(globalState.parityErrorsMA)).c_str()), 12, true, static_cast<float>(globalState.parityErrorsMA), 0.0, 0.9);
-    renderInputTextWithColor("MEGS-B Parity Errors", strdup((std::to_string(globalState.parityErrorsMB)).c_str()), 12, true, static_cast<float>(globalState.parityErrorsMB), 0.0, 0.9);
+    renderInputTextWithColor("MEGS-A Parity Errors", globalState.parityErrorsMA, 12, true, 0.0, 0.9);
+    renderInputTextWithColor("MEGS-B Parity Errors", globalState.parityErrorsMB, 12, true, 0.0, 0.9);
 }
 
 void updateESPWindow()
@@ -260,8 +294,6 @@ void updateESPWindow()
     {
         index--;
     }
-    //std::cout<< "***updateESPWindow: index: " << index << std::endl;
-    //int index=0;
 
     // Column 1
     ImGui::Columns(2,"ESP Columns");
@@ -296,83 +328,8 @@ void updateESPWindow()
 
     // reset to single column layout
     ImGui::Columns(1);
-    globalState.espUpdated = false;
+    //globalState.espUpdated = false;
 
-}
-
-// Function to scan and collect TTF font files from /usr/share/fonts/truetype/
-std::vector<std::string> getAvailableFonts(const std::string& fontDir = "/usr/share/fonts/truetype/") {
-    std::vector<std::string> fontFiles;
-
-    for (const auto& entry : std::filesystem::recursive_directory_iterator(fontDir)) {
-        if (entry.path().extension() == ".ttf") {
-            fontFiles.push_back(entry.path().string()); // Add the full path of the font
-        }
-    }
-
-    return fontFiles;
-}
-
-
-void displayFontSelector(std::vector<std::string>& fontFiles) {
-    static int currentFontIndex = 0;
-
-    ImGui::Text("Font Selector"); // Display a label for the section
-
-    // Create a combo box to show font options
-    if (ImGui::BeginCombo("Select Font", fontFiles[currentFontIndex].c_str())) {
-        for (std::size_t i = 0; i < fontFiles.size(); i++) {
-            bool isSelected = (currentFontIndex == static_cast<int>(i));
-            
-            if (ImGui::Selectable(fontFiles[i].c_str(), isSelected)) {
-                currentFontIndex = static_cast<int>(i); // Update the current selected font
-                
-                // Load the selected font
-                ImGuiIO& io = ImGui::GetIO();
-                io.Fonts->Clear();
-                io.Fonts->AddFontFromFileTTF(fontFiles[currentFontIndex].c_str(), 16.0f);
-                ImGui::GetStyle().ScaleAllSizes(1.0f); // Optional: reset style scaling
-                
-                // Rebuild the font atlas
-                ImGui::GetIO().Fonts->Build();
-            }
-            
-            if (isSelected) {
-                ImGui::SetItemDefaultFocus(); // Highlight the selected item
-            }
-        }
-        ImGui::EndCombo();
-    }
-
-    // Optionally, show a preview of the selected font
-    ImGui::Text("Selected Font: %s", fontFiles[currentFontIndex].c_str());
-}
-
-// Function to display ImGui font selector
-void fontSelector(const std::vector<std::string>& fontFiles) {
-    static int currentFontIndex = 0;
-
-    if (ImGui::BeginCombo("Select Font", fontFiles[currentFontIndex].c_str())) {
-        for (std::size_t i = 0; i < fontFiles.size(); i++) {
-            bool isSelected = (currentFontIndex == static_cast<int>(i));
-            if (ImGui::Selectable(fontFiles[i].c_str(), isSelected)) {
-                currentFontIndex = i;
-
-                // Load the selected font
-                ImGuiIO& io = ImGui::GetIO();
-                io.Fonts->Clear(); // Clear existing fonts
-                io.Fonts->AddFontFromFileTTF(fontFiles[currentFontIndex].c_str(), 16.0f);
-                ImGui::GetStyle().ScaleAllSizes(1.0f); // Optional: reset the style scaling
-
-                // You may need to rebuild ImGui font atlas after this.
-                ImGui::GetIO().Fonts->Build();
-            }
-            if (isSelected) {
-                ImGui::SetItemDefaultFocus();
-            }
-        }
-        ImGui::EndCombo();
-    }
 }
 
 int imgui_thread() {
@@ -420,9 +377,10 @@ int imgui_thread() {
     //io.ConfigViewportsNoAutoMerge = true;
     //io.ConfigViewportsNoTaskBarIcon = true;
 
-    // setup a scaled larger font and switch to it
 
-
+    // Preload fonts into ImGui's font atlas (this should be done outside the rendering loop)
+    ImFont* pFont = io.Fonts->AddFontFromFileTTF("./fonts/DejaVuSans.ttf", 16.0f);
+    bool isFontLoaded = false;
 
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
@@ -485,6 +443,10 @@ int imgui_thread() {
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
+        if (!isFontLoaded) {
+            ImGui::PushFont(pFont);
+            isFontLoaded = true;
+        }
 
         // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
         if (show_demo_window)
@@ -496,6 +458,7 @@ int imgui_thread() {
 
             ImGui::Begin("SDO-EVE Rocket Data Display");                          // Create a window called "Hello, world!" and append into it.
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+
             ImGui::End();
         }
 
@@ -523,6 +486,11 @@ int imgui_thread() {
                 ImGui::End();
             }
         }
+        if (isFontLoaded) {
+            ImGui::PopFont();
+            isFontLoaded = false;
+        }
+
 
         // Rendering
         ImGui::Render();
