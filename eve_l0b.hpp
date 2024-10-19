@@ -441,11 +441,11 @@ struct ProgramState {
 	long dataGapsESP = 0;
 	long dataGapsSHK = 0;
 	ESP_PACKET esp;
-	bool espUpdated = true;
+	//bool espUpdated = true;
 	MEGSP_PACKET megsp;
-	bool megsPUpdated = true;
+	//bool megsPUpdated = true;
 	SHK_PACKET shk;
-	bool shkUpdated = true;
+	//bool shkUpdated = true;
 };
 
 
