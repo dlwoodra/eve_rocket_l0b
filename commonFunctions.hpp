@@ -16,6 +16,7 @@
 //#include <cstdint> // included in CCSDSReader.hpp
 //#include <fstream> // included in CCSDSReader.hpp
 //#include <iostream> // included in CCSDSReader.hpp
+#include <algorithm> // needed for std::copy
 #include <string>
 #include <mutex>
 #include <sys/stat.h> // For mkdir
