@@ -86,11 +86,38 @@ int tai_to_ydhms(uint32_t tai_in, uint16_t* year, uint16_t* doy, uint32_t* sod, 
     *hh = (uint16_t) ((*sod)/3600);
 
     iso8601 = toISO8601(npyear, dayofyear, *hh, *mm, *ss);
-    //std::cout<<"tai_to_ydhms - iso "<<iso8601<<std::endl;
 
     return 0;
 }
 
+std::string tai_to_iso8601(uint32_t tai) {
+    uint16_t year, doy, hh, mm, ss;
+    uint32_t sod;
+    std::string iso8601;
+    tai_to_ydhms(tai, &year, &doy, &sod, &hh, &mm, &ss, iso8601);
+    return iso8601;
+}
+
+// convert a std::string to a C-style string
+// int convertToCString(const std::string& str, char** cstr, size_t& size) {
+//     // Fail if the string is empty
+//     if (str.empty()) {
+//         *cstr = nullptr;
+//         size = 0;
+//         return -1; // Indicate failure
+//     }
+
+//     // If cstr already points to allocated memory, free it
+//     if (*cstr != nullptr) {
+//         delete[] *cstr; // Clean up previously allocated memory
+//     }
+
+//     // Allocate new memory and copy the C-string
+//     *cstr = new char[str.size() + 1];  // Allocate memory for new C-style string
+//     std::strcpy(*cstr, str.c_str());   // Copy the contents
+//     size = str.size() + 1;             // Set to size+1 for the null terminator
+//     return 0;                          // Indicate success
+// }
 
 // /*************************************************************
 // * FILENAME: tai_to_ydhms.c
