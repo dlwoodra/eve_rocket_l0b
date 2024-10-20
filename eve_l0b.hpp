@@ -85,16 +85,6 @@ constexpr uint32_t MEGS_IMAGE_T_HEIGHT = 2048; //transposed
 #define RM_Bottom_X 2047 - RateMeterPixel_X
 #define RM_Bottom_Y RateMeterPixel_Y
 
-// The APID's for EVE
-//#define MEGS_A_APID 	601
-//#define MEGS_B_APID 	602
-//#define PHOTOMETER_APID 603
-//#define SHK_APID    	604
-//#define SHK_ECHO_APID   605
-//#define MA1_APID	900
-//#define MA2_APID	901
-//#define SAM_APID	902
-
 // DEFINE ERROR CODES SPECIFIC TO L0B
 #define ERROR 			-1		// USED as default value per previous versions
 #define NOERROR			0
@@ -119,13 +109,6 @@ constexpr uint32_t MEGS_IMAGE_T_HEIGHT = 2048; //transposed
 // FITS Errors
 #define E_FITS_IO			401			// Error Reading/Writing Fits file
 
-//  Storage for file names on command line
-//char filenames[2][MAX_STRING_LENGTH];		
-
-// Command line switches
-//bool ImagesMade;
-//bool doByteSwap, nocrc, noquicklook, nolog;
-//bool nomegsa, nomegsb, noshk, nophoto, routineplots;
 
 // User defined include files
 //#include "eve_structures.hpp" // the contents of eve_structures were pasted in below
@@ -290,7 +273,8 @@ struct SHK_PACKET
 	//uint32_t spare62;
 	//uint32_t spare63;
 	//uint32_t spare64;
-	std::string iso8601;
+	//char* cstrISO8601 = nullptr;
+
 }; // __attribute__ ((packed));
 
 extern struct SHK_PACKET shk_data;
@@ -352,8 +336,6 @@ struct SHK_CONVERTED_PACKET
 	double ESP_Electrometer_Temperature[SHK_INTEGRATIONS_PER_FILE];
 	double ESP_Detector_Temperature[SHK_INTEGRATIONS_PER_FILE];
 	double MEGSP_Temperature[SHK_INTEGRATIONS_PER_FILE]; 			// 60
-
-	std::string iso8601;
 }; // __attribute__ ((packed));
 
 extern struct SHK_CONVERTED_PACKET shk_converted_data;
@@ -377,7 +359,6 @@ struct ESP_PACKET
 	uint16_t ESP_304[ESP_INTEGRATIONS_PER_FILE];
 	uint16_t ESP_366[ESP_INTEGRATIONS_PER_FILE];
 	uint16_t ESP_dark[ESP_INTEGRATIONS_PER_FILE];
-	std::string iso8601;
 }; // __attribute__ ((packed));
 
 extern struct ESP_PACKET esp_data;
@@ -392,7 +373,6 @@ struct MEGSP_PACKET
   uint32_t rec_tai_subseconds;
   uint16_t MP_lya[MEGSP_INTEGRATIONS_PER_FILE];
   uint16_t MP_dark[MEGSP_INTEGRATIONS_PER_FILE];
-  std::string iso8601;
 }; // __attribute__ ((packed));
 
 extern struct MEGSP_PACKET megsp_data;
@@ -405,8 +385,6 @@ struct MEGS_IMAGE_REC {
   uint32_t rec_tai_seconds;
   uint32_t rec_tai_subseconds;
   uint16_t vcdu_count;
-  std::string iso8601;
-  //uint16_t image[MEGS_IMAGE_T_WIDTH][MEGS_IMAGE_T_HEIGHT];
   uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT];
 }; // __attribute__ ((packed));
 
@@ -426,7 +404,7 @@ struct ProgramState {
 	bool guiEnabled = false;
     int count = 0; // Number of iterations
     bool running = true; // Whether the program is still running
-	MEGS_IMAGE_REC megsa; // useful parts are vcdu_count, iso8601, and image
+	MEGS_IMAGE_REC megsa; 
 	bool megsAUpdated = true;
 	uint16_t transMegsA[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH];
 	MEGS_IMAGE_REC megsb;
@@ -458,6 +436,9 @@ void checkstring( char * teststring );
 extern int tai_to_ydhms(uint32_t tai_in, uint16_t *year, uint16_t *doy, 
       uint32_t *sod, uint16_t *hh, uint16_t *mm, uint16_t *ss, std::string& iso8601);
 
+extern std::string tai_to_iso8601(uint32_t tai);
+
+extern int convertToCString(const std::string& str, const char** cstr, size_t& size);
 
 inline unsigned char 	getbit8( uint8_t, uint8_t );
 inline unsigned char 	getbit16( uint16_t, uint8_t );
