@@ -5,6 +5,8 @@
 extern ProgramState globalState;
 extern std::mutex mtx;
 
+extern int convertToCString(const std::string& str, const char** cstr, size_t& size);
+
 // Function returns false if filename is empty
 bool isValidFilename(const std::string& filename) {
     return !filename.empty();
@@ -191,13 +193,9 @@ void populateStructureTimes(T& oneStructure, const std::vector<uint8_t>& payload
     std::string iso8601;
 
     tai_to_ydhms(tai_sec, &year, &doy, &sod, &hh, &mm, &ss, iso8601);
-    //std::cout << "populateStructureTimes called tai_to_ydhms " << year << " "<< doy << "-" << hh << ":" << mm << ":" << ss <<" . "<< oneStructure.tai_time_subseconds / 65535 << "\n";
     
     oneStructure.sod = (uint32_t)sod;
     oneStructure.yyyydoy = (uint32_t)(year * 1000 + doy);
-    oneStructure.iso8601 = iso8601;
-    
-    //std::cout << "structure iso time " << iso8601 << std::endl;
 }
 
 // the payload starts with the secondary header timestamp
@@ -208,9 +206,6 @@ void processMegsAPacket(std::vector<uint8_t> payload,
 
     // insert pixels into image
 
-    uint16_t year, doy, hh, mm, ss;
-    uint32_t sod;
-    uint32_t tai_sec;
     static std::string iso8601;
 
     static uint16_t processedPacketCounter=0;
@@ -250,30 +245,14 @@ void processMegsAPacket(std::vector<uint8_t> payload,
             std::cout << "processMegsAPacket identified a test pattern" <<std::endl;
         }
 
-        // only assign the time from the first packet, the rest keep changing
-        tai_sec = payloadToTAITimeSeconds(payload);
-        oneMEGSStructure.tai_time_seconds = tai_sec;
-        oneMEGSStructure.tai_time_subseconds = payloadToTAITimeSubseconds(payload);
-
-        // assign current tai time to firstpkt_tai_time_seconds and subseconds
-        TimeInfo currentTime;
-        currentTime.updateNow();
-        oneMEGSStructure.rec_tai_seconds = currentTime.getTAISeconds();
-        oneMEGSStructure.rec_tai_subseconds = currentTime.getTAISubseconds();
-
-        tai_to_ydhms(tai_sec, &year, &doy, &sod, &hh, &mm, &ss, iso8601);
-        //std::cout << "processMegsAPacket called tai_to_ydhms " << year << " "<< doy << "-" << hh << ":" << mm << ":" << ss <<" . "<< oneMEGSStructure.tai_time_subseconds/65535 <<"\n";
-        oneMEGSStructure.sod = (uint32_t) sod;
-        oneMEGSStructure.yyyydoy = (uint32_t) year*1000 + doy;
-        oneMEGSStructure.iso8601 = iso8601;
-        std::cout<<"writeMegsAFITS iso "<<iso8601<<std::endl;
+        populateStructureTimes(oneMEGSStructure, payload);
 
         mtx.lock();
         globalState.megsa.tai_time_seconds = oneMEGSStructure.tai_time_seconds;
         globalState.megsa.tai_time_subseconds = oneMEGSStructure.tai_time_subseconds;
         globalState.megsa.sod = oneMEGSStructure.sod;
         globalState.megsa.yyyydoy = oneMEGSStructure.yyyydoy;
-        //globalState.megsa.iso8601 = oneMEGSStructure.iso8601;
+        //globalState.megsa.cstrISO8601 = oneMEGSStructure.cstrISO8601;
         mtx.unlock();
 
         processedPacketCounter=0;
@@ -343,9 +322,6 @@ void processMegsBPacket(std::vector<uint8_t> payload,
 
     // insert pixels into image
 
-    uint16_t year, doy, hh, mm, ss;
-    uint32_t sod;
-    uint32_t tai_sec;
     static std::string iso8601;
 
     static uint16_t processedPacketCounter=0;
@@ -383,30 +359,18 @@ void processMegsBPacket(std::vector<uint8_t> payload,
             std::cout << "processMegsBPacket identified a test pattern" <<std::endl;
         }
 
+        //TODO: can this stuff be replaced with populateStructureTimes?
+
+        populateStructureTimes(oneMEGSStructure, payload);
+
         // only assign the time from the first packet, the rest keep changing
-        tai_sec = payloadToTAITimeSeconds(payload);
-        oneMEGSStructure.tai_time_seconds = tai_sec;
-        oneMEGSStructure.tai_time_subseconds = payloadToTAITimeSubseconds(payload);
-
-        // assign current tai time to firstpkt_tai_time_seconds and subseconds
-        TimeInfo currentTime;
-        currentTime.updateNow();
-        oneMEGSStructure.rec_tai_seconds = currentTime.getTAISeconds();
-        oneMEGSStructure.rec_tai_subseconds = currentTime.getTAISubseconds();
-
-        tai_to_ydhms(tai_sec, &year, &doy, &sod, &hh, &mm, &ss, iso8601);
-        //std::cout << "processMegsBPacket called tai_to_ydhms " << year << " "<< doy << "-" << hh << ":" << mm << ":" << ss <<" . "<< oneMEGSStructure.tai_time_subseconds/65535 <<"\n";
-        oneMEGSStructure.sod = (uint32_t) sod;
-        oneMEGSStructure.yyyydoy = (uint32_t) year*1000 + doy;
-        oneMEGSStructure.iso8601 = iso8601;
-        std::cout<<"writeMegsBFITS iso "<<iso8601<<std::endl;
 
         mtx.lock();
         globalState.megsb.tai_time_seconds = oneMEGSStructure.tai_time_seconds;
         globalState.megsb.tai_time_subseconds = oneMEGSStructure.tai_time_subseconds;
         globalState.megsb.sod = oneMEGSStructure.sod;
         globalState.megsb.yyyydoy = oneMEGSStructure.yyyydoy;
-        //globalState.megsb.iso8601 = oneMEGSStructure.iso8601;
+        //globalState.megsb.cstrISO8601 = oneMEGSStructure.cstrISO8601;
         mtx.unlock();
 
         processedPacketCounter=0;
@@ -501,12 +465,6 @@ void processMegsPPacket(std::vector<uint8_t> payload,
 
         oneMEGSPStructure.MP_lya[index] = (uint16_t (payload[incr]) << 8) | (uint16_t (payload[incr + 1]));
         oneMEGSPStructure.MP_dark[index] = (uint16_t (payload[incr+2]) << 8) | (uint16_t (payload[incr+3]));
-
-        mtx.lock();
-        globalState.megsp.MP_lya[index] = oneMEGSPStructure.MP_lya[index];
-        globalState.megsp.MP_dark[index] = oneMEGSPStructure.MP_dark[index];
-        mtx.unlock();
-
     }
 
     processedPacketCounter++;
@@ -514,8 +472,11 @@ void processMegsPPacket(std::vector<uint8_t> payload,
     {
         mtx.lock();
         globalState.packetsReceived.MP++;
-        mtx.unlock();
 
+        std::copy(oneMEGSPStructure.MP_lya, oneMEGSPStructure.MP_lya + MEGSP_INTEGRATIONS_PER_FILE, globalState.megsp.MP_lya);
+        std::copy(oneMEGSPStructure.MP_dark, oneMEGSPStructure.MP_dark + MEGSP_INTEGRATIONS_PER_FILE, globalState.megsp.MP_dark);
+
+        mtx.unlock();
     }
 
     // ONLY WRITE WHEN STRUCTURE IS FULL
@@ -583,29 +544,43 @@ void processESPPacket(std::vector<uint8_t> payload,
         oneESPStructure.ESP_366[index] = (uint16_t (payload[incr+16]) << 8) | (uint16_t (payload[incr+17]));
         oneESPStructure.ESP_dark[index] = (uint16_t (payload[incr+18]) << 8) | (uint16_t (payload[incr+19]));
 
-        mtx.lock();
-        globalState.esp.ESP_xfer_cnt[index] = oneESPStructure.ESP_xfer_cnt[index];
-        globalState.esp.ESP_q0[index] = oneESPStructure.ESP_q0[index];
-        globalState.esp.ESP_q1[index] = oneESPStructure.ESP_q1[index];
-        globalState.esp.ESP_q2[index] = oneESPStructure.ESP_q2[index];
-        globalState.esp.ESP_q3[index] = oneESPStructure.ESP_q3[index];
-        globalState.esp.ESP_171[index] = oneESPStructure.ESP_171[index];
-        globalState.esp.ESP_257[index] = oneESPStructure.ESP_257[index];
-        globalState.esp.ESP_304[index] = oneESPStructure.ESP_304[index];
-        globalState.esp.ESP_366[index] = oneESPStructure.ESP_366[index];
-        globalState.esp.ESP_dark[index] = oneESPStructure.ESP_dark[index];
-        mtx.unlock();
+        // mtx.lock();
+        // globalState.esp.ESP_xfer_cnt[index] = oneESPStructure.ESP_xfer_cnt[index];
+        // globalState.esp.ESP_q0[index] = oneESPStructure.ESP_q0[index];
+        // globalState.esp.ESP_q1[index] = oneESPStructure.ESP_q1[index];
+        // globalState.esp.ESP_q2[index] = oneESPStructure.ESP_q2[index];
+        // globalState.esp.ESP_q3[index] = oneESPStructure.ESP_q3[index];
+        // globalState.esp.ESP_171[index] = oneESPStructure.ESP_171[index];
+        // globalState.esp.ESP_257[index] = oneESPStructure.ESP_257[index];
+        // globalState.esp.ESP_304[index] = oneESPStructure.ESP_304[index];
+        // globalState.esp.ESP_366[index] = oneESPStructure.ESP_366[index];
+        // globalState.esp.ESP_dark[index] = oneESPStructure.ESP_dark[index];
+        // mtx.unlock();
     }
+
 
     processedPacketCounter++;
 
     {
         mtx.lock();
         globalState.packetsReceived.ESP++;
+
+        // use std:;copy to copy each entire array at once
+        // requires <algorithm> for std::copy
+        std::copy(std::begin(oneESPStructure.ESP_xfer_cnt), std::end(oneESPStructure.ESP_xfer_cnt), std::begin(globalState.esp.ESP_xfer_cnt));
+        std::copy(std::begin(oneESPStructure.ESP_q0), std::end(oneESPStructure.ESP_q0), std::begin(globalState.esp.ESP_q0));
+        std::copy(std::begin(oneESPStructure.ESP_q1), std::end(oneESPStructure.ESP_q1), std::begin(globalState.esp.ESP_q1));
+        std::copy(std::begin(oneESPStructure.ESP_q2), std::end(oneESPStructure.ESP_q2), std::begin(globalState.esp.ESP_q2));
+        std::copy(std::begin(oneESPStructure.ESP_q3), std::end(oneESPStructure.ESP_q3), std::begin(globalState.esp.ESP_q3));
+        std::copy(std::begin(oneESPStructure.ESP_171), std::end(oneESPStructure.ESP_171), std::begin(globalState.esp.ESP_171));
+        std::copy(std::begin(oneESPStructure.ESP_257), std::end(oneESPStructure.ESP_257), std::begin(globalState.esp.ESP_257));
+        std::copy(std::begin(oneESPStructure.ESP_304), std::end(oneESPStructure.ESP_304), std::begin(globalState.esp.ESP_304));
+        std::copy(std::begin(oneESPStructure.ESP_366), std::end(oneESPStructure.ESP_366), std::begin(globalState.esp.ESP_366));
+        std::copy(std::begin(oneESPStructure.ESP_dark), std::end(oneESPStructure.ESP_dark), std::begin(globalState.esp.ESP_dark));
+
         if ((dataGapsESP == 0) && ((processedPacketCounter % 2) == 0) ) {
 
             //std::cout<< oneESPStructure.iso8601 <<std::endl;
-            //globalState.esp.iso8601 = oneESPStructure.iso8601;
             globalState.dataGapsESP += dataGapsESP;
             dataGapsESP = 0; // reset to zero
         }
@@ -732,6 +707,61 @@ void processHKPacket(std::vector<uint8_t> payload,
     {
         mtx.lock();
         globalState.packetsReceived.SHK++;
+
+        std::copy(std::begin(oneSHKStructure.FPGA_Board_Temperature), std::end(oneSHKStructure.FPGA_Board_Temperature), std::begin(globalState.shk.FPGA_Board_Temperature));
+        std::copy(std::begin(oneSHKStructure.FPGA_Board_p5_0_Voltage), std::end(oneSHKStructure.FPGA_Board_p5_0_Voltage), std::begin(globalState.shk.FPGA_Board_p5_0_Voltage));
+        std::copy(std::begin(oneSHKStructure.FPGA_Board_p3_3_Voltage), std::end(oneSHKStructure.FPGA_Board_p3_3_Voltage), std::begin(globalState.shk.FPGA_Board_p3_3_Voltage));
+        std::copy(std::begin(oneSHKStructure.FPGA_Board_p2_5_Voltage), std::end(oneSHKStructure.FPGA_Board_p2_5_Voltage), std::begin(globalState.shk.FPGA_Board_p2_5_Voltage));
+        std::copy(std::begin(oneSHKStructure.FPGA_Board_p1_2_Voltage), std::end(oneSHKStructure.FPGA_Board_p1_2_Voltage), std::begin(globalState.shk.FPGA_Board_p1_2_Voltage));
+        std::copy(std::begin(oneSHKStructure.MEGSA_CEB_Temperature), std::end(oneSHKStructure.MEGSA_CEB_Temperature), std::begin(globalState.shk.MEGSA_CEB_Temperature));
+        std::copy(std::begin(oneSHKStructure.MEGSA_CPR_Temperature), std::end(oneSHKStructure.MEGSA_CPR_Temperature), std::begin(globalState.shk.MEGSA_CPR_Temperature));
+        std::copy(std::begin(oneSHKStructure.MEGSA_p24_Voltage), std::end(oneSHKStructure.MEGSA_p24_Voltage), std::begin(globalState.shk.MEGSA_p24_Voltage));
+        std::copy(std::begin(oneSHKStructure.MEGSA_p15_Voltage), std::end(oneSHKStructure.MEGSA_p15_Voltage), std::begin(globalState.shk.MEGSA_p15_Voltage));
+        std::copy(std::begin(oneSHKStructure.MEGSA_m15_Voltage), std::end(oneSHKStructure.MEGSA_m15_Voltage), std::begin(globalState.shk.MEGSA_m15_Voltage));
+        std::copy(std::begin(oneSHKStructure.MEGSA_p5_0_Analog_Voltage), std::end(oneSHKStructure.MEGSA_p5_0_Analog_Voltage), std::begin(globalState.shk.MEGSA_p5_0_Analog_Voltage));
+        std::copy(std::begin(oneSHKStructure.MEGSA_m5_0_Voltage), std::end(oneSHKStructure.MEGSA_m5_0_Voltage), std::begin(globalState.shk.MEGSA_m5_0_Voltage));
+        std::copy(std::begin(oneSHKStructure.MEGSA_p5_0_Digital_Voltage), std::end(oneSHKStructure.MEGSA_p5_0_Digital_Voltage), std::begin(globalState.shk.MEGSA_p5_0_Digital_Voltage));
+        std::copy(std::begin(oneSHKStructure.MEGSA_p2_5_Voltage), std::end(oneSHKStructure.MEGSA_p2_5_Voltage), std::begin(globalState.shk.MEGSA_p2_5_Voltage));
+        std::copy(std::begin(oneSHKStructure.MEGSA_p24_Current), std::end(oneSHKStructure.MEGSA_p24_Current), std::begin(globalState.shk.MEGSA_p24_Current));
+        std::copy(std::begin(oneSHKStructure.MEGSA_p15_Current), std::end(oneSHKStructure.MEGSA_p15_Current), std::begin(globalState.shk.MEGSA_p15_Current));
+        std::copy(std::begin(oneSHKStructure.MEGSA_m15_Current), std::end(oneSHKStructure.MEGSA_m15_Current), std::begin(globalState.shk.MEGSA_m15_Current));
+        std::copy(std::begin(oneSHKStructure.MEGSA_p5_0_Analog_Current), std::end(oneSHKStructure.MEGSA_p5_0_Analog_Current), std::begin(globalState.shk.MEGSA_p5_0_Analog_Current));
+        std::copy(std::begin(oneSHKStructure.MEGSA_m5_0_Current), std::end(oneSHKStructure.MEGSA_m5_0_Current), std::begin(globalState.shk.MEGSA_m5_0_Current));
+        std::copy(std::begin(oneSHKStructure.MEGSA_p5_0_Digital_Current), std::end(oneSHKStructure.MEGSA_p5_0_Digital_Current), std::begin(globalState.shk.MEGSA_p5_0_Digital_Current));
+        std::copy(std::begin(oneSHKStructure.MEGSA_p2_5_Current), std::end(oneSHKStructure.MEGSA_p2_5_Current), std::begin(globalState.shk.MEGSA_p2_5_Current));
+        std::copy(std::begin(oneSHKStructure.MEGSA_Integration_Register), std::end(oneSHKStructure.MEGSA_Integration_Register), std::begin(globalState.shk.MEGSA_Integration_Register));
+        std::copy(std::begin(oneSHKStructure.MEGSA_Analog_Mux_Register), std::end(oneSHKStructure.MEGSA_Analog_Mux_Register), std::begin(globalState.shk.MEGSA_Analog_Mux_Register));
+        std::copy(std::begin(oneSHKStructure.MEGSA_Digital_Status_Register), std::end(oneSHKStructure.MEGSA_Digital_Status_Register), std::begin(globalState.shk.MEGSA_Digital_Status_Register));
+        std::copy(std::begin(oneSHKStructure.MEGSA_Integration_Timer_Register), std::end(oneSHKStructure.MEGSA_Integration_Timer_Register), std::begin(globalState.shk.MEGSA_Integration_Timer_Register));
+        std::copy(std::begin(oneSHKStructure.MEGSA_Command_Error_Count_Register), std::end(oneSHKStructure.MEGSA_Command_Error_Count_Register), std::begin(globalState.shk.MEGSA_Command_Error_Count_Register));
+        std::copy(std::begin(oneSHKStructure.MEGSA_CEB_FPGA_Version_Register), std::end(oneSHKStructure.MEGSA_CEB_FPGA_Version_Register), std::begin(globalState.shk.MEGSA_CEB_FPGA_Version_Register));
+        std::copy(std::begin(oneSHKStructure.MEGSB_CEB_Temperature), std::end(oneSHKStructure.MEGSB_CEB_Temperature), std::begin(globalState.shk.MEGSB_CEB_Temperature));
+        std::copy(std::begin(oneSHKStructure.MEGSB_CPR_Temperature), std::end(oneSHKStructure.MEGSB_CPR_Temperature), std::begin(globalState.shk.MEGSB_CPR_Temperature));
+        std::copy(std::begin(oneSHKStructure.MEGSB_p24_Voltage), std::end(oneSHKStructure.MEGSB_p24_Voltage), std::begin(globalState.shk.MEGSB_p24_Voltage));
+        std::copy(std::begin(oneSHKStructure.MEGSB_p15_Voltage), std::end(oneSHKStructure.MEGSB_p15_Voltage), std::begin(globalState.shk.MEGSB_p15_Voltage));
+        std::copy(std::begin(oneSHKStructure.MEGSB_m15_Voltage), std::end(oneSHKStructure.MEGSB_m15_Voltage), std::begin(globalState.shk.MEGSB_m15_Voltage));
+        std::copy(std::begin(oneSHKStructure.MEGSB_p5_0_Analog_Voltage), std::end(oneSHKStructure.MEGSB_p5_0_Analog_Voltage), std::begin(globalState.shk.MEGSB_p5_0_Analog_Voltage));
+        std::copy(std::begin(oneSHKStructure.MEGSB_m5_0_Voltage), std::end(oneSHKStructure.MEGSB_m5_0_Voltage), std::begin(globalState.shk.MEGSB_m5_0_Voltage));
+        std::copy(std::begin(oneSHKStructure.MEGSB_p5_0_Digital_Voltage), std::end(oneSHKStructure.MEGSB_p5_0_Digital_Voltage), std::begin(globalState.shk.MEGSB_p5_0_Digital_Voltage));
+        std::copy(std::begin(oneSHKStructure.MEGSB_p2_5_Voltage), std::end(oneSHKStructure.MEGSB_p2_5_Voltage), std::begin(globalState.shk.MEGSB_p2_5_Voltage));
+        std::copy(std::begin(oneSHKStructure.MEGSB_p24_Current), std::end(oneSHKStructure.MEGSB_p24_Current), std::begin(globalState.shk.MEGSB_p24_Current));
+        std::copy(std::begin(oneSHKStructure.MEGSB_p15_Current), std::end(oneSHKStructure.MEGSB_p15_Current), std::begin(globalState.shk.MEGSB_p15_Current));
+        std::copy(std::begin(oneSHKStructure.MEGSB_m15_Current), std::end(oneSHKStructure.MEGSB_m15_Current), std::begin(globalState.shk.MEGSB_m15_Current));
+        std::copy(std::begin(oneSHKStructure.MEGSB_p5_0_Analog_Current), std::end(oneSHKStructure.MEGSB_p5_0_Analog_Current), std::begin(globalState.shk.MEGSB_p5_0_Analog_Current));
+        std::copy(std::begin(oneSHKStructure.MEGSB_m5_0_Current), std::end(oneSHKStructure.MEGSB_m5_0_Current), std::begin(globalState.shk.MEGSB_m5_0_Current));
+        std::copy(std::begin(oneSHKStructure.MEGSB_p5_0_Digital_Current), std::end(oneSHKStructure.MEGSB_p5_0_Digital_Current), std::begin(globalState.shk.MEGSB_p5_0_Digital_Current));
+        std::copy(std::begin(oneSHKStructure.MEGSB_p2_5_Current), std::end(oneSHKStructure.MEGSB_p2_5_Current), std::begin(globalState.shk.MEGSB_p2_5_Current));
+        std::copy(std::begin(oneSHKStructure.MEGSB_Integration_Register), std::end(oneSHKStructure.MEGSB_Integration_Register), std::begin(globalState.shk.MEGSB_Integration_Register));
+        std::copy(std::begin(oneSHKStructure.MEGSB_Analog_Mux_Register), std::end(oneSHKStructure.MEGSB_Analog_Mux_Register), std::begin(globalState.shk.MEGSB_Analog_Mux_Register));
+        std::copy(std::begin(oneSHKStructure.MEGSB_Digital_Status_Register), std::end(oneSHKStructure.MEGSB_Digital_Status_Register), std::begin(globalState.shk.MEGSB_Digital_Status_Register));
+        std::copy(std::begin(oneSHKStructure.MEGSB_Integration_Timer_Register), std::end(oneSHKStructure.MEGSB_Integration_Timer_Register), std::begin(globalState.shk.MEGSB_Integration_Timer_Register));
+        std::copy(std::begin(oneSHKStructure.MEGSB_Command_Error_Count_Register), std::end(oneSHKStructure.MEGSB_Command_Error_Count_Register), std::begin(globalState.shk.MEGSB_Command_Error_Count_Register));
+        std::copy(std::begin(oneSHKStructure.MEGSB_CEB_FPGA_Version_Register), std::end(oneSHKStructure.MEGSB_CEB_FPGA_Version_Register), std::begin(globalState.shk.MEGSB_CEB_FPGA_Version_Register));
+        std::copy(std::begin(oneSHKStructure.MEGSA_Thermistor_Diode), std::end(oneSHKStructure.MEGSA_Thermistor_Diode), std::begin(globalState.shk.MEGSA_Thermistor_Diode));
+        std::copy(std::begin(oneSHKStructure.MEGSA_PRT), std::end(oneSHKStructure.MEGSA_PRT), std::begin(globalState.shk.MEGSA_PRT));
+        std::copy(std::begin(oneSHKStructure.MEGSB_Thermistor_Diode), std::end(oneSHKStructure.MEGSB_Thermistor_Diode), std::begin(globalState.shk.MEGSB_Thermistor_Diode));
+        std::copy(std::begin(oneSHKStructure.MEGSB_PRT), std::end(oneSHKStructure.MEGSB_PRT), std::begin(globalState.shk.MEGSB_PRT));
+        
         mtx.unlock();
     }
 
