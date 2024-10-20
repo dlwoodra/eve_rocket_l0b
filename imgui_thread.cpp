@@ -39,6 +39,12 @@ ImVec4 getColorForState(LimitState state) {
     }
 }
 
+float mazoom = 0.25f;         // Zoom level (1.0 = full resolution)
+float mbzoom = 0.25f;         // Zoom level (1.0 = full resolution)
+bool mamodulo256 = true;    // Modulo 256 display
+bool mbmodulo256 = true;    // Modulo 256 display
+
+
 // Function to populate the image with an asymetric pattern, 4 quadrants, lowest quad is a gradian, second is a checkerboard, third is a constant value, fourth is a sinusoidal pattern
 // topleft is gradient, topright is checkerboard, bottomleft is 128, bottom right is sine wave
 void populatePattern(uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT]) {
@@ -156,13 +162,7 @@ GLuint createProperTextureFromMEGSImage(uint16_t (*data)[MEGS_IMAGE_HEIGHT], int
             int index = y*width + x; //1d translation, no transpose
             uint16_t value = data[x][y]; // Get the original value
 
-            // // Calculate the transposed pixel position
-            // int transposedX = y; // New X position
-            // int transposedY = width - 1 - x; // New Y position
-            // uint16_t value = data[x][y]; // Get the original value
-
             // Process the value into the textureData based on modulo256 or scale options
-            //int index = transposedY * height + transposedX; // Use transposedY
             if (modulo256) {
                 textureData[index] = static_cast<uint8_t>(value & 0xFF); // Modulo 256
             } else if (scale) {
@@ -192,104 +192,51 @@ GLuint createProperTextureFromMEGSImage(uint16_t (*data)[MEGS_IMAGE_HEIGHT], int
     return textureID;  // Return the generated texture ID
 }
 
-// GLuint unused_createProperTextureFromMEGSImage(uint16_t (*data)[MEGS_IMAGE_WIDTH], int width, int height, bool modulo256 = false, bool scale = true) 
-// {
-//     std::vector<uint8_t> textureData(width * height); // 8-bit data for display
 
-//     // Transpose the image data (90-degree clockwise rotation)
-//     for (int x = 0; x < width; ++x) {
-//         for (int y = 0; y < height; ++y) {
-//             // Calculate the transposed pixel position
-//             int transposedX = y; // New X position
-//             int transposedY = width - 1 - x; // New Y position
-//             uint16_t value = data[x][y]; // Get the original value
-
-//             // Process the value into the textureData based on modulo256 or scale options
-//             if (modulo256) {
-//                 int index = x + y*width; //transposedY * height + transposedX;
-//                 textureData[index] = static_cast<uint8_t>(value & 0xFF); // Modulo 256
-//             } else if (scale) {
-//                 textureData[transposedY * height + transposedX] = static_cast<uint8_t>((value & 0x3FFF) >> 6); // Scale 14 bits to 8 bits
-//             }
-//         }
-//     }
-
-//     // Generate and bind a new texture
-//     GLuint textureID;
-//     glGenTextures(1, &textureID);        // Generate the texture ID
-//     glBindTexture(GL_TEXTURE_2D, textureID);  // Bind the texture
-
-//     // Set texture filtering parameters
-//     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-//     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-//     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-//     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-//     // Upload the texture data to OpenGL
-//     glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, textureData.data());
-//     //glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, height, width, 0, GL_RED, GL_UNSIGNED_BYTE, textureData.data());
-
-//     // Unbind the texture
-//     glBindTexture(GL_TEXTURE_2D, 0);
-
-//     return textureID;  // Return the generated texture ID
-// }
-
-GLuint createTextureFromMEGSImage(uint16_t* data, int width, int height, bool modulo256 = false, bool scale = true)
-{
-    std::vector<uint8_t> textureData(width * height); // 8-bit data for display
-
-    // Fill textureData with processed pixel values
-    for (int i = 0; i < width * height; ++i) {
-        uint16_t value = data[i];
-        if (modulo256) {
-            textureData[i] = static_cast<uint8_t>(value & 0xFF); // Modulo 256
-        } else if (scale) {
-            textureData[i] = static_cast<uint8_t>((value & 0x3FFF) >> 6); // Scale 14 bits to 8 bits
-        }
-    }
-
-    // Generate and bind a new texture
-    GLuint textureID;
-    glGenTextures(1, &textureID);        // Generate the texture ID
-    glBindTexture(GL_TEXTURE_2D, textureID);  // Bind the texture
-
-    // Set texture filtering parameters
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // average 4 nearest pixels value when resizing down
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); // average 4 nearest pixels value when resizing up
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // if coordinate is outside the range 0 to 1, use the nearest edge value
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-    // Upload the texture data to OpenGL. This is the most expensive operation in this function. It load the data to the GPU for display.
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, textureData.data());
-
-
-    // Unbind the texture
-    glBindTexture(GL_TEXTURE_2D, 0);
-
-    return textureID;  // Return the generated texture ID
-}
 
 //update the texture whenever MEGS-A changes
-void updateTextureFromMEGSAImage(GLuint textureID)
+void renderUpdatedTextureFromMEGSAImage(GLuint textureID)
 {
+    int width=MEGS_IMAGE_WIDTH;
+    int height=MEGS_IMAGE_HEIGHT;
+    std::vector<uint8_t> textureData(width * height);
+
+    // Populate textureData directly from the 2D array
+    for (int x = 0; x < width; ++x) {
+        for (int y = 0; y < height; ++y) {
+            int index = y * width + x; // 1D index in textureData
+            if (mamodulo256) {
+                textureData[index] = static_cast<uint8_t>(globalState.megsa.image[x][y] & 0xFF); // Modulo 256
+            } else {
+                textureData[index] = static_cast<uint8_t>((globalState.megsa.image[x][y] & 0x3FFF) >> 6); // Scale 14 bits to 8 bits
+            }
+        }
+    }
     glBindTexture(GL_TEXTURE_2D, textureID);
-    transposeImage2D(globalState.megsa.image, globalState.transMegsA);
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, globalState.transMegsA);
-    //glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, globalState.megsa.image);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, textureData.data());
     glBindTexture(GL_TEXTURE_2D, textureID);
 }
 
-void updateTextureFromMEGSBImage(GLuint megsBTextureID)
+void renderUpdatedTextureFromMEGSBImage(GLuint megsBTextureID)
 {
-    glBindTexture(GL_TEXTURE_2D, megsBTextureID);
-    transposeImage2D(globalState.megsb.image, globalState.transMegsB);
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, MEGS_IMAGE_T_WIDTH, MEGS_IMAGE_T_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, globalState.transMegsB);
-    //glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, globalState.megsb.image); // shows nothing
-    glBindTexture(GL_TEXTURE_2D, megsBTextureID);
+    int width=MEGS_IMAGE_WIDTH;
+    int height=MEGS_IMAGE_HEIGHT;
+    std::vector<uint8_t> textureData(width * height);
 
-    //glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, globalState.megsb.image);
-
+    // Populate textureData directly from the 2D array
+    for (int x = 0; x < width; ++x) {
+        for (int y = 0; y < height; ++y) {
+            int index = y * width + x; // 1D index in textureData
+            if (mbmodulo256) {
+                textureData[index] = static_cast<uint8_t>(globalState.megsb.image[x][y] & 0xFF); // Modulo 256
+            } else {
+                textureData[index] = static_cast<uint8_t>((globalState.megsb.image[x][y] & 0x3FFF) >> 6); // Scale 14 bits to 8 bits
+            }
+        }
+    }
+    glBindTexture(GL_TEXTURE_2D, megsBTextureID);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, textureData.data());
+    glBindTexture(GL_TEXTURE_2D, megsBTextureID);
 }
 
 void renderMAImageWithZoom(GLuint megsATextureID, uint16_t* data, int fullWidth, int fullHeight, float zoom, ImVec2 viewportSize, bool modulo256, bool scale)
@@ -306,27 +253,27 @@ void renderMAImageWithZoom(GLuint megsATextureID, uint16_t* data, int fullWidth,
     //ImGui::Image((void*)(intptr_t)megsATextureID, ImVec2(2048.0f*0.25f, 1024.0f*0.25f), ImVec2(0.0f,0.0f), ImVec2(1.0f,1.0f));
 }
 
-void renderMBImageWithZoom(GLuint megsBTextureID, uint16_t* data, int fullWidth, int fullHeight, float zoom, ImVec2 viewportSize, bool modulo256, bool scale)
-{
-    // Calculate the zoom level
-    float value = 1.0 / zoom;
+// void renderMBImageWithZoom(GLuint megsBTextureID, uint16_t* data, int fullWidth, int fullHeight, float zoom, ImVec2 viewportSize, bool modulo256, bool scale)
+// {
+//     // Calculate the zoom level
+//     float value = 1.0 / zoom;
     
-    // default
-    ImVec2 uv0(0.0f, 0.0f); 
-    ImVec2 uv1(value, value); 
+//     // default
+//     ImVec2 uv0(0.0f, 0.0f); 
+//     ImVec2 uv1(value, value); 
 
-    // Render the image using the texture ID
-    //ImGui::Image((void*)(intptr_t)megsBTextureID, viewportSize, uv0, uv1);
-    ImGui::Image((void*)(intptr_t)megsBTextureID, ImVec2(MEGS_IMAGE_WIDTH*0.25f,MEGS_IMAGE_HEIGHT*0.25), uv0, uv1);
+//     // Render the image using the texture ID
+//     //ImGui::Image((void*)(intptr_t)megsBTextureID, viewportSize, uv0, uv1);
+//     ImGui::Image((void*)(intptr_t)megsBTextureID, ImVec2(MEGS_IMAGE_WIDTH*0.25f,MEGS_IMAGE_HEIGHT*0.25), uv0, uv1);
 
-    // re-use textures, delete them in cleanup section
-}
+//     // re-use textures, delete them in cleanup section
+// }
 
 void displayMAImageWithControls(GLuint megsATextureID)
 {
-    static float zooma = 0.5f;         // Zoom level (1.0 = full resolution)
-    static bool modulo256a = true;    // Modulo 256 display
-    static bool scalea = false;         // Scaled view
+    //static float zooma = 0.5f;         // Zoom level (1.0 = full resolution)
+    //static bool modulo256a = true;    // Modulo 256 display
+    //static bool scalea = false;         // Scaled view
 
     ImGui::Begin("MEGS-A Image Viewer");
 
@@ -335,59 +282,74 @@ void displayMAImageWithControls(GLuint megsATextureID)
     //ImVec2 viewportSizea = ImVec2(2048.0f, 1024.0f); // works, but we need to shrink it
     
     // Zoom slider
-    ImGui::SliderFloat("MA Zoom", &zooma, 0.25f, 4.0f, "MA Zoom %.1fx");
+    ImGui::SliderFloat("MA Zoom", &mazoom, 0.25f, 4.0f, "MA Zoom %.1fx");
     
     // Toggle for scaled or modulo 256 view
-    ImGui::Checkbox("MA Modulo 256", &modulo256a);
-    scalea = !modulo256a;
+    ImGui::Checkbox("MA Modulo 256", &mamodulo256);
+    //scalea = !modulo256a;
 
     std::string iso8601 = tai_to_iso8601(globalState.megsa.tai_time_seconds);
     char* tmpiISO8601 = const_cast<char*>(iso8601.c_str());
     ImGui::Text("MA 1st pkt: %s",tmpiISO8601);
 
-    // Render the image with the current zoom level
-    renderMAImageWithZoom(megsATextureID, reinterpret_cast<uint16_t*>(globalState.transMegsA), MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, zooma, viewportSizea, modulo256a, scalea);
+    for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; x++) {
+        for (uint32_t y = 0; y < MEGS_IMAGE_HEIGHT; y++) {
+            if (mamodulo256) {
+                globalState.sclMegsA[x][y] = globalState.megsa.image[x][y] & 0xFF; // modulo 256
+            } else {
+                globalState.sclMegsA[x][y] = globalState.megsa.image[x][y] >> 6; //scale 14 bits to 8 bits
+            }
+        }
+    }
+
+    float value = 1.0f; // changing this will crop the image
+    //ImGui::Image((void*)(intptr_t)megsBTextureID, ImVec2(MEGS_IMAGE_WIDTH*0.25f,MEGS_IMAGE_HEIGHT*0.25), ImVec2(0.0f,0.0f), ImVec2(value,value));
+    ImGui::Image((void*)(intptr_t)megsATextureID, ImVec2(MEGS_IMAGE_WIDTH*mazoom,MEGS_IMAGE_HEIGHT*mazoom), ImVec2(0.0f,0.0f), ImVec2(value,value));
+
 
     ImGui::End();
 }
+
 void displayMBImageWithControls(GLuint megsBTextureID)
 {
-    static float zoom = 0.5f;         // Zoom level (1.0 = full resolution)
-    static bool modulo256 = true;    // Modulo 256 display
-    static bool scale = false;         // Scaled view
-
     ImGui::Begin("MEGS-B Image Viewer");
 
     // Viewport size for display (1024x512)
-    ImVec2 viewportSize = ImVec2(1024.0f, 512.0f);
+    //ImVec2 viewportSize = ImVec2(1024.0f, 512.0f);
     
     // Zoom slider
-    ImGui::SliderFloat("MB Zoom", &zoom, 0.25f, 4.0f, "MB Zoom %.1fx");
+    ImGui::SliderFloat("MB Zoom", &mbzoom, 0.25f, 1.0f, "MB Zoom %.1fx");
     
     // Toggle for scaled or modulo 256 view
-    ImGui::Checkbox("MB Modulo 256", &modulo256);
-    scale = !modulo256;
+    ImGui::Checkbox("MB Modulo 256", &mbmodulo256);
 
     std::string iso8601 = tai_to_iso8601(globalState.megsb.tai_time_seconds);
     char* tmpiISO8601 = const_cast<char*>(iso8601.c_str());
     ImGui::Text("MB 1st pkt: %s",tmpiISO8601);
 
     // Render the image with the current zoom level
-    renderMBImageWithZoom(megsBTextureID, reinterpret_cast<uint16_t*>(globalState.transMegsB), MEGS_IMAGE_T_WIDTH, MEGS_IMAGE_T_HEIGHT, zoom, viewportSize, modulo256, scale);
-    //renderMBImageWithZoom(megsBTextureID, reinterpret_cast<uint16_t*>(globalState.megsb.image), MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, zoom, viewportSize, modulo256, scale);
-    
+    //renderMBImageWithZoom(megsBTextureID, reinterpret_cast<uint16_t*>(globalState.transMegsB), MEGS_IMAGE_T_WIDTH, MEGS_IMAGE_T_HEIGHT, zoom, viewportSize, modulo256, scale);
+
+    for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; x++) {
+        for (uint32_t y = 0; y < MEGS_IMAGE_HEIGHT; y++) {
+            if (mbmodulo256) {
+                globalState.sclMegsB[x][y] = globalState.megsb.image[x][y] & 0xFF; // modulo 256
+            } else {
+                globalState.sclMegsB[x][y] = globalState.megsb.image[x][y] >> 6; //scale 14 bits to 8 bits
+            }
+        }
+    }
+
+    float value = 1.0f; // changing this will crop the image
+    //ImGui::Image((void*)(intptr_t)megsBTextureID, ImVec2(MEGS_IMAGE_WIDTH*0.25f,MEGS_IMAGE_HEIGHT*0.25), ImVec2(0.0f,0.0f), ImVec2(value,value));
+    ImGui::Image((void*)(intptr_t)megsBTextureID, ImVec2(MEGS_IMAGE_WIDTH*mbzoom,MEGS_IMAGE_HEIGHT*mbzoom), ImVec2(0.0f,0.0f), ImVec2(value,value));
+
     ImGui::End();
 }
 
 
 void displaySimpleMB(GLuint textureID) {
-    //ImGui::Begin("Simple MEGS-B Image Viewer");
-    //ImGui::Image((ImTextureID)(intptr_t)textureID, ImVec2(2048.0f, 1024.0f), ImVec2(0, 0), ImVec2(1, 1));
-    //ImGui::Image((ImTextureID)(intptr_t)textureID, ImVec2(2048.0f, 1024.0f), ImVec2(1, 0), ImVec2(0, 1)); // seems to horizontally flip the image
-    //ImGui::Image((ImTextureID)(intptr_t)textureID, ImVec2(2048.0f, 1024.0f), ImVec2(0, 1), ImVec2(1, 0)); // seems to vertically flip the image
-    //ImGui::Image((ImTextureID)(intptr_t)textureID, ImVec2(2048.0f, 1024.0f), ImVec2(1, 1), ImVec2(0, 0));
     ImGui::Image((ImTextureID)(intptr_t)textureID, ImVec2(2048.0f, 1024.0f), ImVec2(0, 0), ImVec2(1, 1));
-    //ImGui::End();
 }
 
 // 
@@ -417,48 +379,6 @@ void renderSimpleTextureMB(GLuint textureID, const uint16_t (*image)[MEGS_IMAGE_
     // Unbind the texture
     glBindTexture(GL_TEXTURE_2D, 0);
 }
-
-
-// void updateSimpleTextureMB(GLuint textureID) {
-//     // Bind the texture
-//     glBindTexture(GL_TEXTURE_2D, textureID);
-
-//     // Update the texture data from the image
-//     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, globalState.megsb.image);
-
-//     // Define the vertices and texture coordinates for rendering the quad
-//     GLfloat vertices[] = {
-//         -1.0f,  1.0f, 0.0f, // Top-left
-//         -1.0f, -1.0f, 0.0f, // Bottom-left
-//          1.0f, -1.0f, 0.0f, // Bottom-right
-//          1.0f,  1.0f, 0.0f  // Top-right
-//     };
-
-//     GLfloat texCoords[] = {
-//         1.0f, 1.0f, // Top-left (rotated)
-//         1.0f, 0.0f, // Bottom-left (rotated)
-//         0.0f, 0.0f, // Bottom-right (rotated)
-//         0.0f, 1.0f  // Top-right (rotated)
-//     };
-
-//     // Enable vertex and texture coordinate arrays
-//     glEnableClientState(GL_VERTEX_ARRAY);
-//     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-
-//     // Specify the vertex and texture coordinate arrays
-//     glVertexPointer(3, GL_FLOAT, 0, vertices);
-//     glTexCoordPointer(2, GL_FLOAT, 0, texCoords);
-
-//     // Draw the quad as a triangle fan
-//     glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-
-//     // Disable the client states
-//     glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-//     glDisableClientState(GL_VERTEX_ARRAY);
-
-//     // Unbind the texture (optional, for cleanliness)
-//     glBindTexture(GL_TEXTURE_2D, 0);
-// }
 
 void updateStatusWindow()
 {
@@ -598,14 +518,13 @@ int imgui_thread() {
     
     //std::lock_guard<std::mutex> lock(mtx); // lock the mutex
     mtx.lock();
-    //GLuint megsATextureID = createTextureFromMEGSImage( &globalState.megsa.image[0][0], MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, true, true);
-    //GLuint megsBTextureID = createTextureFromMEGSImage( &globalState.megsb.image[0][0], MEGS_IMAGE_T_WIDTH, MEGS_IMAGE_T_HEIGHT, true, true);
-    GLuint megsATextureID = createTextureFromMEGSImage( &globalState.transMegsA[0][0], MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, true, true);
-    GLuint megsBTextureID = createTextureFromMEGSImage( &globalState.transMegsB[0][0], MEGS_IMAGE_T_WIDTH, MEGS_IMAGE_T_HEIGHT, true, true);
+    //GLuint megsATextureID = createTextureFromMEGSImage( &globalState.transMegsA[0][0], MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, true, true);
+    //GLuint megsBTextureID = createTextureFromMEGSImage( &globalState.transMegsB[0][0], MEGS_IMAGE_T_WIDTH, MEGS_IMAGE_T_HEIGHT, true, true);
+    GLuint megsATextureID = createProperTextureFromMEGSImage( globalState.megsa.image, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, true, true);
+    GLuint megsBTextureID = createProperTextureFromMEGSImage( globalState.megsb.image, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, true, true);
     mtx.unlock(); // unlock the mutex
 
     uint16_t testimg[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT];
-    //uint16_t transtestimg[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH];
     populatePattern(testimg);
     for (int x = 0; x < 10; ++x) { // verify there is nonzero data in the testimg
         for (int y = 0; y < 10; ++y) {
@@ -613,11 +532,7 @@ int imgui_thread() {
         }
         std::cout << std::endl;
     }
-//    transposeImage2D(testimg, transtestimg);
     GLuint mbSimpleTextureID = createProperTextureFromMEGSImage(testimg, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, true, true);
-    //GLuint mbSimpleTextureID = createProperTextureFromMEGSImage(reinterpret_cast<uint16_t(*)[MEGS_IMAGE_HEIGHT]>(testimg), MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, true, true);
-    //GLuint mbSimpleTextureID = createProperTextureFromMEGSImage(reinterpret_cast<uint16_t (*)[MEGS_IMAGE_HEIGHT]>(testimg), MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, true, true);
-    //GLuint mbSimpleTextureID = createProperTextureFromMEGSImage(&transtestimg[0][0], MEGS_IMAGE_HEIGHT, MEGS_IMAGE_WIDTH, true, true);
 
     // Main loop
 #ifdef __EMSCRIPTEN__
@@ -714,14 +629,14 @@ int imgui_thread() {
         {
             mtx.lock();
             if (globalState.megsAUpdated) {
-                updateTextureFromMEGSAImage(megsATextureID);
+                renderUpdatedTextureFromMEGSAImage(megsATextureID);
                 globalState.megsAUpdated = false;  // Reset flag after updating texture
             }
             mtx.unlock();
 
             mtx.lock();
             if (globalState.megsBUpdated) {
-                updateTextureFromMEGSBImage(megsBTextureID);
+                renderUpdatedTextureFromMEGSBImage(megsBTextureID);
                 renderSimpleTextureMB(mbSimpleTextureID, testimg);
                 globalState.megsBUpdated = false;  // Reset flag after updating texture
             }
