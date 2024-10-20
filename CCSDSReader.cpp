@@ -38,12 +38,13 @@ bool CCSDSReader::findSyncMarker() {
   while (buffer != SYNC_MARKER) {
     if (source->read((&onebyte), sizeof(onebyte))) {
       buffer = (static_cast<uint32_t>(buffer) << 8) | static_cast<uint32_t>(onebyte);
-      if (bytecounter++ > 4) {
-        std::cout << "ERROR findSyncMarker read more than 4 bytes" << std::endl;
-      }
+      bytecounter++;
     } else { 
       return false; // eof
     }
+  }
+  if (bytecounter > 4) {
+    std::cout << "Warning - findSyncMarker expected 4 bytes, counted "<< bytecounter << std::endl;
   }
   return true;
 }
