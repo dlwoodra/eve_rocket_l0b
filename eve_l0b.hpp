@@ -406,9 +406,9 @@ struct ProgramState {
     bool running = true; // Whether the program is still running
 	MEGS_IMAGE_REC megsa; 
 	bool megsAUpdated = true;
-	uint16_t sclMegsA[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT];
+	//uint16_t sclMegsA[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT];
 	MEGS_IMAGE_REC megsb;
-	uint16_t sclMegsB[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT];
+	//uint16_t sclMegsB[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT];
 	bool megsBUpdated = true;
 	PKT_COUNT_REC packetsReceived;
 	long parityErrorsMA = 0;
