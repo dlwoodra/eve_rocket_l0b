@@ -39,8 +39,8 @@ ImVec4 getColorForState(LimitState state) {
     }
 }
 
-float mazoom = 0.25f;         // Zoom level (1.0 = full resolution)
-float mbzoom = 0.25f;         // Zoom level (1.0 = full resolution)
+float mazoom = 0.2f;         // Zoom level (1.0 = full resolution)
+float mbzoom = 0.2f;         // Zoom level (1.0 = full resolution)
 bool mamodulo256 = true;    // Modulo 256 display
 bool mbmodulo256 = true;    // Modulo 256 display
 
@@ -453,21 +453,20 @@ int imgui_thread() {
     
     //std::lock_guard<std::mutex> lock(mtx); // lock the mutex
     mtx.lock();
-    //GLuint megsATextureID = createTextureFromMEGSImage( &globalState.transMegsA[0][0], MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, true, true);
-    //GLuint megsBTextureID = createTextureFromMEGSImage( &globalState.transMegsB[0][0], MEGS_IMAGE_T_WIDTH, MEGS_IMAGE_T_HEIGHT, true, true);
     GLuint megsATextureID = createProperTextureFromMEGSImage( globalState.megsa.image, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, true, true);
     GLuint megsBTextureID = createProperTextureFromMEGSImage( globalState.megsb.image, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, true, true);
     mtx.unlock(); // unlock the mutex
 
-    uint16_t testimg[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT];
-    populatePattern(testimg);
-    for (int x = 0; x < 10; ++x) { // verify there is nonzero data in the testimg
-        for (int y = 0; y < 10; ++y) {
-            std::cout << testimg[x][y] << " "; // Print first 10x10 pixels
-        }
-        std::cout << std::endl;
-    }
-    GLuint mbSimpleTextureID = createProperTextureFromMEGSImage(testimg, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, true, true);
+    // Test image for verify orientation
+    // uint16_t testimg[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT];
+    // populatePattern(testimg);
+    // for (int x = 0; x < 10; ++x) { // verify there is nonzero data in the testimg
+    //     for (int y = 0; y < 10; ++y) {
+    //         std::cout << testimg[x][y] << " "; // Print first 10x10 pixels
+    //     }
+    //     std::cout << std::endl;
+    // }
+    // GLuint mbSimpleTextureID = createProperTextureFromMEGSImage(testimg, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, true, true);
 
     // Main loop
 #ifdef __EMSCRIPTEN__
@@ -536,19 +535,16 @@ int imgui_thread() {
                 mtx.unlock();
                 ImGui::End();
             }
+
+            // debugging image display
             // {
-            //     ImGui::Begin("MEGS-A Image Viewer");
-            //     ImGui::Text("MEGS-A Image Viewer");
+            //     ImGui::Begin("MEGS-B Image Simple Viewer");
+            //     ImGui::Text("MEGS-B Image Simple Text");
+            //     mtx.lock();
+            //     displaySimpleMB(mbSimpleTextureID);
+            //     mtx.unlock();
             //     ImGui::End();
             // }
-            {
-                ImGui::Begin("MEGS-B Image Simple Viewer");
-                ImGui::Text("MEGS-B Image Simple Text");
-                mtx.lock();
-                displaySimpleMB(mbSimpleTextureID);
-                mtx.unlock();
-                ImGui::End();
-            }
         }
         if (isFontLoaded) {
             ImGui::PopFont();
@@ -572,7 +568,8 @@ int imgui_thread() {
             mtx.lock();
             if (globalState.megsBUpdated) {
                 renderUpdatedTextureFromMEGSBImage(megsBTextureID);
-                renderSimpleTextureMB(mbSimpleTextureID, testimg);
+                // debugging image display
+                // renderSimpleTextureMB(mbSimpleTextureID, testimg);
                 globalState.megsBUpdated = false;  // Reset flag after updating texture
             }
             mtx.unlock();
@@ -611,7 +608,8 @@ int imgui_thread() {
 
     glDeleteTextures(1, &megsATextureID);
     glDeleteTextures(1, &megsBTextureID);
-    glDeleteTextures(1, &mbSimpleTextureID);
+    // debugging image display
+    // glDeleteTextures(1, &mbSimpleTextureID);
 
     glfwDestroyWindow(window);
     glfwTerminate();
