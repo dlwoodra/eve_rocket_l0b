@@ -39,8 +39,34 @@ ImVec4 getColorForState(LimitState state) {
     }
 }
 
+// Function to populate the image with an asymetric pattern, 4 quadrants, lowest quad is a gradian, second is a checkerboard, third is a constant value, fourth is a sinusoidal pattern
+// topleft is gradient, topright is checkerboard, bottomleft is 128, bottom right is sine wave
+void populatePattern(uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT]) {
+    // Define the quadrant boundaries
+    const int midX = MEGS_IMAGE_WIDTH / 2;
+    const int midY = MEGS_IMAGE_HEIGHT / 2;
+
+    for (uint32_t y = 0; y < MEGS_IMAGE_HEIGHT; ++y) {
+        for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; ++x) {
+            if (x < midX && y < midY) {
+                // First quadrant: gradient from 0 to 255
+                image[x][y] = static_cast<uint16_t>((x / static_cast<float>(midX)) * 255);
+            } else if (x >= midX && y < midY) {
+                // Second quadrant: checkerboard pattern
+                image[x][y] = static_cast<uint16_t>((x / 256 + y / 256) % 2 == 0 ? 255 : 0);
+            } else if (x < midX && y >= midY) {
+                // Third quadrant: constant value
+                image[x][y] = 128;  // Constant gray value
+            } else {
+                // Fourth quadrant: sinusoidal pattern
+                image[x][y] = static_cast<uint16_t>(128 + 127 * std::sin((y / static_cast<float>(MEGS_IMAGE_HEIGHT)) * 2 * M_PI));
+            }
+        }
+    }
+}
+
 // This function is only thread-safe if image and transposeData are not accessed elsewhere during execution.
-// Callers are expected to use megsAUpdated and megsBUpdated flags to prevent access during modification.
+// Callers are expected to use mtx to lock access during modification.
 // switch x and y 
 void transposeImage2D(const uint16_t (*image)[MEGS_IMAGE_HEIGHT], uint16_t (*transposeData)[MEGS_IMAGE_WIDTH]) {
     const uint32_t width = MEGS_IMAGE_WIDTH;
@@ -121,6 +147,94 @@ static void glfw_error_callback(int error, const char* description)
 }
 
 // initialize a texture for a MEGS image
+GLuint createProperTextureFromMEGSImage(uint16_t (*data)[MEGS_IMAGE_HEIGHT], int width, int height, bool modulo256 = false, bool scale = true) {
+    std::vector<uint8_t> textureData(width * height); // 8-bit data for display
+
+    // Transpose the image data (90-degree clockwise rotation)
+    for (int x = 0; x < width; ++x) {
+        for (int y = 0; y < height; ++y) {
+            int index = y*width + x; //1d translation, no transpose
+            uint16_t value = data[x][y]; // Get the original value
+
+            // // Calculate the transposed pixel position
+            // int transposedX = y; // New X position
+            // int transposedY = width - 1 - x; // New Y position
+            // uint16_t value = data[x][y]; // Get the original value
+
+            // Process the value into the textureData based on modulo256 or scale options
+            //int index = transposedY * height + transposedX; // Use transposedY
+            if (modulo256) {
+                textureData[index] = static_cast<uint8_t>(value & 0xFF); // Modulo 256
+            } else if (scale) {
+                textureData[index] = static_cast<uint8_t>((value & 0x3FFF) >> 6); // Scale 14 bits to 8 bits
+            }
+        }
+    }
+
+    // Generate and bind a new texture
+    GLuint textureID;
+    glGenTextures(1, &textureID);        // Generate the texture ID
+    glBindTexture(GL_TEXTURE_2D, textureID);  // Bind the texture
+
+    // Set texture filtering parameters
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    // Upload the texture data to OpenGL
+    //glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, textureData.data());
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, textureData.data());
+
+    // Unbind the texture
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    return textureID;  // Return the generated texture ID
+}
+
+// GLuint unused_createProperTextureFromMEGSImage(uint16_t (*data)[MEGS_IMAGE_WIDTH], int width, int height, bool modulo256 = false, bool scale = true) 
+// {
+//     std::vector<uint8_t> textureData(width * height); // 8-bit data for display
+
+//     // Transpose the image data (90-degree clockwise rotation)
+//     for (int x = 0; x < width; ++x) {
+//         for (int y = 0; y < height; ++y) {
+//             // Calculate the transposed pixel position
+//             int transposedX = y; // New X position
+//             int transposedY = width - 1 - x; // New Y position
+//             uint16_t value = data[x][y]; // Get the original value
+
+//             // Process the value into the textureData based on modulo256 or scale options
+//             if (modulo256) {
+//                 int index = x + y*width; //transposedY * height + transposedX;
+//                 textureData[index] = static_cast<uint8_t>(value & 0xFF); // Modulo 256
+//             } else if (scale) {
+//                 textureData[transposedY * height + transposedX] = static_cast<uint8_t>((value & 0x3FFF) >> 6); // Scale 14 bits to 8 bits
+//             }
+//         }
+//     }
+
+//     // Generate and bind a new texture
+//     GLuint textureID;
+//     glGenTextures(1, &textureID);        // Generate the texture ID
+//     glBindTexture(GL_TEXTURE_2D, textureID);  // Bind the texture
+
+//     // Set texture filtering parameters
+//     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+//     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+//     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+//     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+//     // Upload the texture data to OpenGL
+//     glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, textureData.data());
+//     //glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, height, width, 0, GL_RED, GL_UNSIGNED_BYTE, textureData.data());
+
+//     // Unbind the texture
+//     glBindTexture(GL_TEXTURE_2D, 0);
+
+//     return textureID;  // Return the generated texture ID
+// }
+
 GLuint createTextureFromMEGSImage(uint16_t* data, int width, int height, bool modulo256 = false, bool scale = true)
 {
     std::vector<uint8_t> textureData(width * height); // 8-bit data for display
@@ -128,7 +242,6 @@ GLuint createTextureFromMEGSImage(uint16_t* data, int width, int height, bool mo
     // Fill textureData with processed pixel values
     for (int i = 0; i < width * height; ++i) {
         uint16_t value = data[i];
-
         if (modulo256) {
             textureData[i] = static_cast<uint8_t>(value & 0xFF); // Modulo 256
         } else if (scale) {
@@ -142,15 +255,12 @@ GLuint createTextureFromMEGSImage(uint16_t* data, int width, int height, bool mo
     glBindTexture(GL_TEXTURE_2D, textureID);  // Bind the texture
 
     // Set texture filtering parameters
-    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // average 4 nearest pixels value when resizing down
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); // average 4 nearest pixels value when resizing up
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // if coordinate is outside the range 0 to 1, use the nearest edge value
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-    // Upload the texture data to OpenGL
+    // Upload the texture data to OpenGL. This is the most expensive operation in this function. It load the data to the GPU for display.
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, textureData.data());
 
 
@@ -175,6 +285,7 @@ void updateTextureFromMEGSBImage(GLuint megsBTextureID)
     glBindTexture(GL_TEXTURE_2D, megsBTextureID);
     transposeImage2D(globalState.megsb.image, globalState.transMegsB);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, MEGS_IMAGE_T_WIDTH, MEGS_IMAGE_T_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, globalState.transMegsB);
+    //glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, globalState.megsb.image); // shows nothing
     glBindTexture(GL_TEXTURE_2D, megsBTextureID);
 
     //glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, globalState.megsb.image);
@@ -192,6 +303,7 @@ void renderMAImageWithZoom(GLuint megsATextureID, uint16_t* data, int fullWidth,
 
     // Render the image using the texture ID
     ImGui::Image((void*)(intptr_t)megsATextureID, viewportSize, uv0, uv1);
+    //ImGui::Image((void*)(intptr_t)megsATextureID, ImVec2(2048.0f*0.25f, 1024.0f*0.25f), ImVec2(0.0f,0.0f), ImVec2(1.0f,1.0f));
 }
 
 void renderMBImageWithZoom(GLuint megsBTextureID, uint16_t* data, int fullWidth, int fullHeight, float zoom, ImVec2 viewportSize, bool modulo256, bool scale)
@@ -204,10 +316,10 @@ void renderMBImageWithZoom(GLuint megsBTextureID, uint16_t* data, int fullWidth,
     ImVec2 uv1(value, value); 
 
     // Render the image using the texture ID
-    ImGui::Image((void*)(intptr_t)megsBTextureID, viewportSize, uv0, uv1);
+    //ImGui::Image((void*)(intptr_t)megsBTextureID, viewportSize, uv0, uv1);
+    ImGui::Image((void*)(intptr_t)megsBTextureID, ImVec2(MEGS_IMAGE_WIDTH*0.25f,MEGS_IMAGE_HEIGHT*0.25), uv0, uv1);
 
-    // Optionally, delete the texture after rendering if it’s not needed anymore
-    //glDeleteTextures(1, &textureID);
+    // re-use textures, delete them in cleanup section
 }
 
 void displayMAImageWithControls(GLuint megsATextureID)
@@ -220,6 +332,7 @@ void displayMAImageWithControls(GLuint megsATextureID)
 
     // Viewport size for display (1024x512)
     ImVec2 viewportSizea = ImVec2(1024.0f, 512.0f);
+    //ImVec2 viewportSizea = ImVec2(2048.0f, 1024.0f); // works, but we need to shrink it
     
     // Zoom slider
     ImGui::SliderFloat("MA Zoom", &zooma, 0.25f, 4.0f, "MA Zoom %.1fx");
@@ -228,9 +341,9 @@ void displayMAImageWithControls(GLuint megsATextureID)
     ImGui::Checkbox("MA Modulo 256", &modulo256a);
     scalea = !modulo256a;
 
-    //ImGui::Text("MA Time: %s",globalState.megsa.iso8601.c_str());
-
-    //ImGui::Text("MA ParityErrorCount %ld",globalState.parityErrorsMA);
+    std::string iso8601 = tai_to_iso8601(globalState.megsa.tai_time_seconds);
+    char* tmpiISO8601 = const_cast<char*>(iso8601.c_str());
+    ImGui::Text("MA 1st pkt: %s",tmpiISO8601);
 
     // Render the image with the current zoom level
     renderMAImageWithZoom(megsATextureID, reinterpret_cast<uint16_t*>(globalState.transMegsA), MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, zooma, viewportSizea, modulo256a, scalea);
@@ -255,8 +368,9 @@ void displayMBImageWithControls(GLuint megsBTextureID)
     ImGui::Checkbox("MB Modulo 256", &modulo256);
     scale = !modulo256;
 
-    ImGui::Text("MB Time: %s",globalState.megsb.iso8601.c_str());
-
+    std::string iso8601 = tai_to_iso8601(globalState.megsb.tai_time_seconds);
+    char* tmpiISO8601 = const_cast<char*>(iso8601.c_str());
+    ImGui::Text("MB 1st pkt: %s",tmpiISO8601);
 
     // Render the image with the current zoom level
     renderMBImageWithZoom(megsBTextureID, reinterpret_cast<uint16_t*>(globalState.transMegsB), MEGS_IMAGE_T_WIDTH, MEGS_IMAGE_T_HEIGHT, zoom, viewportSize, modulo256, scale);
@@ -264,6 +378,87 @@ void displayMBImageWithControls(GLuint megsBTextureID)
     
     ImGui::End();
 }
+
+
+void displaySimpleMB(GLuint textureID) {
+    //ImGui::Begin("Simple MEGS-B Image Viewer");
+    //ImGui::Image((ImTextureID)(intptr_t)textureID, ImVec2(2048.0f, 1024.0f), ImVec2(0, 0), ImVec2(1, 1));
+    //ImGui::Image((ImTextureID)(intptr_t)textureID, ImVec2(2048.0f, 1024.0f), ImVec2(1, 0), ImVec2(0, 1)); // seems to horizontally flip the image
+    //ImGui::Image((ImTextureID)(intptr_t)textureID, ImVec2(2048.0f, 1024.0f), ImVec2(0, 1), ImVec2(1, 0)); // seems to vertically flip the image
+    //ImGui::Image((ImTextureID)(intptr_t)textureID, ImVec2(2048.0f, 1024.0f), ImVec2(1, 1), ImVec2(0, 0));
+    ImGui::Image((ImTextureID)(intptr_t)textureID, ImVec2(2048.0f, 1024.0f), ImVec2(0, 0), ImVec2(1, 1));
+    //ImGui::End();
+}
+
+// 
+void renderSimpleTextureMB(GLuint textureID, const uint16_t (*image)[MEGS_IMAGE_HEIGHT]) {
+    // Prepare 8-bit texture data (resize only if necessary)
+    int width=MEGS_IMAGE_WIDTH;
+    int height=MEGS_IMAGE_HEIGHT;
+    std::vector<uint8_t> textureData(width * height);
+
+    // Populate textureData directly from the 2D array
+    for (int x = 0; x < width; ++x) {
+        for (int y = 0; y < height; ++y) {
+            int index = y * width + x; // 1D index in textureData
+            uint16_t value = image[x][y]; // Fetch pixel value
+
+            // Example scaling to fit into 8-bit texture (adjust logic as needed)
+            textureData[index] = static_cast<uint8_t>(value & 0xFF);
+        }
+    }
+
+    // Bind the texture
+    glBindTexture(GL_TEXTURE_2D, textureID);
+
+    // Update the texture with the new data
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RED, GL_UNSIGNED_BYTE, textureData.data());
+
+    // Unbind the texture
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+
+// void updateSimpleTextureMB(GLuint textureID) {
+//     // Bind the texture
+//     glBindTexture(GL_TEXTURE_2D, textureID);
+
+//     // Update the texture data from the image
+//     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, globalState.megsb.image);
+
+//     // Define the vertices and texture coordinates for rendering the quad
+//     GLfloat vertices[] = {
+//         -1.0f,  1.0f, 0.0f, // Top-left
+//         -1.0f, -1.0f, 0.0f, // Bottom-left
+//          1.0f, -1.0f, 0.0f, // Bottom-right
+//          1.0f,  1.0f, 0.0f  // Top-right
+//     };
+
+//     GLfloat texCoords[] = {
+//         1.0f, 1.0f, // Top-left (rotated)
+//         1.0f, 0.0f, // Bottom-left (rotated)
+//         0.0f, 0.0f, // Bottom-right (rotated)
+//         0.0f, 1.0f  // Top-right (rotated)
+//     };
+
+//     // Enable vertex and texture coordinate arrays
+//     glEnableClientState(GL_VERTEX_ARRAY);
+//     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+
+//     // Specify the vertex and texture coordinate arrays
+//     glVertexPointer(3, GL_FLOAT, 0, vertices);
+//     glTexCoordPointer(2, GL_FLOAT, 0, texCoords);
+
+//     // Draw the quad as a triangle fan
+//     glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+
+//     // Disable the client states
+//     glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+//     glDisableClientState(GL_VERTEX_ARRAY);
+
+//     // Unbind the texture (optional, for cleanliness)
+//     glBindTexture(GL_TEXTURE_2D, 0);
+// }
 
 void updateStatusWindow()
 {
@@ -299,28 +494,21 @@ void updateESPWindow()
     ImGui::Columns(2,"ESP Columns");
     ImGui::Text("ESP Status Column");
     ImGui::SetNextItemWidth(ImGui::GetFontSize() * 10);
-    ImGui::Text("ESP packet time: %s",globalState.esp.iso8601.c_str());
 
-    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
-    ImGui::InputText("ESP xfer cnt", strdup((std::to_string(globalState.esp.ESP_xfer_cnt[index])).c_str()), 12, ImGuiInputTextFlags_ReadOnly);
-    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
-    ImGui::InputText("ESP q0", strdup((std::to_string(globalState.esp.ESP_q0[index])).c_str()), 12, ImGuiInputTextFlags_ReadOnly);
-    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
-    ImGui::InputText("ESP q1", strdup((std::to_string(globalState.esp.ESP_q1[index])).c_str()), 12, ImGuiInputTextFlags_ReadOnly);
-    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
-    ImGui::InputText("ESP q2", strdup((std::to_string(globalState.esp.ESP_q2[index])).c_str()), 12, ImGuiInputTextFlags_ReadOnly);
-    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
-    ImGui::InputText("ESP q3", strdup((std::to_string(globalState.esp.ESP_q3[index])).c_str()), 12, ImGuiInputTextFlags_ReadOnly);
-    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
-    ImGui::InputText("ESP 171", strdup((std::to_string(globalState.esp.ESP_171[index])).c_str()), 12, ImGuiInputTextFlags_ReadOnly);
-    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
-    ImGui::InputText("ESP 257", strdup((std::to_string(globalState.esp.ESP_257[index])).c_str()), 12, ImGuiInputTextFlags_ReadOnly);
-    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
-    ImGui::InputText("ESP 304", strdup((std::to_string(globalState.esp.ESP_304[index])).c_str()), 12, ImGuiInputTextFlags_ReadOnly);
-    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
-    ImGui::InputText("ESP 366", strdup((std::to_string(globalState.esp.ESP_366[index])).c_str()), 12, ImGuiInputTextFlags_ReadOnly);
-    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
-    ImGui::InputText("ESP dark", strdup((std::to_string(globalState.esp.ESP_dark[index])).c_str()), 12, ImGuiInputTextFlags_ReadOnly);
+    std::string iso8601 = tai_to_iso8601(globalState.esp.tai_time_seconds);
+    const char* tmpiISO8601 = iso8601.c_str();
+    ImGui::Text("pkt:%s", tmpiISO8601);
+
+    renderInputTextWithColor("ESP xfer cnt", globalState.esp.ESP_xfer_cnt[index], 12, false, 0.0, 0.9);
+    renderInputTextWithColor("ESP q0", globalState.esp.ESP_q0[index], 12, false, 0.0, 0.9);
+    renderInputTextWithColor("ESP q1", globalState.esp.ESP_q1[index], 12, false, 0.0, 0.9);
+    renderInputTextWithColor("ESP q2", globalState.esp.ESP_q2[index], 12, false, 0.0, 0.9);
+    renderInputTextWithColor("ESP q3", globalState.esp.ESP_q3[index], 12, false, 0.0, 0.9);
+    renderInputTextWithColor("ESP 171", globalState.esp.ESP_171[index], 12, false, 0.0, 0.9);
+    renderInputTextWithColor("ESP 257", globalState.esp.ESP_257[index], 12, false, 0.0, 0.9);
+    renderInputTextWithColor("ESP 304", globalState.esp.ESP_304[index], 12, false, 0.0, 0.9);
+    renderInputTextWithColor("ESP 366", globalState.esp.ESP_366[index], 12, false, 0.0, 0.9);
+    renderInputTextWithColor("ESP dark", globalState.esp.ESP_dark[index], 12, false, 0.0, 0.9);
 
     // Column 2
     ImGui::NextColumn();
@@ -328,7 +516,6 @@ void updateESPWindow()
 
     // reset to single column layout
     ImGui::Columns(1);
-    //globalState.espUpdated = false;
 
 }
 
@@ -360,7 +547,7 @@ int imgui_thread() {
 #endif
 
     // Create window with graphics context
-    GLFWwindow* window = glfwCreateWindow(1280, 720, "Dear ImGui GLFW+OpenGL3 example", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(1200, 800, "Dear ImGui GLFW+OpenGL3 example", nullptr, nullptr);
     if (window == nullptr)
         return 1;
     glfwMakeContextCurrent(window);
@@ -416,6 +603,21 @@ int imgui_thread() {
     GLuint megsATextureID = createTextureFromMEGSImage( &globalState.transMegsA[0][0], MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, true, true);
     GLuint megsBTextureID = createTextureFromMEGSImage( &globalState.transMegsB[0][0], MEGS_IMAGE_T_WIDTH, MEGS_IMAGE_T_HEIGHT, true, true);
     mtx.unlock(); // unlock the mutex
+
+    uint16_t testimg[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT];
+    //uint16_t transtestimg[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH];
+    populatePattern(testimg);
+    for (int x = 0; x < 10; ++x) { // verify there is nonzero data in the testimg
+        for (int y = 0; y < 10; ++y) {
+            std::cout << testimg[x][y] << " "; // Print first 10x10 pixels
+        }
+        std::cout << std::endl;
+    }
+//    transposeImage2D(testimg, transtestimg);
+    GLuint mbSimpleTextureID = createProperTextureFromMEGSImage(testimg, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, true, true);
+    //GLuint mbSimpleTextureID = createProperTextureFromMEGSImage(reinterpret_cast<uint16_t(*)[MEGS_IMAGE_HEIGHT]>(testimg), MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, true, true);
+    //GLuint mbSimpleTextureID = createProperTextureFromMEGSImage(reinterpret_cast<uint16_t (*)[MEGS_IMAGE_HEIGHT]>(testimg), MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, true, true);
+    //GLuint mbSimpleTextureID = createProperTextureFromMEGSImage(&transtestimg[0][0], MEGS_IMAGE_HEIGHT, MEGS_IMAGE_WIDTH, true, true);
 
     // Main loop
 #ifdef __EMSCRIPTEN__
@@ -477,11 +679,23 @@ int imgui_thread() {
                 ImGui::End();
             }
 
-            //if (globalState.espUpdated)
             {
                 ImGui::Begin("ESP Window");
                 mtx.lock();
                 updateESPWindow();
+                mtx.unlock();
+                ImGui::End();
+            }
+            // {
+            //     ImGui::Begin("MEGS-A Image Viewer");
+            //     ImGui::Text("MEGS-A Image Viewer");
+            //     ImGui::End();
+            // }
+            {
+                ImGui::Begin("MEGS-B Image Simple Viewer");
+                ImGui::Text("MEGS-B Image Simple Text");
+                mtx.lock();
+                displaySimpleMB(mbSimpleTextureID);
                 mtx.unlock();
                 ImGui::End();
             }
@@ -508,6 +722,7 @@ int imgui_thread() {
             mtx.lock();
             if (globalState.megsBUpdated) {
                 updateTextureFromMEGSBImage(megsBTextureID);
+                renderSimpleTextureMB(mbSimpleTextureID, testimg);
                 globalState.megsBUpdated = false;  // Reset flag after updating texture
             }
             mtx.unlock();
@@ -543,6 +758,10 @@ int imgui_thread() {
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
+
+    glDeleteTextures(1, &megsATextureID);
+    glDeleteTextures(1, &megsBTextureID);
+    glDeleteTextures(1, &mbSimpleTextureID);
 
     glfwDestroyWindow(window);
     glfwTerminate();
