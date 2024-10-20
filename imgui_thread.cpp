@@ -71,21 +71,21 @@ void populatePattern(uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT]) {
     }
 }
 
-// This function is only thread-safe if image and transposeData are not accessed elsewhere during execution.
-// Callers are expected to use mtx to lock access during modification.
-// switch x and y 
-void transposeImage2D(const uint16_t (*image)[MEGS_IMAGE_HEIGHT], uint16_t (*transposeData)[MEGS_IMAGE_WIDTH]) {
-    const uint32_t width = MEGS_IMAGE_WIDTH;
-    const uint32_t height = MEGS_IMAGE_HEIGHT;
+// // This function is only thread-safe if image and transposeData are not accessed elsewhere during execution.
+// // Callers are expected to use mtx to lock access during modification.
+// // switch x and y 
+// void transposeImage2D(const uint16_t (*image)[MEGS_IMAGE_HEIGHT], uint16_t (*transposeData)[MEGS_IMAGE_WIDTH]) {
+//     const uint32_t width = MEGS_IMAGE_WIDTH;
+//     const uint32_t height = MEGS_IMAGE_HEIGHT;
 
-    // approx mean time 17-19 ms - Winner!
-    // single thread
-    for (uint32_t x = 0; x < width; ++x) {
-        for (uint32_t y = 0; y < height; ++y) {
-            transposeData[y][x] = image[x][y];
-        }
-    }
-}
+//     // approx mean time 17-19 ms - Winner!
+//     // single thread
+//     for (uint32_t x = 0; x < width; ++x) {
+//         for (uint32_t y = 0; y < height; ++y) {
+//             transposeData[y][x] = image[x][y];
+//         }
+//     }
+// }
 
 // Replace image with histogram equalized version, 8-bits per pixel
 void histogramEqualization(uint8_t* image, int width, int height) {
@@ -140,8 +140,6 @@ void renderInputTextWithColor(const char* label, long value, size_t bufferSize, 
 
     // Render the InputText
     ImGui::InputText(label, strval, bufferSize);
-
-    // free(strval); // No need to free stack-allocated memory
 
     // Restore default color
     ImGui::PopStyleColor();
@@ -239,73 +237,26 @@ void renderUpdatedTextureFromMEGSBImage(GLuint megsBTextureID)
     glBindTexture(GL_TEXTURE_2D, megsBTextureID);
 }
 
-void renderMAImageWithZoom(GLuint megsATextureID, uint16_t* data, int fullWidth, int fullHeight, float zoom, ImVec2 viewportSize, bool modulo256, bool scale)
-{
-    // Calculate the zoom level
-    float value = 1.0 / zoom;
-    
-    // default
-    ImVec2 uv0(0.0f, 0.0f); 
-    ImVec2 uv1(value, value); 
-
-    // Render the image using the texture ID
-    ImGui::Image((void*)(intptr_t)megsATextureID, viewportSize, uv0, uv1);
-    //ImGui::Image((void*)(intptr_t)megsATextureID, ImVec2(2048.0f*0.25f, 1024.0f*0.25f), ImVec2(0.0f,0.0f), ImVec2(1.0f,1.0f));
-}
-
-// void renderMBImageWithZoom(GLuint megsBTextureID, uint16_t* data, int fullWidth, int fullHeight, float zoom, ImVec2 viewportSize, bool modulo256, bool scale)
-// {
-//     // Calculate the zoom level
-//     float value = 1.0 / zoom;
-    
-//     // default
-//     ImVec2 uv0(0.0f, 0.0f); 
-//     ImVec2 uv1(value, value); 
-
-//     // Render the image using the texture ID
-//     //ImGui::Image((void*)(intptr_t)megsBTextureID, viewportSize, uv0, uv1);
-//     ImGui::Image((void*)(intptr_t)megsBTextureID, ImVec2(MEGS_IMAGE_WIDTH*0.25f,MEGS_IMAGE_HEIGHT*0.25), uv0, uv1);
-
-//     // re-use textures, delete them in cleanup section
-// }
 
 void displayMAImageWithControls(GLuint megsATextureID)
 {
-    //static float zooma = 0.5f;         // Zoom level (1.0 = full resolution)
-    //static bool modulo256a = true;    // Modulo 256 display
-    //static bool scalea = false;         // Scaled view
-
     ImGui::Begin("MEGS-A Image Viewer");
 
     // Viewport size for display (1024x512)
-    ImVec2 viewportSizea = ImVec2(1024.0f, 512.0f);
-    //ImVec2 viewportSizea = ImVec2(2048.0f, 1024.0f); // works, but we need to shrink it
+    //ImVec2 viewportSizea = ImVec2(1024.0f, 512.0f);
     
     // Zoom slider
     ImGui::SliderFloat("MA Zoom", &mazoom, 0.25f, 4.0f, "MA Zoom %.1fx");
     
     // Toggle for scaled or modulo 256 view
     ImGui::Checkbox("MA Modulo 256", &mamodulo256);
-    //scalea = !modulo256a;
 
     std::string iso8601 = tai_to_iso8601(globalState.megsa.tai_time_seconds);
     char* tmpiISO8601 = const_cast<char*>(iso8601.c_str());
     ImGui::Text("MA 1st pkt: %s",tmpiISO8601);
 
-    for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; x++) {
-        for (uint32_t y = 0; y < MEGS_IMAGE_HEIGHT; y++) {
-            if (mamodulo256) {
-                globalState.sclMegsA[x][y] = globalState.megsa.image[x][y] & 0xFF; // modulo 256
-            } else {
-                globalState.sclMegsA[x][y] = globalState.megsa.image[x][y] >> 6; //scale 14 bits to 8 bits
-            }
-        }
-    }
-
     float value = 1.0f; // changing this will crop the image
-    //ImGui::Image((void*)(intptr_t)megsBTextureID, ImVec2(MEGS_IMAGE_WIDTH*0.25f,MEGS_IMAGE_HEIGHT*0.25), ImVec2(0.0f,0.0f), ImVec2(value,value));
     ImGui::Image((void*)(intptr_t)megsATextureID, ImVec2(MEGS_IMAGE_WIDTH*mazoom,MEGS_IMAGE_HEIGHT*mazoom), ImVec2(0.0f,0.0f), ImVec2(value,value));
-
 
     ImGui::End();
 }
@@ -314,9 +265,6 @@ void displayMBImageWithControls(GLuint megsBTextureID)
 {
     ImGui::Begin("MEGS-B Image Viewer");
 
-    // Viewport size for display (1024x512)
-    //ImVec2 viewportSize = ImVec2(1024.0f, 512.0f);
-    
     // Zoom slider
     ImGui::SliderFloat("MB Zoom", &mbzoom, 0.25f, 1.0f, "MB Zoom %.1fx");
     
@@ -326,19 +274,6 @@ void displayMBImageWithControls(GLuint megsBTextureID)
     std::string iso8601 = tai_to_iso8601(globalState.megsb.tai_time_seconds);
     char* tmpiISO8601 = const_cast<char*>(iso8601.c_str());
     ImGui::Text("MB 1st pkt: %s",tmpiISO8601);
-
-    // Render the image with the current zoom level
-    //renderMBImageWithZoom(megsBTextureID, reinterpret_cast<uint16_t*>(globalState.transMegsB), MEGS_IMAGE_T_WIDTH, MEGS_IMAGE_T_HEIGHT, zoom, viewportSize, modulo256, scale);
-
-    for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; x++) {
-        for (uint32_t y = 0; y < MEGS_IMAGE_HEIGHT; y++) {
-            if (mbmodulo256) {
-                globalState.sclMegsB[x][y] = globalState.megsb.image[x][y] & 0xFF; // modulo 256
-            } else {
-                globalState.sclMegsB[x][y] = globalState.megsb.image[x][y] >> 6; //scale 14 bits to 8 bits
-            }
-        }
-    }
 
     float value = 1.0f; // changing this will crop the image
     //ImGui::Image((void*)(intptr_t)megsBTextureID, ImVec2(MEGS_IMAGE_WIDTH*0.25f,MEGS_IMAGE_HEIGHT*0.25), ImVec2(0.0f,0.0f), ImVec2(value,value));
