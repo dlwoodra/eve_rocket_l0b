@@ -2,6 +2,7 @@
 #include "commonFunctions.hpp"
 
 extern std::vector<uint16_t> transposeImageTo1D(const uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT]);
+extern std::string tai_to_iso8601(uint32_t tai);
 
 // Constructor
 FITSWriter::FITSWriter() {}
@@ -308,7 +309,10 @@ bool FITSWriter::writeMegsFITSImgHeader(fitsfile* fptr, const MEGS_IMAGE_REC& me
     fits_write_key(fptr, TUINT, "rec_tai", (void *)&megsStructure.rec_tai_seconds, "computer receive time in tai seconds", &status);
     checkFitsStatus(status);
 
-    fits_write_key(fptr, TSTRING, "DATE-BEG", const_cast<char*>((megsStructure.iso8601).c_str()), "UTC from first packet", &status);
+    std::string iso8601 = tai_to_iso8601(megsStructure.tai_time_seconds);
+    char* tmpiISO8601 = const_cast<char*>(iso8601.c_str());
+    fits_write_key(fptr, TSTRING, "DATE-BEG", tmpiISO8601, "UTC from first packet", &status);
+
     checkFitsStatus(status);
 
     float solarnet = 0.5;
