@@ -58,64 +58,6 @@ bool mamodulo256 = true;    // Modulo 256 display
 bool mbmodulo256 = true;    // Modulo 256 display
 
 
-void plotESPTarget(int lastIdx) {
-    constexpr float twoPi = 2.0f * 3.1415926535f;
-
-    // Calculate the angles from the quad diodes, this is almost a direct reuse of the code from the flight L0B code
-    float qsum = globalState.esp.ESP_q0[lastIdx] + globalState.esp.ESP_q1[lastIdx] + globalState.esp.ESP_q2[lastIdx] + globalState.esp.ESP_q3[lastIdx];
-	float inv_qsum = 1.f / (qsum + (1.e-10));
-	float qX = ((globalState.esp.ESP_q1[lastIdx] + globalState.esp.ESP_q3[lastIdx]) - (globalState.esp.ESP_q0[lastIdx] + globalState.esp.ESP_q2[lastIdx])) * inv_qsum ;
-	float qY = ((globalState.esp.ESP_q0[lastIdx] + globalState.esp.ESP_q1[lastIdx]) - (globalState.esp.ESP_q2[lastIdx] + globalState.esp.ESP_q3[lastIdx])) * inv_qsum;
-    float maxAbsNorm = (abs(qX) > abs(qY)) ? abs(qX) : abs(qY);
-
-    int arcsecX = ((int) ((qX - 2.0) * 1000)) + 1000;
-	int arcsecY = ((int) ((qY - 2.0) * 1000)) + 1000;
-    float xanglearcsec = (esp_x_angle_table[arcsecX] / 1000.0);
-    float yanglearcsec = (esp_y_angle_table[arcsecY] / 1000.0);
-    //float xangleDeg = xanglearcsec / 3600.0;
-    //float yangleDeg = yanglearcsec / 3600.0;
-
-    // Create a plot with ImPlot
-    if (ImPlot::BeginPlot("ESP Target Plot", ImVec2(-1, 0), ImPlotFlags_Equal)) {
-        // Set the axis ranges to be from -1 to +1
-        float maxScale = (maxAbsNorm > 1.0) ? maxAbsNorm * 1.5 : 1.0;
-        ImPlot::SetupAxisLimits(ImAxis_X1, -maxScale, maxScale);
-        ImPlot::SetupAxisLimits(ImAxis_Y1, -maxScale, maxScale);
-
-        // Radii for the open circles
-        const float radii[] = {0.01f, 0.05f, 0.1f, 0.5f, 1.0f};
-
-        // Draw the circles centered at (0, 0)
-        for (float radius : radii) {
-            // Generate points for the circle
-            const int points = 30;
-            // Use std::vector for the circle points
-            std::vector<float> xData(points);
-            std::vector<float> yData(points);
-
-
-            for (int i = 0; i < points; ++i) {
-                float angle = twoPi * (float)i / (float)(points - 1);
-                xData[i] = radius * cos(angle);
-                yData[i] = radius * sin(angle);
-            }
-            // Plot the circle as a line
-            ImPlot::PlotLine("##Circle", xData.data(), yData.data(), points);
-        }
-
-        // Plot the data point (as an asterisk)
-        ImPlot::SetNextMarkerStyle(ImPlotMarker_Asterisk, 8.0f, ImVec4(1, 0, 0, 1), 1.5f);
-        
-        ImPlot::PlotScatter("Measurement", &qX, &qY, 1);
- 
-        // Display the angles below the plot
-        ImGui::Text("X Angle: %.2f arcsec", xanglearcsec);
-        ImGui::Text("Y Angle: %.2f arcsec", yanglearcsec);
- 
-        // End the plot
-        ImPlot::EndPlot();
-    }
-}
 
 
 // Function to populate the image with an asymetric pattern, 4 quadrants, lowest quad is a gradian, second is a checkerboard, third is a constant value, fourth is a sinusoidal pattern
@@ -174,7 +116,8 @@ void histogramEqualization(uint8_t* image, int width, int height) {
     std::memcpy(image, new_image, width * height);
 }
 
-void renderInputTextWithColor(const char* label, long value, size_t bufferSize, bool limitCheck, float lowerLimit, float upperLimit) {
+//void renderInputTextWithColor(const char* label, long value, size_t bufferSize, bool limitCheck, float lowerLimit, float upperLimit) {
+void renderInputTextWithColor(const char* label, long value, size_t bufferSize, bool limitCheck, float yHiLimit, float rHiLimit, float yLoLimit = -100., float rLoLimit = -200.) {
     LimitState state = NoCheck;
     
     float_t itemWidthValue = ImGui::GetFontSize() * 6;
@@ -184,10 +127,14 @@ void renderInputTextWithColor(const char* label, long value, size_t bufferSize, 
     snprintf(strval, bufferSize, "%ld", value);
 
     if (limitCheck) {
-        const float fvalue = static_cast<float>(value); // fvallue is only used for limit checking
-        if (fvalue > upperLimit) {
+        const float fvalue = static_cast<float>(value); // fvalue is only used for limit checking
+        if (fvalue > rHiLimit) {
             state = Red;
-        } else if (fvalue > upperLimit * 0.9f) { // Near violation (adjust the threshold as needed)
+        } else if (fvalue > yHiLimit) { // Near violation (adjust the threshold as needed)
+            state = Yellow;
+        } else if (fvalue < rLoLimit) {
+            state = Red;
+        } else if (fvalue < yLoLimit) { // Near violation (adjust the threshold as needed)
             state = Yellow;
         } else {
             state = Green;
@@ -395,6 +342,66 @@ void updateStatusWindow()
     renderInputTextWithColor("MEGS-B Parity Errors", globalState.parityErrorsMB, 12, true, 0.0, 0.9);
 }
 
+void plotESPTarget(int lastIdx) {
+    constexpr float twoPi = 2.0f * 3.1415926535f;
+
+    // Calculate the angles from the quad diodes, this is almost a direct reuse of the code from the flight L0B code
+    float qsum = globalState.esp.ESP_q0[lastIdx] + globalState.esp.ESP_q1[lastIdx] + globalState.esp.ESP_q2[lastIdx] + globalState.esp.ESP_q3[lastIdx];
+	float inv_qsum = 1.f / (qsum + (1.e-10));
+	float qX = ((globalState.esp.ESP_q1[lastIdx] + globalState.esp.ESP_q3[lastIdx]) - (globalState.esp.ESP_q0[lastIdx] + globalState.esp.ESP_q2[lastIdx])) * inv_qsum ;
+	float qY = ((globalState.esp.ESP_q0[lastIdx] + globalState.esp.ESP_q1[lastIdx]) - (globalState.esp.ESP_q2[lastIdx] + globalState.esp.ESP_q3[lastIdx])) * inv_qsum;
+    float maxAbsNorm = (abs(qX) > abs(qY)) ? abs(qX) : abs(qY);
+
+    int arcsecX = ((int) ((qX - 2.0) * 1000)) + 1000;
+	int arcsecY = ((int) ((qY - 2.0) * 1000)) + 1000;
+    float xanglearcsec = (esp_x_angle_table[arcsecX] / 1000.0);
+    float yanglearcsec = (esp_y_angle_table[arcsecY] / 1000.0);
+    //float xangleDeg = xanglearcsec / 3600.0;
+    //float yangleDeg = yanglearcsec / 3600.0;
+
+    // Create a plot with ImPlot
+    if (ImPlot::BeginPlot("ESP Target Plot", ImVec2(-1, 0), ImPlotFlags_Equal)) {
+        // Set the axis ranges to be from -1 to +1
+        float maxScale = (maxAbsNorm > 1.0) ? maxAbsNorm * 1.5 : 1.0;
+        ImPlot::SetupAxisLimits(ImAxis_X1, -maxScale, maxScale);
+        ImPlot::SetupAxisLimits(ImAxis_Y1, -maxScale, maxScale);
+
+        // Radii for the open circles
+        const float radii[] = {0.01f, 0.05f, 0.1f, 0.5f, 1.0f};
+
+        // Draw the circles centered at (0, 0)
+        for (float radius : radii) {
+            // Generate points for the circle
+            const int points = 30;
+            // Use std::vector for the circle points
+            std::vector<float> xData(points);
+            std::vector<float> yData(points);
+
+
+            for (int i = 0; i < points; ++i) {
+                float angle = twoPi * (float)i / (float)(points - 1);
+                xData[i] = radius * cos(angle);
+                yData[i] = radius * sin(angle);
+            }
+            // Plot the circle as a line
+            ImPlot::PlotLine("##Circle", xData.data(), yData.data(), points);
+        }
+
+        // Plot the data point (as an asterisk)
+        ImPlot::SetNextMarkerStyle(ImPlotMarker_Asterisk, 8.0f, ImVec4(1, 0, 0, 1), 1.5f);
+        
+        ImPlot::PlotScatter("Measurement", &qX, &qY, 1);
+ 
+        // Display the angles below the plot
+        ImGui::Text("X Angle: %.2f arcsec", xanglearcsec);
+        ImGui::Text("Y Angle: %.2f arcsec", yanglearcsec);
+        renderInputTextWithColor("Qsum:", qsum, 12, true, 100000.f, 200000.f, 100.f, 50.f);
+ 
+        // End the plot
+        ImPlot::EndPlot();
+    }
+}
+
 void updateESPWindow()
 {
     // need to find the last populated index
@@ -435,6 +442,9 @@ void updateESPWindow()
     ImGui::Columns(1);
 
 }
+
+
+
 
 int imgui_thread() {
 
