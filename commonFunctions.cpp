@@ -544,18 +544,20 @@ void processESPPacket(std::vector<uint8_t> payload,
         oneESPStructure.ESP_366[index] = (uint16_t (payload[incr+16]) << 8) | (uint16_t (payload[incr+17]));
         oneESPStructure.ESP_dark[index] = (uint16_t (payload[incr+18]) << 8) | (uint16_t (payload[incr+19]));
 
-        // mtx.lock();
-        // globalState.esp.ESP_xfer_cnt[index] = oneESPStructure.ESP_xfer_cnt[index];
-        // globalState.esp.ESP_q0[index] = oneESPStructure.ESP_q0[index];
-        // globalState.esp.ESP_q1[index] = oneESPStructure.ESP_q1[index];
-        // globalState.esp.ESP_q2[index] = oneESPStructure.ESP_q2[index];
-        // globalState.esp.ESP_q3[index] = oneESPStructure.ESP_q3[index];
-        // globalState.esp.ESP_171[index] = oneESPStructure.ESP_171[index];
-        // globalState.esp.ESP_257[index] = oneESPStructure.ESP_257[index];
-        // globalState.esp.ESP_304[index] = oneESPStructure.ESP_304[index];
-        // globalState.esp.ESP_366[index] = oneESPStructure.ESP_366[index];
-        // globalState.esp.ESP_dark[index] = oneESPStructure.ESP_dark[index];
-        // mtx.unlock();
+        mtx.lock();
+        globalState.esp.ESP_xfer_cnt[index] = oneESPStructure.ESP_xfer_cnt[index];
+        globalState.esp.ESP_q0[index] = oneESPStructure.ESP_q0[index];
+        globalState.esp.ESP_q1[index] = oneESPStructure.ESP_q1[index];
+        globalState.esp.ESP_q2[index] = oneESPStructure.ESP_q2[index];
+        globalState.esp.ESP_q3[index] = oneESPStructure.ESP_q3[index];
+        globalState.esp.ESP_171[index] = oneESPStructure.ESP_171[index];
+        globalState.esp.ESP_257[index] = oneESPStructure.ESP_257[index];
+        globalState.esp.ESP_304[index] = oneESPStructure.ESP_304[index];
+        globalState.esp.ESP_366[index] = oneESPStructure.ESP_366[index];
+        globalState.esp.ESP_dark[index] = oneESPStructure.ESP_dark[index];
+        mtx.unlock();
+
+        //std::cout<<"ESP q0: "<< oneESPStructure.ESP_q0[index] << std::endl;
     }
 
 
@@ -565,18 +567,18 @@ void processESPPacket(std::vector<uint8_t> payload,
         mtx.lock();
         globalState.packetsReceived.ESP++;
 
-        // use std:;copy to copy each entire array at once
+        // use std::copy to copy each entire array at once
         // requires <algorithm> for std::copy
-        std::copy(std::begin(oneESPStructure.ESP_xfer_cnt), std::end(oneESPStructure.ESP_xfer_cnt), std::begin(globalState.esp.ESP_xfer_cnt));
-        std::copy(std::begin(oneESPStructure.ESP_q0), std::end(oneESPStructure.ESP_q0), std::begin(globalState.esp.ESP_q0));
-        std::copy(std::begin(oneESPStructure.ESP_q1), std::end(oneESPStructure.ESP_q1), std::begin(globalState.esp.ESP_q1));
-        std::copy(std::begin(oneESPStructure.ESP_q2), std::end(oneESPStructure.ESP_q2), std::begin(globalState.esp.ESP_q2));
-        std::copy(std::begin(oneESPStructure.ESP_q3), std::end(oneESPStructure.ESP_q3), std::begin(globalState.esp.ESP_q3));
-        std::copy(std::begin(oneESPStructure.ESP_171), std::end(oneESPStructure.ESP_171), std::begin(globalState.esp.ESP_171));
-        std::copy(std::begin(oneESPStructure.ESP_257), std::end(oneESPStructure.ESP_257), std::begin(globalState.esp.ESP_257));
-        std::copy(std::begin(oneESPStructure.ESP_304), std::end(oneESPStructure.ESP_304), std::begin(globalState.esp.ESP_304));
-        std::copy(std::begin(oneESPStructure.ESP_366), std::end(oneESPStructure.ESP_366), std::begin(globalState.esp.ESP_366));
-        std::copy(std::begin(oneESPStructure.ESP_dark), std::end(oneESPStructure.ESP_dark), std::begin(globalState.esp.ESP_dark));
+        // std::copy(std::begin(oneESPStructure.ESP_xfer_cnt), std::end(oneESPStructure.ESP_xfer_cnt), std::begin(globalState.esp.ESP_xfer_cnt));
+        // std::copy(std::begin(oneESPStructure.ESP_q0), std::end(oneESPStructure.ESP_q0), std::begin(globalState.esp.ESP_q0));
+        // std::copy(std::begin(oneESPStructure.ESP_q1), std::end(oneESPStructure.ESP_q1), std::begin(globalState.esp.ESP_q1));
+        // std::copy(std::begin(oneESPStructure.ESP_q2), std::end(oneESPStructure.ESP_q2), std::begin(globalState.esp.ESP_q2));
+        // std::copy(std::begin(oneESPStructure.ESP_q3), std::end(oneESPStructure.ESP_q3), std::begin(globalState.esp.ESP_q3));
+        // std::copy(std::begin(oneESPStructure.ESP_171), std::end(oneESPStructure.ESP_171), std::begin(globalState.esp.ESP_171));
+        // std::copy(std::begin(oneESPStructure.ESP_257), std::end(oneESPStructure.ESP_257), std::begin(globalState.esp.ESP_257));
+        // std::copy(std::begin(oneESPStructure.ESP_304), std::end(oneESPStructure.ESP_304), std::begin(globalState.esp.ESP_304));
+        // std::copy(std::begin(oneESPStructure.ESP_366), std::end(oneESPStructure.ESP_366), std::begin(globalState.esp.ESP_366));
+        // std::copy(std::begin(oneESPStructure.ESP_dark), std::end(oneESPStructure.ESP_dark), std::begin(globalState.esp.ESP_dark));
 
         if ((dataGapsESP == 0) && ((processedPacketCounter % 2) == 0) ) {
 
