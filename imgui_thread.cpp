@@ -6,6 +6,8 @@
 #include "imgui/backends/imgui_impl_glfw.h"
 #include "imgui/backends/imgui_impl_opengl3.h"
 #include "implot.h"
+#include "eve_esp_x_angle.h"
+#include "eve_esp_y_angle.h"
 #include <stdio.h>
 #include <vector>
 #include <iostream>
@@ -29,9 +31,20 @@ enum LimitState {
     Red
 };
 
+// ImVec4 GetAdaptiveColor(ImVec4 color) {
+//     ImVec4 windowBg = ImGui::GetStyleColorVec4(ImGuiCol_WindowBg);
+//     float brightnessFactor = (windowBg.x + windowBg.y + windowBg.z) / 3.0f; // Average brightness of the background
+
+//     // Adjust brightness of the color based on the background color
+//     return ImVec4(color.x * brightnessFactor, color.y * brightnessFactor, color.z * brightnessFactor, color.w);
+// }
+
 // Function to determine the color based on state
 ImVec4 getColorForState(LimitState state) {
     switch (state) {
+        //case Green: return GetAdaptiveColor(ImVec4(0.0f, 1.0f, 0.0f, 1.0f));  // Green
+        //case Yellow: return GetAdaptiveColor(ImVec4(1.0f, 0.8f, 0.0f, 1.0f)); // Yellow
+        //case Red: return GetAdaptiveColor(ImVec4(1.0f, 0.0f, 0.0f, 1.0f));    // Red
         case Green: return ImVec4(0.0f, 0.5f, 0.0f, 1.0f);  // Green
         case Yellow: return ImVec4(0.4f, 0.4f, 0.0f, 1.0f); // Yellow
         case Red: return ImVec4(0.5f, 0.0f, 0.0f, 1.0f);    // Red
@@ -43,6 +56,66 @@ float mazoom = 0.2f;         // Zoom level (1.0 = full resolution)
 float mbzoom = 0.2f;         // Zoom level (1.0 = full resolution)
 bool mamodulo256 = true;    // Modulo 256 display
 bool mbmodulo256 = true;    // Modulo 256 display
+
+
+void plotESPTarget(int lastIdx) {
+    constexpr float twoPi = 2.0f * 3.1415926535f;
+
+    // Calculate the angles from the quad diodes, this is almost a direct reuse of the code from the flight L0B code
+    float qsum = globalState.esp.ESP_q0[lastIdx] + globalState.esp.ESP_q1[lastIdx] + globalState.esp.ESP_q2[lastIdx] + globalState.esp.ESP_q3[lastIdx];
+	float inv_qsum = 1.f / (qsum + (1.e-10));
+	float qX = ((globalState.esp.ESP_q1[lastIdx] + globalState.esp.ESP_q3[lastIdx]) - (globalState.esp.ESP_q0[lastIdx] + globalState.esp.ESP_q2[lastIdx])) * inv_qsum ;
+	float qY = ((globalState.esp.ESP_q0[lastIdx] + globalState.esp.ESP_q1[lastIdx]) - (globalState.esp.ESP_q2[lastIdx] + globalState.esp.ESP_q3[lastIdx])) * inv_qsum;
+    float maxAbsNorm = (abs(qX) > abs(qY)) ? abs(qX) : abs(qY);
+
+    int arcsecX = ((int) ((qX - 2.0) * 1000)) + 1000;
+	int arcsecY = ((int) ((qY - 2.0) * 1000)) + 1000;
+    float xanglearcsec = (esp_x_angle_table[arcsecX] / 1000.0);
+    float yanglearcsec = (esp_y_angle_table[arcsecY] / 1000.0);
+    //float xangleDeg = xanglearcsec / 3600.0;
+    //float yangleDeg = yanglearcsec / 3600.0;
+
+    // Create a plot with ImPlot
+    if (ImPlot::BeginPlot("ESP Target Plot", ImVec2(-1, 0), ImPlotFlags_Equal)) {
+        // Set the axis ranges to be from -1 to +1
+        float maxScale = (maxAbsNorm > 1.0) ? maxAbsNorm * 1.5 : 1.0;
+        ImPlot::SetupAxisLimits(ImAxis_X1, -maxScale, maxScale);
+        ImPlot::SetupAxisLimits(ImAxis_Y1, -maxScale, maxScale);
+
+        // Radii for the open circles
+        const float radii[] = {0.01f, 0.05f, 0.1f, 0.5f, 1.0f};
+
+        // Draw the circles centered at (0, 0)
+        for (float radius : radii) {
+            // Generate points for the circle
+            const int points = 30;
+            // Use std::vector for the circle points
+            std::vector<float> xData(points);
+            std::vector<float> yData(points);
+
+
+            for (int i = 0; i < points; ++i) {
+                float angle = twoPi * (float)i / (float)(points - 1);
+                xData[i] = radius * cos(angle);
+                yData[i] = radius * sin(angle);
+            }
+            // Plot the circle as a line
+            ImPlot::PlotLine("##Circle", xData.data(), yData.data(), points);
+        }
+
+        // Plot the data point (as an asterisk)
+        ImPlot::SetNextMarkerStyle(ImPlotMarker_Asterisk, 8.0f, ImVec4(1, 0, 0, 1), 1.5f);
+        
+        ImPlot::PlotScatter("Measurement", &qX, &qY, 1);
+ 
+        // Display the angles below the plot
+        ImGui::Text("X Angle: %.2f arcsec", xanglearcsec);
+        ImGui::Text("Y Angle: %.2f arcsec", yanglearcsec);
+ 
+        // End the plot
+        ImPlot::EndPlot();
+    }
+}
 
 
 // Function to populate the image with an asymetric pattern, 4 quadrants, lowest quad is a gradian, second is a checkerboard, third is a constant value, fourth is a sinusoidal pattern
@@ -71,21 +144,7 @@ void populatePattern(uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT]) {
     }
 }
 
-// // This function is only thread-safe if image and transposeData are not accessed elsewhere during execution.
-// // Callers are expected to use mtx to lock access during modification.
-// // switch x and y 
-// void transposeImage2D(const uint16_t (*image)[MEGS_IMAGE_HEIGHT], uint16_t (*transposeData)[MEGS_IMAGE_WIDTH]) {
-//     const uint32_t width = MEGS_IMAGE_WIDTH;
-//     const uint32_t height = MEGS_IMAGE_HEIGHT;
 
-//     // approx mean time 17-19 ms - Winner!
-//     // single thread
-//     for (uint32_t x = 0; x < width; ++x) {
-//         for (uint32_t y = 0; y < height; ++y) {
-//             transposeData[y][x] = image[x][y];
-//         }
-//     }
-// }
 
 // Replace image with histogram equalized version, 8-bits per pixel
 void histogramEqualization(uint8_t* image, int width, int height) {
@@ -246,6 +305,7 @@ void displayMAImageWithControls(GLuint megsATextureID)
     //ImVec2 viewportSizea = ImVec2(1024.0f, 512.0f);
     
     // Zoom slider
+    ImGui::SetNextItemWidth(100);
     ImGui::SliderFloat("MA Zoom", &mazoom, 0.25f, 4.0f, "MA Zoom %.1fx");
     
     // Toggle for scaled or modulo 256 view
@@ -276,7 +336,6 @@ void displayMBImageWithControls(GLuint megsBTextureID)
     ImGui::Text("MB 1st pkt: %s",tmpiISO8601);
 
     float value = 1.0f; // changing this will crop the image
-    //ImGui::Image((void*)(intptr_t)megsBTextureID, ImVec2(MEGS_IMAGE_WIDTH*0.25f,MEGS_IMAGE_HEIGHT*0.25), ImVec2(0.0f,0.0f), ImVec2(value,value));
     ImGui::Image((void*)(intptr_t)megsBTextureID, ImVec2(MEGS_IMAGE_WIDTH*mbzoom,MEGS_IMAGE_HEIGHT*mbzoom), ImVec2(0.0f,0.0f), ImVec2(value,value));
 
     ImGui::End();
@@ -369,6 +428,9 @@ void updateESPWindow()
     ImGui::NextColumn();
     ImGui::Text("ESP Plots Column");
 
+    // Plot the ESP data
+    plotESPTarget(index);
+
     // reset to single column layout
     ImGui::Columns(1);
 
@@ -435,6 +497,13 @@ int imgui_thread() {
         style.WindowRounding = 0.0f;
         style.Colors[ImGuiCol_WindowBg].w = 1.0f;
     }
+
+    ImGui::CreateContext();
+    // Setup ImPlot
+    ImPlot::CreateContext();
+
+
+
 
     // Setup Platform/Renderer backends
     ImGui_ImplGlfw_InitForOpenGL(window, true);
@@ -602,6 +671,7 @@ int imgui_thread() {
 #endif
 
     // Cleanup
+    ImPlot::DestroyContext();
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
