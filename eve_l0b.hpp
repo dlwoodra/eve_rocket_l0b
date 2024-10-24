@@ -45,21 +45,16 @@ constexpr uint16_t IMAGE_UPDATE_INTERVAL = 266; // best values are evenly divisi
 #define n_bytes_per_vcdu_header 28		// The vcdu header is 28 bytes
 #define n_bytes_per_vcdu_data 1756		// Each vcdu is 1756 bytes
 
-#define megsa1boundary 556  // Y		The pixel value (row) defining the row between Slit 1 and Slit 2
-#define megsa2boundary 750  // X		The pixel value (column) defining the row between Slit 2 and SAM
+//#define megsa1boundary 556  // Y		The pixel value (row) defining the row between Slit 1 and Slit 2
+//#define megsa2boundary 750  // X		The pixel value (column) defining the row between Slit 2 and SAM
 
-#define PIXELS_PER_HALF_VCDU 438	 	// 1752 bytes or 876 total pixels/vcdu
-#define FONTWIDTH 32				// Used in quicklook images
-#define FONTHEIGHT 32				// Used in quicklook images
+//#define PIXELS_PER_HALF_VCDU 438	 	// 1752 bytes or 876 total pixels/vcdu
+//#define FONTWIDTH 32				// Used in quicklook images
+//#define FONTHEIGHT 32				// Used in quicklook images
 #define skipval 4				// Scale quicklook images by this factor
 
-//#define SYNC_MARKER 0x1ACFFC1D			// The SDO defined sync marker
-#define BYTE_SWAPPED_SYNC_MARKER 0xFC1D1ACF	// The sync marker byte swapped
-
-#define MAX_STRING_LENGTH		512		// Maximum string length value
 #define N_PKT_PER_IMAGE 		2395	// There are 2395 packets in each image
-#define MAX_MEGS_A_IMAGES_PER_FILE 	7		//	No more than 7 images per minute possible
-#define MAX_MEGS_B_IMAGES_PER_FILE 	7		//	No more than 7 images per minute possible
+
 constexpr uint32_t MEGS_IMAGE_WIDTH = 2048;	// The CCD images are 2048 x 1024 pixels
 constexpr uint32_t MEGS_IMAGE_HEIGHT = 1024;
 
@@ -406,10 +401,12 @@ struct ProgramState {
     bool running = true; // Whether the program is still running
 	MEGS_IMAGE_REC megsa; 
 	bool megsAUpdated = true;
+	bool isFirstMAImage = true;
 	//uint16_t sclMegsA[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT];
 	MEGS_IMAGE_REC megsb;
 	//uint16_t sclMegsB[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT];
 	bool megsBUpdated = true;
+	bool isFirstMBImage = true;
 	PKT_COUNT_REC packetsReceived;
 	long parityErrorsMA = 0;
 	long parityErrorsMB = 0;
@@ -418,6 +415,10 @@ struct ProgramState {
 	long dataGapsMP = 0;
 	long dataGapsESP = 0;
 	long dataGapsSHK = 0;
+	long saturatedPixelsMATop = 0;
+	long saturatedPixelsMABottom = 0;
+	long saturatedPixelsMBTop = 0;
+	long saturatedPixelsMBBottom = 0;
 	ESP_PACKET esp;
 	MEGSP_PACKET megsp;
 	SHK_PACKET shk;
