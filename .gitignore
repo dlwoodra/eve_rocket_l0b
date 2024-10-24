@@ -30,3 +30,13 @@
 *.exe
 *.out
 *.app
+
+# Compressed files
+*.gz
+*.zip
+
+# Directories
+/data/*
+/logs/*
+/record/*
+/testinputs/*
