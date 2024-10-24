@@ -332,14 +332,19 @@ void updateStatusWindow()
     renderInputTextWithColor("606 a5e SHK Pkts",globalState.packetsReceived.SHK, 12, false, 0.0, 0.9);
     renderInputTextWithColor("Unknown Packets", globalState.packetsReceived.Unknown, 12, true, 0.0, 0.9);
 
-    renderInputTextWithColor("MEGS-A Gap Count", globalState.dataGapsMA, 12, true, 0.0, 0.9);
-    renderInputTextWithColor("MEGS-B Gap Count", globalState.dataGapsMB, 12, true, 0.0, 0.9);
+    renderInputTextWithColor("MEGS-A Gap Count", globalState.dataGapsMA, 12, !globalState.isFirstMAImage, 0.0, 0.9);
+    renderInputTextWithColor("MEGS-B Gap Count", globalState.dataGapsMB, 12, !globalState.isFirstMBImage, 0.0, 0.9);
     renderInputTextWithColor("MEGS-P Gap Count", globalState.dataGapsMP, 12, true, 0.0, 0.9);
     renderInputTextWithColor("ESP Gap Count", globalState.dataGapsESP, 12, true, 0.0, 0.9);
     renderInputTextWithColor("SHK Gap Count", globalState.dataGapsSHK, 12, true, 0.0, 0.9);
 
     renderInputTextWithColor("MEGS-A Parity Errors", globalState.parityErrorsMA, 12, true, 0.0, 0.9);
     renderInputTextWithColor("MEGS-B Parity Errors", globalState.parityErrorsMB, 12, true, 0.0, 0.9);
+
+    renderInputTextWithColor("MEGS-A Top Saturated", globalState.saturatedPixelsMATop, 12, true, 0.0, 0.9);
+    renderInputTextWithColor("MEGS-A Bottom Saturated", globalState.saturatedPixelsMABottom, 12, true, 0.0, 0.9);
+    renderInputTextWithColor("MEGS-B Top Saturated", globalState.saturatedPixelsMBTop, 12, true, 0.0, 0.9);
+    renderInputTextWithColor("MEGS-B Bottom Saturated", globalState.saturatedPixelsMBBottom, 12, true, 0.0, 0.9);
 }
 
 void plotESPTarget(int lastIdx) {
