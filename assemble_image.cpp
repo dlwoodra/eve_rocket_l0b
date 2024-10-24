@@ -55,6 +55,7 @@ int32_t assemble_image( uint8_t * vcdu, MEGS_IMAGE_REC * ptr, uint16_t sourceSeq
   constexpr int32_t MEGS_IMAGE_WIDTH_SHIFT=11; // number of bits to shift
   constexpr int32_t MEGS_IMAGE_HEIGHT_LESS1 = MEGS_IMAGE_HEIGHT - 1;
   constexpr int32_t MEGS_IMAGE_WIDTH_LESS1 = MEGS_IMAGE_WIDTH - 1;
+  constexpr int32_t PIXELS_PER_HALF_VCDU = 438;
   uint16_t pix_val14;
   const int32_t src_seq_times_pixels_per_half_vcdu = sourceSequenceCounter * PIXELS_PER_HALF_VCDU;
 
