@@ -206,11 +206,12 @@ void processMegsAPacket(std::vector<uint8_t> payload,
 
     // insert pixels into image
 
-    static std::string iso8601;
+    //static std::string iso8601;
 
     static uint16_t processedPacketCounter=0;
     int8_t status=0;
     static bool testPattern;
+    static bool isFirstImage = true;
     static int32_t previousSrcSeqCount = -1;
     static MEGS_IMAGE_REC oneMEGSStructure;
     int vcdu_offset_to_sec_hdr = 20; // 6 bytes from packet start to timestamp, 8 byte IMPDU hdr, 6 byte CVCDU hdr is 20
@@ -252,14 +253,13 @@ void processMegsAPacket(std::vector<uint8_t> payload,
         globalState.megsa.tai_time_subseconds = oneMEGSStructure.tai_time_subseconds;
         globalState.megsa.sod = oneMEGSStructure.sod;
         globalState.megsa.yyyydoy = oneMEGSStructure.yyyydoy;
-        //globalState.megsa.cstrISO8601 = oneMEGSStructure.cstrISO8601;
         mtx.unlock();
 
         processedPacketCounter=0;
     }
-    if (((previousSrcSeqCount + 1) % 16384) != sourceSequenceCounter) {
+    if ((!isFirstImage) && (((previousSrcSeqCount + 1) % N_PKT_PER_IMAGE) != sourceSequenceCounter)) {
         // there is a gap in the data
-        LogFileWriter::getInstance().logError("MA data gap SSC: {} previous SSC: {}", sourceSequenceCounter, previousSrcSeqCount);
+        LogFileWriter::getInstance().logError("MA packet out of sequence SSC: {} previous SSC: {}", sourceSequenceCounter, previousSrcSeqCount);
         std::cout << "processMegsAPacket - data gap SSC: " << sourceSequenceCounter << " previous SSC: " << previousSrcSeqCount << std::endl;
         mtx.lock();
         globalState.dataGapsMA++;
@@ -275,24 +275,43 @@ void processMegsAPacket(std::vector<uint8_t> payload,
 
     {
         mtx.lock();
+        globalState.isFirstMAImage = isFirstImage;
         globalState.packetsReceived.MA++;
         // The globalState.megsa image is NOT initialized and just overwrites each packet location as it is received
         globalState.parityErrorsMA += assemble_image(vcdu, &globalState.megsa, sourceSequenceCounter, testPattern, &status);
         if ((processedPacketCounter % IMAGE_UPDATE_INTERVAL) == 0) {
             globalState.megsAUpdated = true;
+
+            // THIS MIGHT BE TOO SLOW
+            //#pragma omp parallel for reduction(+:globalState.saturatedPixelsMATop, globalState.saturatedPixelsMABottom)
+            for (uint32_t i = 0; i < MEGS_IMAGE_WIDTH; ++i) {
+                for (uint32_t j = 0; j < MEGS_IMAGE_HEIGHT; ++j) {
+                    uint16_t maskedValue = globalState.megsa.image[i][j] & 0x3fff;
+                    if (maskedValue == 0x3fff) {
+                        if (j < MEGS_IMAGE_HEIGHT / 2) {
+                            globalState.saturatedPixelsMATop++;
+                        } else {
+                            globalState.saturatedPixelsMABottom++;
+                        }
+                    } // if maskedValue
+                } // for j
+            } // for i
+
         }
         mtx.unlock();
     }
 
     if ( parityErrors > 0 ) {
         LogFileWriter::getInstance().logError("MA parity errors: {} SSC: {}", parityErrors, sourceSequenceCounter);
-        std::cout << "processMegsAPacket - assemble_image returned parity errors: " << parityErrors << " ssc:"<<sourceSequenceCounter<<"\n";
+        //std::cout << "processMegsAPacket - assemble_image returned parity errors: " << parityErrors << " ssc:"<<sourceSequenceCounter<<"\n";
     }
     processedPacketCounter++; // count packets processed
 
     if ( sourceSequenceCounter == 2394) {
         std::cout<<"end of MEGS-A at 2394"<<"\n";
         LogFileWriter::getInstance().logInfo("end of MEGS-A image ssc=2394");
+
+        isFirstImage = false;
 
         // may need to run this in another thread
 
@@ -315,20 +334,21 @@ void processMegsAPacket(std::vector<uint8_t> payload,
     }
 }
 
-void processMegsBPacket(std::vector<uint8_t> payload, 
-    uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp) {
+void processMegsBPacket(std::vector<uint8_t> payload, uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp) {
 
     //LogFileWriter::getInstance().logInfo("processMegsBPacket");
 
     // insert pixels into image
 
-    static std::string iso8601;
+    //static std::string iso8601;
 
     static uint16_t processedPacketCounter=0;
     int8_t status=0;
     static bool testPattern;
+    static bool isFirstImage = true;
     static int32_t previousSrcSeqCount = -1;
     static MEGS_IMAGE_REC oneMEGSStructure;
+
     int vcdu_offset_to_sec_hdr = 20; // 6 bytes from packet start to timestamp, 8 byte IMPDU hdr, 6 byte CVCDU hdr is 20
 
     // payload starts at secondary header
@@ -375,8 +395,8 @@ void processMegsBPacket(std::vector<uint8_t> payload,
 
         processedPacketCounter=0;
     }
-    if (((previousSrcSeqCount + 1) % 16384) != sourceSequenceCounter) {
-        LogFileWriter::getInstance().logError("MEGS-B packet out of sequence: {} {}", previousSrcSeqCount, sourceSequenceCounter);
+    if ((!isFirstImage) && (((previousSrcSeqCount + 1) % N_PKT_PER_IMAGE) != sourceSequenceCounter)) {
+        LogFileWriter::getInstance().logError("MEGS-B packet out of sequence SSC: {} {}", previousSrcSeqCount, sourceSequenceCounter);
         std::cout << "MEGS-B packet out of sequence: " << previousSrcSeqCount << " " << sourceSequenceCounter << std::endl;
         mtx.lock();
         globalState.dataGapsMB++;
@@ -392,16 +412,35 @@ void processMegsBPacket(std::vector<uint8_t> payload,
     {
         mtx.lock();
         globalState.packetsReceived.MB++;
+        if (isFirstImage) {
+            if (globalState.packetsReceived.MB > 2395) {
+                isFirstImage = false;
+            }
+        }
+        globalState.isFirstMBImage = isFirstImage;
         // The globalState.megsa image is NOT re-initialized and just overwrites each packet location as it is received
         globalState.parityErrorsMB += assemble_image(vcdu, &globalState.megsb, sourceSequenceCounter, testPattern, &status);
         if ((processedPacketCounter % IMAGE_UPDATE_INTERVAL) == 0) {
             globalState.megsBUpdated = true;
+            //#pragma omp parallel for reduction(+:globalState.saturatedPixelsMBTop, globalState.saturatedPixelsMBBottom)
+            for (uint32_t i = 0; i < MEGS_IMAGE_WIDTH; ++i) {
+                for (uint32_t j = 0; j < MEGS_IMAGE_HEIGHT; ++j) {
+                    uint16_t maskedValue = globalState.megsb.image[i][j] & 0x3fff;
+                    if (maskedValue == 0x3fff) {
+                        if (j < MEGS_IMAGE_HEIGHT / 2) {
+                            globalState.saturatedPixelsMBTop++;
+                        } else {
+                            globalState.saturatedPixelsMBBottom++;
+                        }
+                    } //for maskedValue
+                } //for j
+            } // for i 
         }
         mtx.unlock();
     }
     if ( parityErrors > 0 ) {
-        LogFileWriter::getInstance().logError("MB parity errors: {}", parityErrors);
-        std::cout << "processMegsBPacket - assemble_image returned parity errors: " << parityErrors << " ssc:"<<sourceSequenceCounter<<"\n";
+        LogFileWriter::getInstance().logError("MB parity errors: {} in SSC:", parityErrors,sourceSequenceCounter);
+        //std::cout << "processMegsBPacket - assemble_image returned parity errors: " << parityErrors << " ssc:"<<sourceSequenceCounter<<"\n";
     }
 
     processedPacketCounter++; // count packets processed
@@ -409,6 +448,8 @@ void processMegsBPacket(std::vector<uint8_t> payload,
     if ( sourceSequenceCounter == 2394) {
         std::cout<<"end of MEGS-B at 2394"<<"\n";
         LogFileWriter::getInstance().logInfo("end of MEGS-B image ssc=2394");
+
+        isFirstImage = false;
 
         // may need to run this in another thread
 
@@ -581,8 +622,6 @@ void processESPPacket(std::vector<uint8_t> payload,
         // std::copy(std::begin(oneESPStructure.ESP_dark), std::end(oneESPStructure.ESP_dark), std::begin(globalState.esp.ESP_dark));
 
         if ((dataGapsESP == 0) && ((processedPacketCounter % 2) == 0) ) {
-
-            //std::cout<< oneESPStructure.iso8601 <<std::endl;
             globalState.dataGapsESP += dataGapsESP;
             dataGapsESP = 0; // reset to zero
         }
