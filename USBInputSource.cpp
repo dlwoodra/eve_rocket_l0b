@@ -30,6 +30,8 @@ struct DeviceInfo {
     uint32_t fpgaVendor;
 };
 
+extern std::mutex mtx;
+extern ProgramState globalState;
 extern void handleSigint(int signal);
 
 // Function to log device information using spdlog
@@ -1042,18 +1044,29 @@ void USBInputSource::checkLinkStatus(void)
     // r0 : 0 = tx FIFO empty
     // r0 : 1 = rx FIFO empty (we do not use this feature)
     // r0 : 2 = rx error
-	//uint16_t r0 = readGSERegister(0);
+	uint16_t r0 = readGSERegister(0);
+	uint16_t r1 = readGSERegister(1);
 	uint16_t r2 = readGSERegister(2); 
-    // we think r0 bit 2, 3rd bit, is FIFO error bit
+	uint16_t r3 = readGSERegister(3); 
+    mtx.lock();
+    globalState.FPGA_reg0 = r0;
+    globalState.FPGA_reg1 = r1;
+    globalState.FPGA_reg2 = r2;
+    globalState.FPGA_reg3 = r3;
+    mtx.unlock();
+
+    // r0 bit 2, 3rd bit, is FIFO error bit - the same as register 2 bit 1
 	while (r2 == 1)
 	{
 		std::cout << StatusStr << "checkLinkStatus: FIFO Overflow ************** "<< " " << r2 << std::endl;
-        // reset the interace to clear the buffer
+        // reset the interface to clear the buffer
         resetInterface(1);  
     	//r0 = readGSERegister(0);
         r2 = readGSERegister(2);
         LogFileWriter::getInstance().logError("checkLinkStatus: FIFO Overflow - not keeping up");
 	}
+
+    
 
 }
 
