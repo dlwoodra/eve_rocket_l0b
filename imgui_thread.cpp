@@ -471,8 +471,8 @@ void displayFPGAStatus() {
     ImGui::NextColumn();
     ImGui::Text("FPGA Interpreted Values");
     //reg0 is multiple status bits
-    renderInputTextWithColor("FIFO TxEmpty", (reg0) & 0x01, 12, true, 0.0, 0.9);
-    renderInputTextWithColor("FIFO RxEmpty", (reg0 >> 1) & 0x01, 12, true, 0.0, 0.9);
+    renderInputTextWithColor("FIFO TxEmpty", (reg0) & 0x01, 12, false, 0.0, 0.9);
+    renderInputTextWithColor("FIFO RxEmpty", (reg0 >> 1) & 0x01, 12, true, 0.9, 1.9);
     renderInputTextWithColor("FIFO RxErr", (reg0 >> 2) & 0x01, 12, true, 0.0, 0.9);
     //reg1 is version
     renderInputTextWithColor("Firmware Ver", reg1, 12, false, 0.0, 0.9);
