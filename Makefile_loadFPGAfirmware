@@ -1,0 +1,21 @@
+CXX = g++
+INCLUDE_PATH = -I/usr/local/include
+CXXFLAGS = -Wall
+LFLAGS = -lokFrontPanel
+
+MAIN_OBJS = loadFPGAfirmware.o
+
+
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) $(INCLUDE_PATH) -c $< -o $@
+
+.PHONY: all clean
+
+all: loadFPGAfirmware
+
+loadFPGAfirmware: $(MAIN_OBJS)
+	$(CXX) $(CXXFLAGS) $(INCLUDE_PATH) $(MAIN_OBJS) -o $@ $(LFLAGS)
+
+clean: 
+	rm -f loadFPGAfirmware.o loadFPGAfirmware
+    
