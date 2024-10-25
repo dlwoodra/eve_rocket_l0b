@@ -434,26 +434,14 @@ int32_t USBInputSource::copyToPackedBuffer(uint32_t startWordIndex, uint32_t* st
 
 void logBufferContents(const uint32_t *pBlk) {
     std::ostringstream oss;
-    int count = 0;
     for (uint32_t icnt=0; icnt<256; ++icnt)
     {
-        oss << fmt::format("{:08x} ", byteswap_32(pBlk[icnt])); //[blkIdx - nPktLeft + icnt]);
-        count++;
-
-        if (count == 255) // Long line
-        {
-            LogFileWriter::getInstance().logInfo(oss.str());
-            oss.str(""); // Clear the stringstream
-            oss.clear();
-            count = 0;
-        }
+        oss << fmt::format("{:08x} ", byteswap_32(pBlk[icnt]));
     }
-
-    // Log any remaining values if less than 10 in the final line
-    if (count != 0)
-    {
-        LogFileWriter::getInstance().logInfo(oss.str());
-    }
+    LogFileWriter::getInstance().logInfo("logBufferContents 256 words");
+    LogFileWriter::getInstance().logInfo(oss.str());
+    oss.str(""); // Clear the stringstream
+    oss.clear();
 }
 
 void USBInputSource::replaceCGProxRx(CCSDSReader& usbReader)
@@ -923,24 +911,23 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
     						memcpy(PktBuff, &pBlk[blkIdx], nPktLeft << 2); //the bitshift is a div by 4 to convert bytes to 32-bit words
                             LogFileWriter::getInstance().logInfo("CGProxRx: ProcessPacket case 1 blk:{} nPktLeft:{} nBlkLeft:{} ",blk,nPktLeft,nBlkLeft);
     						nBlkLeft -= (nPktLeft);
-    						blkIdx += (nPktLeft-2); // -2 because we are already at the next word
-    						//blkIdx += (nPktLeft); // test
+    						//blkIdx += (nPktLeft-2); // -2 because we are already at the next word
+    						blkIdx += (nPktLeft); // test
 
 	    					state = 0; // this should make it start looking for the sync marker again
 
-                            LogFileWriter::getInstance().logInfo("CGProxRx: Blockdata dump, APID:{} blkIdx:{} nPktLeft:{}",APID,blkIdx-(nPktLeft-2),nPktLeft);
+                            LogFileWriter::getInstance().logInfo("CGProxRx: case 1 complete Blockdata dump, APID:{} blkIdx:{} nPktLeft:{}",APID,blkIdx-(nPktLeft-2),nPktLeft);
                             logBufferContents(pBlk);
 
                             //std::cout << "CGProxRx Case 1ddd -call GSEProcessPacket - state " <<state<< std::endl;
     						GSEProcessPacket(PktBuff, APID, usbReader);
-
-	    					//state = 0; // this should make it start looking for the sync marker again
 		    			}
 		    			else
 		    			{
 		    				// packet data is longer than data remaining in block
 		    				nBlkLeft &= 0xFF;
                             //std::cout << "CGProxRx Case 1ddd -copying - state "<<state << std::endl;
+                            LogFileWriter::getInstance().logInfo("CGProxRx: case 1, partial packet at end of 64k buffer, Blockdata dump, APID:{} blkIdx:{} nPktLeft:{} pktIdx:{} nBlkLeft:{}",APID,blkIdx,nPktLeft,pktIdx,nBlkLeft);
 		    				memcpy(PktBuff, &pBlk[blkIdx], nBlkLeft << 2);
 		    				pktIdx += nBlkLeft;
 		    				nPktLeft -= nBlkLeft;
@@ -953,7 +940,6 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
 	    			{
 	    				state = 0;
                         LogFileWriter::getInstance().logError("CGProxRx: Unrecognized APID {}",APID);
-	    				//snprintf(StatusStr, sizeof(StatusStr),"CGProxRx Unrecognized APID             ");
 	    			}
 	    			break;
 
@@ -969,12 +955,12 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
 		    			memcpy(&PktBuff[pktIdx], &pBlk[blkIdx], nPktLeft << 2);
                         LogFileWriter::getInstance().logInfo("CGProxRx: ProcessPacket case 2 nPktLeft:{} nBlkLeft:{} blkIdx:{}",nPktLeft,nBlkLeft,blkIdx);
 		    			nBlkLeft -= nPktLeft;
-		    			blkIdx += (nPktLeft-2);
-		    			//blkIdx += (nPktLeft); // test
+		    			//blkIdx += (nPktLeft-2);
+		    			blkIdx += (nPktLeft); // test
 
     					state = 0;
 
-                        LogFileWriter::getInstance().logInfo("CGProxRx: Blockdata dump, APID:{} blkIdx:{} nPktLeft:{}",APID,blkIdx-(nPktLeft-2),nPktLeft);
+                        LogFileWriter::getInstance().logInfo("CGProxRx: case 2 Blockdata dump, APID:{} blkIdx:{} nPktLeft:{}",APID,blkIdx-(nPktLeft-2),nPktLeft);
 
                         // logging the block data
 
