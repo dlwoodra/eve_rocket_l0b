@@ -98,6 +98,17 @@ std::string tai_to_iso8601(uint32_t tai) {
     return iso8601;
 }
 
+// TODO: check if this leaks memory ***
+// append subseconds to the ISO 8601 string and return cstring
+std::string tai_to_iso8601sss(const std::string& isoTimestamp, uint32_t subseconds) {
+
+    int milliseconds = subseconds / 65.536f;
+    std::ostringstream oss;
+    oss << isoTimestamp << '.' << std::setw(3) << std::setfill('0') << milliseconds;
+    
+    return oss.str();    
+}
+
 // convert a std::string to a C-style string
 // int convertToCString(const std::string& str, char** cstr, size_t& size) {
 //     // Fail if the string is empty
