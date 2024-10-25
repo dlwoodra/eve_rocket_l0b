@@ -110,6 +110,8 @@ int32_t assemble_image( uint8_t * vcdu, MEGS_IMAGE_REC * ptr, uint16_t sourceSeq
     {
       parityerrors++;
       *status = W_INVALID_PARITY;
+
+      std::cout << "Parity error: 0x" << std::hex << std::setw(4) << std::setfill('0')<< pixval16 << "SSC:"<< sourceSequenceCounter<< std::dec << std::endl;
     }
 #endif
 
@@ -163,8 +165,15 @@ int32_t assemble_image( uint8_t * vcdu, MEGS_IMAGE_REC * ptr, uint16_t sourceSeq
 
     // Insert the pixel value into the image in memory            
     ptr->image[xpos][ypos] = pix_val14;
-    // the less complicated way is to have 1024x2048, so here we do all the math using 2048x1024 then switch x and y
-    //ptr->image[ypos][xpos] = (uint16_t) pix_val14;
+    if( expectedparity != pixelparity ) {
+      std::cout<< "parity error at xpos: " << xpos << " ypos: " << ypos << std::endl;
+    }
+    if (pix_val14 == 0x3FFF) {
+      std::cout << "assemble_image: saturated - SSC:" << sourceSequenceCounter << 
+        " xpos:" << xpos << " ypos:" << ypos << " pixval16:"<<
+        std::hex<<std::setw(2)<<std::setfill('0')<< pixval16 <<std::dec<< std::endl;
+      printBytesToStdOut(vcdu, j, j+8);
+    }
 
   } //end of j for loop
          
