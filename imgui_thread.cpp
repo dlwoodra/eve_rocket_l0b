@@ -417,14 +417,17 @@ void updateESPWindow()
     }
 
     // Column 1
-    ImGui::Columns(2,"ESP Columns");
-    ImGui::SetColumnWidth(0, 160.0f);
+    ImGui::Columns(2,"ESP Data");
+    ImGui::SetColumnWidth(0, 210.0f);
     ImGui::Text("ESP Status Column");
     ImGui::SetNextItemWidth(ImGui::GetFontSize() * 10);
 
     std::string iso8601 = tai_to_iso8601(globalState.esp.tai_time_seconds);
-    const char* tmpiISO8601 = iso8601.c_str();
-    ImGui::Text("pkt:%s", tmpiISO8601);
+    //const char* tmpiISO8601 = iso8601.c_str();
+    //ImGui::Text("pkt:%s", tmpiISO8601);
+    std::string newiso8601 = tai_to_iso8601sss( iso8601, globalState.esp.tai_time_subseconds);
+    const char* tmpiISO8601sss = newiso8601.c_str(); 
+    ImGui::Text("pkt:%s", tmpiISO8601sss);
 
     renderInputTextWithColor("ESP xfer cnt", globalState.esp.ESP_xfer_cnt[index], 12, false, 0.0, 0.9);
     renderInputTextWithColor("ESP q0", globalState.esp.ESP_q0[index], 12, false, 0.0, 0.9);
