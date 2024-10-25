@@ -913,13 +913,14 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
     						memcpy(PktBuff, &pBlk[blkIdx], nPktLeft << 2); //the bitshift is a div by 4 to convert bytes to 32-bit words
                             LogFileWriter::getInstance().logInfo("CGProxRx: ProcessPacket case 1 blk:{} nPktLeft:{} nBlkLeft:{} ",blk,nPktLeft,nBlkLeft);
     						nBlkLeft -= (nPktLeft);
-    						//blkIdx += (nPktLeft-2); // -2 because we are already at the next word
     						blkIdx += (nPktLeft); // test
 
 	    					state = 0; // this should make it start looking for the sync marker again
 
                             LogFileWriter::getInstance().logInfo("CGProxRx: case 1 complete Blockdata dump, APID:{} blkIdx:{} nPktLeft:{}",APID,blkIdx-(nPktLeft-2),nPktLeft);
-                            logBufferContents(pBlk);
+                            //if ((APID == ESP_APID) || (APID == MEGSP_APID)) {
+                            //    logBufferContents(pBlk);
+                            //}
 
                             //std::cout << "CGProxRx Case 1ddd -call GSEProcessPacket - state " <<state<< std::endl;
     						GSEProcessPacket(PktBuff, APID, usbReader);
@@ -957,54 +958,54 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
 		    			memcpy(&PktBuff[pktIdx], &pBlk[blkIdx], nPktLeft << 2);
                         LogFileWriter::getInstance().logInfo("CGProxRx: ProcessPacket case 2 nPktLeft:{} nBlkLeft:{} blkIdx:{}",nPktLeft,nBlkLeft,blkIdx);
 		    			nBlkLeft -= nPktLeft;
-		    			//blkIdx += (nPktLeft-2);
-		    			blkIdx += (nPktLeft); // test
+		    			blkIdx += (nPktLeft);
 
     					state = 0;
 
                         LogFileWriter::getInstance().logInfo("CGProxRx: case 2 Blockdata dump, APID:{} blkIdx:{} nPktLeft:{}",APID,blkIdx-(nPktLeft-2),nPktLeft);
 
+                        //logBufferContents(pBlk);
                         // logging the block data
 
-                        std::ostringstream oss;
-                        int count = 0;
-                        // previous block is &RxBuff[256 * (blk-1)]
-                        for (uint32_t icnt=0; icnt<256; ++icnt)
-                        {
-                            if ( blk > 0 ) 
-                            {
-                                oss << fmt::format("{:08x} ", byteswap_32(*reinterpret_cast<uint32_t*>(&RxBuff[256*(blk-1) + icnt])));
-                            }
-                            count++;
+                        // std::ostringstream oss;
+                        // int count = 0;
+                        // // previous block is &RxBuff[256 * (blk-1)]
+                        // for (uint32_t icnt=0; icnt<256; ++icnt)
+                        // {
+                        //     if ( blk > 0 ) 
+                        //     {
+                        //         oss << fmt::format("{:08x} ", byteswap_32(*reinterpret_cast<uint32_t*>(&RxBuff[256*(blk-1) + icnt])));
+                        //     }
+                        //     count++;
 
-                            if (count == 255) // Roughly 80 characters (10 * 9 = 90 chars including spaces)
-                            {
-                                LogFileWriter::getInstance().logInfo(oss.str());
-                                oss.str(""); // Clear the stringstream
-                                oss.clear();
-                                count = 0;
-                            }
-                        }
-                        count=0;
-                        // current block
-                        for (uint32_t icnt=0; icnt<256; ++icnt)
-                        {
-                            oss << fmt::format("{:08x} ", byteswap_32(pBlk[icnt]));
-                            count++;
+                        //     if (count == 255) // Roughly 80 characters (10 * 9 = 90 chars including spaces)
+                        //     {
+                        //         LogFileWriter::getInstance().logInfo(oss.str());
+                        //         oss.str(""); // Clear the stringstream
+                        //         oss.clear();
+                        //         count = 0;
+                        //     }
+                        // }
+                        // count=0;
+                        // // current block
+                        // for (uint32_t icnt=0; icnt<256; ++icnt)
+                        // {
+                        //     oss << fmt::format("{:08x} ", byteswap_32(pBlk[icnt]));
+                        //     count++;
 
-                            if (count == 255) // Roughly 80 characters (10 * 9 = 90 chars including spaces)
-                            {
-                                LogFileWriter::getInstance().logInfo(oss.str());
-                                oss.str(""); // Clear the stringstream
-                                oss.clear();
-                                count = 0;
-                            }
-                        }
-                        // Log any remaining values if less than 10 in the final line
-                        if (count != 0)
-                        {
-                            LogFileWriter::getInstance().logInfo(oss.str());
-                        }
+                        //     if (count == 255) // Roughly 80 characters (10 * 9 = 90 chars including spaces)
+                        //     {
+                        //         LogFileWriter::getInstance().logInfo(oss.str());
+                        //         oss.str(""); // Clear the stringstream
+                        //         oss.clear();
+                        //         count = 0;
+                        //     }
+                        // }
+                        // // Log any remaining values if less than 10 in the final line
+                        // if (count != 0)
+                        // {
+                        //     LogFileWriter::getInstance().logInfo(oss.str());
+                        // }
 
                         //std::cout << "Case 1eee -call GSEProcessPacket - state " <<state<< std::endl;
     					GSEProcessPacket(PktBuff, APID, usbReader);
