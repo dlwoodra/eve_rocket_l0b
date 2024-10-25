@@ -415,10 +415,10 @@ struct ProgramState {
 	long dataGapsMP = 0;
 	long dataGapsESP = 0;
 	long dataGapsSHK = 0;
-	long saturatedPixelsMATop = 0;
-	long saturatedPixelsMABottom = 0;
-	long saturatedPixelsMBTop = 0;
-	long saturatedPixelsMBBottom = 0;
+	uint32_t saturatedPixelsMATop = 0;
+	uint32_t saturatedPixelsMABottom = 0;
+	uint32_t saturatedPixelsMBTop = 0;
+	uint32_t saturatedPixelsMBBottom = 0;
 	ESP_PACKET esp;
 	MEGSP_PACKET megsp;
 	SHK_PACKET shk;
