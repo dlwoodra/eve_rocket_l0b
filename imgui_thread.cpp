@@ -120,7 +120,7 @@ void histogramEqualization(uint8_t* image, int width, int height) {
 void renderInputTextWithColor(const char* label, long value, size_t bufferSize, bool limitCheck, float yHiLimit, float rHiLimit, float yLoLimit = -100., float rLoLimit = -200.) {
     LimitState state = NoCheck;
     
-    float_t itemWidthValue = ImGui::GetFontSize() * 6;
+    float_t itemWidthValue = ImGui::GetFontSize() * 4;
     ImGui::PushItemWidth(itemWidthValue);
 
     char strval[bufferSize];
@@ -418,6 +418,7 @@ void updateESPWindow()
 
     // Column 1
     ImGui::Columns(2,"ESP Columns");
+    ImGui::SetColumnWidth(0, 160.0f);
     ImGui::Text("ESP Status Column");
     ImGui::SetNextItemWidth(ImGui::GetFontSize() * 10);
 
@@ -448,6 +449,55 @@ void updateESPWindow()
 
 }
 
+void displayFPGAStatus() {
+
+    // Column 1
+    ImGui::Columns(2,"FPGA ");
+    ImGui::SetColumnWidth(0, 130.0f);
+    ImGui::Text("FPGA Registers");
+
+    mtx.lock();
+    uint16_t reg0 = globalState.FPGA_reg0;
+    uint16_t reg1 = globalState.FPGA_reg1;
+    uint16_t reg2 = globalState.FPGA_reg2;
+    uint16_t reg3 = globalState.FPGA_reg3;
+    mtx.unlock();
+
+    renderInputTextWithColor("Reg 0", reg0, 6, false, 0.0, 0.9);
+    renderInputTextWithColor("Reg 1", reg1, 6, false, 0.0, 0.9);
+    renderInputTextWithColor("Reg 2", reg2, 6, false, 0.0, 0.9);
+    renderInputTextWithColor("Reg 3", reg3, 6, false, 0.0, 0.9);
+
+    ImGui::NextColumn();
+    ImGui::Text("FPGA Interpreted Values");
+    //reg0 is multiple status bits
+    renderInputTextWithColor("FIFO TxEmpty", (reg0) & 0x01, 12, true, 0.0, 0.9);
+    renderInputTextWithColor("FIFO RxEmpty", (reg0 >> 1) & 0x01, 12, true, 0.0, 0.9);
+    renderInputTextWithColor("FIFO RxErr", (reg0 >> 2) & 0x01, 12, true, 0.0, 0.9);
+    //reg1 is version
+    renderInputTextWithColor("Firmware Ver", reg1, 12, false, 0.0, 0.9);
+    int gseType=reg1>>12;
+    switch (gseType) {
+        case 1:
+            ImGui::Text("GSEType: SyncSerial");
+            break;
+        case 2:
+            ImGui::Text("GSEType: SpaceWire");
+            break;
+        case 3:
+            ImGui::Text("GSEType: Parallel");
+            break;
+        default: 
+            ImGui::Text("GSEType: Unknown");
+    }
+    //reg2 is overflow
+    renderInputTextWithColor("FIFO Overflow", reg2, 12, true, 0, 0.9f);
+    //reg3 is temperature
+    float temperature = (reg3 >> 4) * 503.975f / 4096.0f - 273.15f;
+    renderInputTextWithColor("FPGA Temp (C)", temperature, 12, true, 40.0f, 45.0f, 20.0f, 10.0f);
+
+
+}
 
 
 
@@ -591,9 +641,9 @@ int imgui_thread() {
         {
             //static int counter = 0;
 
-            ImGui::Begin("SDO-EVE Rocket Data Display");                          // Create a window called "Hello, world!" and append into it.
+            ImGui::Begin("SDO-EVE Rocket FPGA Status");                          // Create a window called "Hello, world!" and append into it.
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
-
+            displayFPGAStatus();
             ImGui::End();
         }
 
@@ -605,7 +655,7 @@ int imgui_thread() {
 
             // 3. Show another simple window.
             {
-                ImGui::Begin("Status Window");
+                ImGui::Begin("Channel Status");
                 mtx.lock();
                 updateStatusWindow();
                 mtx.unlock();
