@@ -317,25 +317,6 @@ void processMegsAPacket(std::vector<uint8_t> payload,
                      globalState.saturatedPixelsMATop,
                      globalState.saturatedPixelsMABottom,
                      testPattern);
-
-            // THIS MIGHT BE TOO SLOW
-            //#pragma omp parallel for reduction(+:globalState.saturatedPixelsMATop, globalState.saturatedPixelsMABottom)
-            // for (uint32_t i = 0; i < MEGS_IMAGE_WIDTH; ++i) {
-            //     for (uint32_t j = 0; j < MEGS_IMAGE_HEIGHT; ++j) {
-            //         uint16_t maskedValue = globalState.megsa.image[i][j] & 0x3fff;
-            //         if (maskedValue == 0x3fff) {
-            //             if (j < MEGS_IMAGE_HEIGHT / 2) {
-            //                 // skip the first pixel in the top half for test patterns
-            //                 if (!( (testPattern) && (i == 0) && (j == 0) )) {
-            //                     globalState.saturatedPixelsMATop++;
-            //                 }
-            //             } else {
-            //                 globalState.saturatedPixelsMABottom++;
-            //             }
-            //         } // if maskedValue
-            //     } // for j
-            // } // for i
-
         }
         mtx.unlock();
     }
@@ -468,22 +449,6 @@ void processMegsBPacket(std::vector<uint8_t> payload, uint16_t sourceSequenceCou
                      globalState.saturatedPixelsMBTop,
                      globalState.saturatedPixelsMBBottom,
                      testPattern);
-            // //#pragma omp parallel for reduction(+:globalState.saturatedPixelsMBTop, globalState.saturatedPixelsMBBottom)
-            // for (uint32_t i = 0; i < MEGS_IMAGE_WIDTH; ++i) {
-            //     for (uint32_t j = 0; j < MEGS_IMAGE_HEIGHT; ++j) {
-            //         uint16_t maskedValue = globalState.megsb.image[i][j] & 0x3fff;
-            //         if (maskedValue == 0x3fff) {
-            //             if (j < MEGS_IMAGE_HEIGHT / 2) {
-            //                 if (!( (testPattern) && (i == 0) && (j == 0) )) {
-            //                     globalState.saturatedPixelsMBTop++;
-            //                     std::cout<<"*** saturated at i:"<<i<<" j:"<<j<<std::endl;
-            //                 }
-            //             } else {
-            //                 globalState.saturatedPixelsMBBottom++;
-            //             }
-            //         } //for maskedValue
-            //     } //for j
-            // } // for i 
         }
         mtx.unlock();
     }
