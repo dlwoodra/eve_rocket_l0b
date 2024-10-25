@@ -622,23 +622,12 @@ void processESPPacket(std::vector<uint8_t> payload,
         mtx.lock();
         globalState.packetsReceived.ESP++;
 
-        // use std::copy to copy each entire array at once
-        // requires <algorithm> for std::copy
-        // std::copy(std::begin(oneESPStructure.ESP_xfer_cnt), std::end(oneESPStructure.ESP_xfer_cnt), std::begin(globalState.esp.ESP_xfer_cnt));
-        // std::copy(std::begin(oneESPStructure.ESP_q0), std::end(oneESPStructure.ESP_q0), std::begin(globalState.esp.ESP_q0));
-        // std::copy(std::begin(oneESPStructure.ESP_q1), std::end(oneESPStructure.ESP_q1), std::begin(globalState.esp.ESP_q1));
-        // std::copy(std::begin(oneESPStructure.ESP_q2), std::end(oneESPStructure.ESP_q2), std::begin(globalState.esp.ESP_q2));
-        // std::copy(std::begin(oneESPStructure.ESP_q3), std::end(oneESPStructure.ESP_q3), std::begin(globalState.esp.ESP_q3));
-        // std::copy(std::begin(oneESPStructure.ESP_171), std::end(oneESPStructure.ESP_171), std::begin(globalState.esp.ESP_171));
-        // std::copy(std::begin(oneESPStructure.ESP_257), std::end(oneESPStructure.ESP_257), std::begin(globalState.esp.ESP_257));
-        // std::copy(std::begin(oneESPStructure.ESP_304), std::end(oneESPStructure.ESP_304), std::begin(globalState.esp.ESP_304));
-        // std::copy(std::begin(oneESPStructure.ESP_366), std::end(oneESPStructure.ESP_366), std::begin(globalState.esp.ESP_366));
-        // std::copy(std::begin(oneESPStructure.ESP_dark), std::end(oneESPStructure.ESP_dark), std::begin(globalState.esp.ESP_dark));
-
-        if ((dataGapsESP == 0) && ((processedPacketCounter % 2) == 0) ) {
+        //if ((dataGapsESP == 0) && ((processedPacketCounter % 2) == 0) ) {
             globalState.dataGapsESP += dataGapsESP;
+            globalState.esp.rec_tai_seconds = oneESPStructure.tai_time_seconds;
+            globalState.esp.rec_tai_subseconds = oneESPStructure.tai_time_subseconds;
             dataGapsESP = 0; // reset to zero
-        }
+        //}
         mtx.unlock();
     }
 
