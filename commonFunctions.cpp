@@ -198,6 +198,33 @@ void populateStructureTimes(T& oneStructure, const std::vector<uint8_t>& payload
     oneStructure.yyyydoy = (uint32_t)(year * 1000 + doy);
 }
 
+// Generic function to count saturated pixels in MEGS images
+void countSaturatedPixels(const uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT],
+                          uint32_t& saturatedPixelsTop,
+                          uint32_t& saturatedPixelsBottom,
+                          bool testPattern = false) {
+    saturatedPixelsTop = 0;
+    saturatedPixelsBottom = 0;
+
+    //#pragma omp parallel for reduction(+:saturatedPixelsTop, saturatedPixelsBottom)
+    for (uint32_t i = 0; i < MEGS_IMAGE_WIDTH; ++i) {
+        for (uint32_t j = 0; j < MEGS_IMAGE_HEIGHT; ++j) {
+            uint16_t maskedValue = image[i][j] & 0x3fff;
+            if (maskedValue == 0x3fff) {
+                if (j < MEGS_IMAGE_HEIGHT / 2) {
+                    // Skip the test pattern case for the first pixel
+                    if (!(testPattern && i == 0 && j == 0)) {
+                        saturatedPixelsTop++;
+                        //std::cout << "saturated pixel at i:" << i << " j:" << j << std::endl;
+                    }
+                } else {
+                    saturatedPixelsBottom++;
+                }
+            }
+        }
+    }
+}
+
 // the payload starts with the secondary header timestamp
 void processMegsAPacket(std::vector<uint8_t> payload, 
     uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp) {
@@ -282,25 +309,32 @@ void processMegsAPacket(std::vector<uint8_t> payload,
         if ((processedPacketCounter % IMAGE_UPDATE_INTERVAL) == 0) {
             globalState.megsAUpdated = true;
 
+            // count saturated pixels
+
             globalState.saturatedPixelsMABottom=0;
             globalState.saturatedPixelsMATop=0;
+            countSaturatedPixels(globalState.megsa.image,
+                     globalState.saturatedPixelsMATop,
+                     globalState.saturatedPixelsMABottom,
+                     testPattern);
+
             // THIS MIGHT BE TOO SLOW
             //#pragma omp parallel for reduction(+:globalState.saturatedPixelsMATop, globalState.saturatedPixelsMABottom)
-            for (uint32_t i = 0; i < MEGS_IMAGE_WIDTH; ++i) {
-                for (uint32_t j = 0; j < MEGS_IMAGE_HEIGHT; ++j) {
-                    uint16_t maskedValue = globalState.megsa.image[i][j] & 0x3fff;
-                    if (maskedValue == 0x3fff) {
-                        if (j < MEGS_IMAGE_HEIGHT / 2) {
-                            // skip the first pixel in the top half for test patterns
-                            if (!( (testPattern) && (i == 0) && (j == 0) )) {
-                                globalState.saturatedPixelsMATop++;
-                            }
-                        } else {
-                            globalState.saturatedPixelsMABottom++;
-                        }
-                    } // if maskedValue
-                } // for j
-            } // for i
+            // for (uint32_t i = 0; i < MEGS_IMAGE_WIDTH; ++i) {
+            //     for (uint32_t j = 0; j < MEGS_IMAGE_HEIGHT; ++j) {
+            //         uint16_t maskedValue = globalState.megsa.image[i][j] & 0x3fff;
+            //         if (maskedValue == 0x3fff) {
+            //             if (j < MEGS_IMAGE_HEIGHT / 2) {
+            //                 // skip the first pixel in the top half for test patterns
+            //                 if (!( (testPattern) && (i == 0) && (j == 0) )) {
+            //                     globalState.saturatedPixelsMATop++;
+            //                 }
+            //             } else {
+            //                 globalState.saturatedPixelsMABottom++;
+            //             }
+            //         } // if maskedValue
+            //     } // for j
+            // } // for i
 
         }
         mtx.unlock();
@@ -430,22 +464,26 @@ void processMegsBPacket(std::vector<uint8_t> payload, uint16_t sourceSequenceCou
             globalState.megsBUpdated = true;
             globalState.saturatedPixelsMBBottom=0;
             globalState.saturatedPixelsMBTop=0;
-            //#pragma omp parallel for reduction(+:globalState.saturatedPixelsMBTop, globalState.saturatedPixelsMBBottom)
-            for (uint32_t i = 0; i < MEGS_IMAGE_WIDTH; ++i) {
-                for (uint32_t j = 0; j < MEGS_IMAGE_HEIGHT; ++j) {
-                    uint16_t maskedValue = globalState.megsb.image[i][j] & 0x3fff;
-                    if (maskedValue == 0x3fff) {
-                        if (j < MEGS_IMAGE_HEIGHT / 2) {
-                            if (!( (testPattern) && (i == 0) && (j == 0) )) {
-                                globalState.saturatedPixelsMBTop++;
-                                std::cout<<"*** saturated at i:"<<i<<" j:"<<j<<std::endl;
-                            }
-                        } else {
-                            globalState.saturatedPixelsMBBottom++;
-                        }
-                    } //for maskedValue
-                } //for j
-            } // for i 
+            countSaturatedPixels(globalState.megsb.image,
+                     globalState.saturatedPixelsMBTop,
+                     globalState.saturatedPixelsMBBottom,
+                     testPattern);
+            // //#pragma omp parallel for reduction(+:globalState.saturatedPixelsMBTop, globalState.saturatedPixelsMBBottom)
+            // for (uint32_t i = 0; i < MEGS_IMAGE_WIDTH; ++i) {
+            //     for (uint32_t j = 0; j < MEGS_IMAGE_HEIGHT; ++j) {
+            //         uint16_t maskedValue = globalState.megsb.image[i][j] & 0x3fff;
+            //         if (maskedValue == 0x3fff) {
+            //             if (j < MEGS_IMAGE_HEIGHT / 2) {
+            //                 if (!( (testPattern) && (i == 0) && (j == 0) )) {
+            //                     globalState.saturatedPixelsMBTop++;
+            //                     std::cout<<"*** saturated at i:"<<i<<" j:"<<j<<std::endl;
+            //                 }
+            //             } else {
+            //                 globalState.saturatedPixelsMBBottom++;
+            //             }
+            //         } //for maskedValue
+            //     } //for j
+            // } // for i 
         }
         mtx.unlock();
     }
