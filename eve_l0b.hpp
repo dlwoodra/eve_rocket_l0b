@@ -397,6 +397,10 @@ extern TLM_ERRORS tlm_errors;
 // There is only one programState structure, and it is defined in main.cpp as a global to pass info to the imgui instance.
 struct ProgramState {
 	bool guiEnabled = false;
+	uint16_t FPGA_reg0=0;
+	uint16_t FPGA_reg1=0;
+	uint16_t FPGA_reg2=0;
+	uint16_t FPGA_reg3=0;
     int count = 0; // Number of iterations
     bool running = true; // Whether the program is still running
 	MEGS_IMAGE_REC megsa; 
