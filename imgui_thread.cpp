@@ -262,6 +262,16 @@ void displayMAImageWithControls(GLuint megsATextureID)
     char* tmpiISO8601 = const_cast<char*>(iso8601.c_str());
     ImGui::Text("MA 1st pkt: %s",tmpiISO8601);
 
+    ImGui::BeginGroup();
+    {
+        int32_t yposhi = globalState.MAypos;
+        int32_t yposlo = 1024-yposhi;
+        ImGui::VSliderInt("##MAY1", ImVec2(30,MEGS_IMAGE_HEIGHT*mazoom*0.5), &yposhi, 512, 1023);
+        ImGui::VSliderInt("##MAY2", ImVec2(30,MEGS_IMAGE_HEIGHT*(mazoom)*0.5), &yposlo, 0, 511);
+    }
+    ImGui::EndGroup();
+    ImGui::SameLine();
+
     float value = 1.0f; // changing this will crop the image
     ImGui::Image((void*)(intptr_t)megsATextureID, ImVec2(MEGS_IMAGE_WIDTH*mazoom,MEGS_IMAGE_HEIGHT*mazoom), ImVec2(0.0f,0.0f), ImVec2(value,value));
 
@@ -281,6 +291,16 @@ void displayMBImageWithControls(GLuint megsBTextureID)
     std::string iso8601 = tai_to_iso8601(globalState.megsb.tai_time_seconds);
     char* tmpiISO8601 = const_cast<char*>(iso8601.c_str());
     ImGui::Text("MB 1st pkt: %s",tmpiISO8601);
+
+    ImGui::BeginGroup();
+    {
+        int32_t yposhi = globalState.MBypos;
+        int32_t yposlo = 1024-yposhi;
+        ImGui::VSliderInt("##MBY1", ImVec2(30,MEGS_IMAGE_HEIGHT*mbzoom*0.5), &yposhi, 512, 1023);
+        ImGui::VSliderInt("##MBY2", ImVec2(30,MEGS_IMAGE_HEIGHT*(mbzoom)*0.5), &yposlo, 0, 511);
+    }
+    ImGui::EndGroup();
+    ImGui::SameLine();
 
     float value = 1.0f; // changing this will crop the image
     ImGui::Image((void*)(intptr_t)megsBTextureID, ImVec2(MEGS_IMAGE_WIDTH*mbzoom,MEGS_IMAGE_HEIGHT*mbzoom), ImVec2(0.0f,0.0f), ImVec2(value,value));
@@ -418,7 +438,7 @@ void updateESPWindow()
 
     // Column 1
     ImGui::Columns(2,"ESP Data");
-    ImGui::SetColumnWidth(0, 210.0f);
+    //ImGui::SetColumnWidth(0, 210.0f);
     ImGui::Text("ESP Status Column");
     ImGui::SetNextItemWidth(ImGui::GetFontSize() * 10);
 
