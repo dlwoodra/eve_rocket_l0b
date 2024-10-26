@@ -45,7 +45,8 @@ Date     Author          Change Id Description of Change
 #include <iostream>
 #include <iomanip>
 
-int32_t assemble_image( uint8_t * vcdu, MEGS_IMAGE_REC * ptr, uint16_t sourceSequenceCounter, bool testPattern, int8_t *status)
+int32_t assemble_image( uint8_t * vcdu, MEGS_IMAGE_REC * ptr, uint16_t sourceSequenceCounter, 
+  bool testPattern, int32_t& xpos, int32_t& ypos, int8_t *status)
 {
   int parityerrors = 0;
 
@@ -59,7 +60,7 @@ int32_t assemble_image( uint8_t * vcdu, MEGS_IMAGE_REC * ptr, uint16_t sourceSeq
   uint16_t pix_val14;
   const int32_t src_seq_times_pixels_per_half_vcdu = sourceSequenceCounter * PIXELS_PER_HALF_VCDU;
 
-  int32_t xpos, ypos, kk, jrel;
+  int32_t kk, jrel;
   uint32_t not_tp2043;
 
   not_tp2043 = (!testPattern) * 2044; /* 2047 - 4 compensates for virtual column insertion */
