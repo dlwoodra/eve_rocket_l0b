@@ -242,6 +242,7 @@ void processMegsAPacket(std::vector<uint8_t> payload,
     static int32_t previousSrcSeqCount = -1;
     static MEGS_IMAGE_REC oneMEGSStructure;
     int vcdu_offset_to_sec_hdr = 20; // 6 bytes from packet start to timestamp, 8 byte IMPDU hdr, 6 byte CVCDU hdr is 20
+    int32_t xpos, ypos;
 
     // payload starts at secondary header
     // 6-byte VCDU header, 8-byte IMPDU header, 6-byte primary packet header
@@ -298,19 +299,18 @@ void processMegsAPacket(std::vector<uint8_t> payload,
 
     // assing pixel values from the packet into the proper locations in the image
     // The oneMEGSStructure is the one that is written to FITS and is initialized to 0
-    int parityErrors = assemble_image(vcdu, &oneMEGSStructure, sourceSequenceCounter, testPattern, &status);
+    int parityErrors = assemble_image(vcdu, &oneMEGSStructure, sourceSequenceCounter, testPattern, xpos, ypos, &status);
 
     {
         mtx.lock();
         globalState.isFirstMAImage = isFirstImage;
         globalState.packetsReceived.MA++;
         // The globalState.megsa image is NOT initialized and just overwrites each packet location as it is received
-        globalState.parityErrorsMA += assemble_image(vcdu, &globalState.megsa, sourceSequenceCounter, testPattern, &status);
+        globalState.parityErrorsMA += assemble_image(vcdu, &globalState.megsa, sourceSequenceCounter, testPattern, xpos, ypos, &status);
         if ((processedPacketCounter % IMAGE_UPDATE_INTERVAL) == 0) {
             globalState.megsAUpdated = true;
-
+            globalState.MAypos = ypos;
             // count saturated pixels
-
             globalState.saturatedPixelsMABottom=0;
             globalState.saturatedPixelsMATop=0;
             countSaturatedPixels(globalState.megsa.image,
@@ -368,6 +368,7 @@ void processMegsBPacket(std::vector<uint8_t> payload, uint16_t sourceSequenceCou
     static bool isFirstImage = true;
     static int32_t previousSrcSeqCount = -1;
     static MEGS_IMAGE_REC oneMEGSStructure;
+    int32_t xpos, ypos;
 
     int vcdu_offset_to_sec_hdr = 20; // 6 bytes from packet start to timestamp, 8 byte IMPDU hdr, 6 byte CVCDU hdr is 20
 
@@ -427,7 +428,7 @@ void processMegsBPacket(std::vector<uint8_t> payload, uint16_t sourceSequenceCou
     // begin assigning data into oneMEGSStructure
 
     // assing pixel values from the packet into the proper locations in the image
-    int parityErrors = assemble_image(vcdu, &oneMEGSStructure, sourceSequenceCounter, testPattern, &status);
+    int parityErrors = assemble_image(vcdu, &oneMEGSStructure, sourceSequenceCounter, testPattern, xpos, ypos, &status);
 
     {
         mtx.lock();
@@ -439,10 +440,12 @@ void processMegsBPacket(std::vector<uint8_t> payload, uint16_t sourceSequenceCou
         }
         globalState.isFirstMBImage = isFirstImage;
         // The globalState.megsa image is NOT re-initialized and just overwrites each packet location as it is received
-        globalState.parityErrorsMB += assemble_image(vcdu, &globalState.megsb, sourceSequenceCounter, testPattern, &status);
+        globalState.parityErrorsMB += assemble_image(vcdu, &globalState.megsb, sourceSequenceCounter, testPattern, xpos, ypos, &status);
 
         if ((processedPacketCounter % IMAGE_UPDATE_INTERVAL) == 0) {
             globalState.megsBUpdated = true;
+            globalState.MBypos = ypos;
+
             globalState.saturatedPixelsMBBottom=0;
             globalState.saturatedPixelsMBTop=0;
             countSaturatedPixels(globalState.megsb.image,
