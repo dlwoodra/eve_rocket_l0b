@@ -266,8 +266,15 @@ void displayMAImageWithControls(GLuint megsATextureID)
     {
         int32_t yposhi = globalState.MAypos;
         int32_t yposlo = 1024-yposhi;
+        ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.0f, 1.0f, 0.0f, 0.5f)); // Green
         ImGui::VSliderInt("##MAY1", ImVec2(30,MEGS_IMAGE_HEIGHT*mazoom*0.5), &yposhi, 512, 1023);
+        ImGui::PopStyleColor();
+        // remove spacing between sliders
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() - ImGui::GetStyle().ItemSpacing.y);
+        // Set the color for the second slider
+        ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.0f, 0.0f, 1.0f, 1.0f)); // Blue
         ImGui::VSliderInt("##MAY2", ImVec2(30,MEGS_IMAGE_HEIGHT*(mazoom)*0.5), &yposlo, 0, 511);
+        ImGui::PopStyleColor();
     }
     ImGui::EndGroup();
     ImGui::SameLine();
@@ -296,8 +303,15 @@ void displayMBImageWithControls(GLuint megsBTextureID)
     {
         int32_t yposhi = globalState.MBypos;
         int32_t yposlo = 1024-yposhi;
+        ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.0f, 1.0f, 0.0f, 0.5f)); // Green
         ImGui::VSliderInt("##MBY1", ImVec2(30,MEGS_IMAGE_HEIGHT*mbzoom*0.5), &yposhi, 512, 1023);
+        ImGui::PopStyleColor();
+        // remove spacing between sliders
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() - ImGui::GetStyle().ItemSpacing.y);
+        // Set the color for the second slider
+        ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.0f, 0.0f, 1.0f, 1.0f)); // Blue
         ImGui::VSliderInt("##MBY2", ImVec2(30,MEGS_IMAGE_HEIGHT*(mbzoom)*0.5), &yposlo, 0, 511);
+        ImGui::PopStyleColor();
     }
     ImGui::EndGroup();
     ImGui::SameLine();
@@ -385,7 +399,7 @@ void plotESPTarget(int lastIdx) {
     //float yangleDeg = yanglearcsec / 3600.0;
 
     // Create a plot with ImPlot
-    if (ImPlot::BeginPlot("ESP Target Plot", ImVec2(-1, 0), ImPlotFlags_Equal)) {
+    if (ImPlot::BeginPlot("##ESP Target Plot", ImVec2(-1, 0), ImPlotFlags_Equal)) {
         // Set the axis ranges to be from -1 to +1
         float maxScale = (maxAbsNorm > 1.0) ? maxAbsNorm * 1.5 : 1.0;
         ImPlot::SetupAxisLimits(ImAxis_X1, -maxScale, maxScale);
@@ -439,7 +453,7 @@ void updateESPWindow()
     // Column 1
     ImGui::Columns(2,"ESP Data");
     //ImGui::SetColumnWidth(0, 210.0f);
-    ImGui::Text("ESP Status Column");
+    //ImGui::Text("ESP Status Column");
     ImGui::SetNextItemWidth(ImGui::GetFontSize() * 10);
 
     std::string iso8601 = tai_to_iso8601(globalState.esp.tai_time_seconds);
@@ -462,7 +476,7 @@ void updateESPWindow()
 
     // Column 2
     ImGui::NextColumn();
-    ImGui::Text("ESP Plots Column");
+    //ImGui::Text("ESP Plots Column");
 
     // Plot the ESP data
     plotESPTarget(index);
