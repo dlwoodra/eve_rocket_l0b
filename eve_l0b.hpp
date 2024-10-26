@@ -406,11 +406,13 @@ struct ProgramState {
 	MEGS_IMAGE_REC megsa; 
 	bool megsAUpdated = true;
 	bool isFirstMAImage = true;
+	int MAypos = 0;
 	//uint16_t sclMegsA[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT];
 	MEGS_IMAGE_REC megsb;
 	//uint16_t sclMegsB[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT];
 	bool megsBUpdated = true;
 	bool isFirstMBImage = true;
+	int MBypos = 0;
 	PKT_COUNT_REC packetsReceived;
 	long parityErrorsMA = 0;
 	long parityErrorsMB = 0;
@@ -432,7 +434,7 @@ struct ProgramState {
 
 // +++++++++++++++++  The procedure prototypes  ++++++++++++++++++
 
-int assemble_image( uint8_t * vcdu,  MEGS_IMAGE_REC * ptr, uint16_t sourceSequenceCounter, bool testPattern, int8_t *status);
+int assemble_image( uint8_t * vcdu,  MEGS_IMAGE_REC * ptr, uint16_t sourceSequenceCounter, bool testPattern, int32_t& xpos, int32_t& ypos, int8_t *status);
 int	processPHOTOpacket(uint32_t *esp_time_seconds, uint32_t *esp_index, uint8_t *vcdu_data);
 
 uint16_t max( uint16_t, uint16_t, uint16_t, uint16_t);
