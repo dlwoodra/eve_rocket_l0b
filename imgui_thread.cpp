@@ -87,41 +87,47 @@ void populatePattern(uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT]) {
 }
 
 
+void histogramEqualization(uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT], std::vector<uint8_t>& textureData) {
+    // Step 1: Calculate the histogram for 16-bit image
 
-// Replace image with histogram equalized version, 8-bits per pixel
-void histogramEqualization(uint16_t* image, std::vector<uint8_t>& textureData) {
-    // Step 1: Calculate the histogram
-    int maxPixelValue = BAD_PIXEL;
-    int histogram[maxPixelValue] = {0};
-    for (uint32_t i = 0; i < MEGS_IMAGE_WIDTH * MEGS_IMAGE_HEIGHT; ++i) {
-        histogram[image[i]]++;
+    constexpr uint32_t totalPixels = MEGS_IMAGE_HEIGHT * MEGS_IMAGE_WIDTH;
+
+    int histogram[16383] = {0}; // 14-bit range (0-16383)
+    for (uint32_t y = 0; y < MEGS_IMAGE_HEIGHT; ++y) {
+        for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; ++x) {
+            //histogram[image[y * MEGS_IMAGE_WIDTH + x] & 0x3FFF]++;
+            histogram[image[x][y] & 0x3FFF]++;
+        }
     }
 
     // Step 2: Compute the cumulative distribution function (CDF)
-    int cdf[maxPixelValue] = {0};
+    int cdf[16383] = {0};
     cdf[0] = histogram[0];
-    for (int i = 1; i < maxPixelValue; ++i) {
+    for (int i = 1; i < 16383; ++i) {
         cdf[i] = cdf[i - 1] + histogram[i];
     }
 
     // Step 3: Normalize the CDF
-    float cdf_min = *std::min_element(cdf, cdf + maxPixelValue);
-    constexpr int totalPixels = MEGS_IMAGE_WIDTH * MEGS_IMAGE_HEIGHT;
+    float cdf_min = *std::find_if(cdf, cdf + 16383, [](int value) { return value > 0; }); // Find the first non-zero
     float cdf_range = totalPixels - cdf_min;
-    uint8_t new_image[totalPixels];
-    
-    for (int i = 0; i < totalPixels; ++i) {
-        new_image[i] = static_cast<uint8_t>(255.0f * (cdf[image[i]] - cdf_min) / cdf_range);
+
+    // Step 4: Scale the CDF to 0-255
+    float scale = 255.0f / cdf_range;
+    for (uint32_t y = 0; y < MEGS_IMAGE_HEIGHT; ++y) {
+        for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; ++x) {
+            int index = y * MEGS_IMAGE_WIDTH + x; // 1D index in textureData
+            int pixelValue = image[x][y] & 0x3FFF;
+            textureData[index] = static_cast<uint8_t>(scale*(cdf[pixelValue] - cdf_min));
+        }
     }
 
-    // Copy the new image back
-    std::memcpy(image, new_image, totalPixels);
+
 }
 
 void scaleImageToTexture(uint16_t (*megsImage)[MEGS_IMAGE_HEIGHT], std::vector<uint8_t>& textureData, int Image_Display_Scale) {
     // Populate textureData directly from the 2D array
     if (Image_Display_Scale == 2) {
-        histogramEqualization(&globalState.megsa.image[0][0], textureData);
+        histogramEqualization(megsImage, textureData);
     } else if (Image_Display_Scale == 1) {
         // Scale 14-bits to 8-bits
         for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; ++x) {
@@ -188,20 +194,6 @@ GLuint createProperTextureFromMEGSImage(uint16_t (*data)[MEGS_IMAGE_HEIGHT], int
 
     scaleImageToTexture(data, textureData, Image_Display_Scale);
 
-    // for (int x = 0; x < width; ++x) {
-    //     for (int y = 0; y < height; ++y) {
-    //         int index = y*width + x; //1d translation, no transpose
-    //         uint16_t value = data[x][y]; // Get the original value
-
-    //         // Process the value into the textureData based on modulo256 or scale options
-    //         if (modulo256) {
-    //             textureData[index] = static_cast<uint8_t>(value & 0xFF); // Modulo 256
-    //         } else if (scale) {
-    //             textureData[index] = static_cast<uint8_t>((value & 0x3FFF) >> 6); // Scale 14 bits to 8 bits
-    //         }
-    //     }
-    // }
-
     // Generate and bind a new texture
     GLuint textureID;
     glGenTextures(1, &textureID);        // Generate the texture ID
@@ -214,7 +206,6 @@ GLuint createProperTextureFromMEGSImage(uint16_t (*data)[MEGS_IMAGE_HEIGHT], int
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
     // Upload the texture data to OpenGL
-    //glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, textureData.data());
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, 0, GL_RED, GL_UNSIGNED_BYTE, textureData.data());
 
     // Unbind the texture
@@ -234,37 +225,6 @@ void renderUpdatedTextureFromMEGSAImage(GLuint textureID)
 
     scaleImageToTexture(globalState.megsa.image, textureData, Image_Display_Scale_MA);
 
-    // // Populate textureData directly from the 2D array
-    // if (Image_Display_Scale_MA == 2) {
-    //     //histogramEqualization(globalState.megsa.image, width, height);
-    // } else if (Image_Display_Scale_MA == 1) {
-    //     // Show LSB 8-bits
-    //     for (int x = 0; x < width; ++x) {
-    //         for (int y = 0; y < height; ++y) {
-    //             int index = y * width + x; // 1D index in textureData
-    //             textureData[index] = static_cast<uint8_t>(globalState.megsa.image[x][y] & 0xFF); // Modulo 256
-    //         }
-    //     }
-    // } else {
-    //     // Scale 14-bits to 8-bits
-    //     for (int x = 0; x < width; ++x) {
-    //         for (int y = 0; y < height; ++y) {
-    //             int index = y * width + x; // 1D index in textureData
-    //             textureData[index] = static_cast<uint8_t>((globalState.megsa.image[x][y] & 0x3FFF) >> 6); // Scale 14 bits to 8 bits
-    //         }
-    //     }
-    // }
-
-    // for (int x = 0; x < width; ++x) {
-    //     for (int y = 0; y < height; ++y) {
-    //         int index = y * width + x; // 1D index in textureData
-    //         if (mamodulo256) {
-    //             textureData[index] = static_cast<uint8_t>(globalState.megsa.image[x][y] & 0xFF); // Modulo 256
-    //         } else {
-    //             textureData[index] = static_cast<uint8_t>((globalState.megsa.image[x][y] & 0x3FFF) >> 6); // Scale 14 bits to 8 bits
-    //         }
-    //     }
-    // }
     glBindTexture(GL_TEXTURE_2D, textureID);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, textureData.data());
     glBindTexture(GL_TEXTURE_2D, textureID);
@@ -278,17 +238,6 @@ void renderUpdatedTextureFromMEGSBImage(GLuint megsBTextureID)
 
     scaleImageToTexture(globalState.megsb.image, textureData, Image_Display_Scale_MB);
 
-    // // Populate textureData directly from the 2D array
-    // for (int x = 0; x < width; ++x) {
-    //     for (int y = 0; y < height; ++y) {
-    //         int index = y * width + x; // 1D index in textureData
-    //         if (mbmodulo256) {
-    //             textureData[index] = static_cast<uint8_t>(globalState.megsb.image[x][y] & 0xFF); // Modulo 256
-    //         } else {
-    //             textureData[index] = static_cast<uint8_t>((globalState.megsb.image[x][y] & 0x3FFF) >> 6); // Scale 14 bits to 8 bits
-    //         }
-    //     }
-    // }
     glBindTexture(GL_TEXTURE_2D, megsBTextureID);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, textureData.data());
     glBindTexture(GL_TEXTURE_2D, megsBTextureID);
@@ -306,10 +255,8 @@ void displayMAImageWithControls(GLuint megsATextureID)
     ImGui::SetNextItemWidth(100);
     ImGui::SliderFloat("MA Zoom", &mazoom, 0.25f, 4.0f, "MA Zoom %.1fx");
     
-    // Toggle for scaled or modulo 256 view
-    //ImGui::Checkbox("MA Modulo 256", &mamodulo256);
-
-    ImGui::ListBox("##DisplayModeListBoxMA", &Image_Display_Scale_MA, Image_Display_Scale_Items, IM_ARRAYSIZE(Image_Display_Scale_Items), 2);
+    ImGui::SetNextItemWidth(100);
+    ImGui::ListBox("##DisplayModeListBoxMA", &Image_Display_Scale_MA, Image_Display_Scale_Items, IM_ARRAYSIZE(Image_Display_Scale_Items), 3);
 
     std::string iso8601 = tai_to_iso8601(globalState.megsa.tai_time_seconds);
     char* tmpiISO8601 = const_cast<char*>(iso8601.c_str());
@@ -343,8 +290,10 @@ void displayMBImageWithControls(GLuint megsBTextureID)
     ImGui::Begin("MEGS-B Image Viewer");
 
     // Zoom slider
+    ImGui::SetNextItemWidth(100);
     ImGui::SliderFloat("MB Zoom", &mbzoom, 0.25f, 1.0f, "MB Zoom %.1fx");
     
+    ImGui::SetNextItemWidth(100);
     ImGui::ListBox("##DisplayModeListBoxMB", &Image_Display_Scale_MB, Image_Display_Scale_Items, IM_ARRAYSIZE(Image_Display_Scale_Items), 3);
 
     std::string iso8601 = tai_to_iso8601(globalState.megsb.tai_time_seconds);
