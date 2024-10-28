@@ -467,9 +467,9 @@ int FITSWriter::writeMegsPFITSBinaryTable(const std::string& filename, const MEG
 
     // populate the scalars
     DataRow row = {
-        megsPStructure.yyyydoy, megsPStructure.sod, megsPStructure.tai_time_seconds,
-        megsPStructure.tai_time_subseconds, megsPStructure.rec_tai_seconds,
-        megsPStructure.rec_tai_subseconds
+        megsPStructure.yyyydoy, megsPStructure.sod, 
+        megsPStructure.tai_time_seconds, megsPStructure.tai_time_subseconds, 
+        megsPStructure.rec_tai_seconds, megsPStructure.rec_tai_subseconds
     };
     // populate the arrays
     for (size_t i = 0; i < MEGSP_INTEGRATIONS_PER_FILE; ++i) {
