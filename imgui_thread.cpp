@@ -86,42 +86,64 @@ void populatePattern(uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT]) {
     }
 }
 
-
 void histogramEqualization(uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT], std::vector<uint8_t>& textureData) {
-    // Step 1: Calculate the histogram for 16-bit image
+    constexpr uint32_t halfHeight = MEGS_IMAGE_HEIGHT / 2;
+    constexpr uint32_t topHalfPixels = MEGS_IMAGE_WIDTH * halfHeight;
+    constexpr uint32_t bottomHalfPixels = MEGS_IMAGE_WIDTH * halfHeight;
 
-    constexpr uint32_t totalPixels = MEGS_IMAGE_HEIGHT * MEGS_IMAGE_WIDTH;
+    int topHistogram[16384] = {0};
+    int bottomHistogram[16384] = {0};
 
-    int histogram[16383] = {0}; // 14-bit range (0-16383)
-    for (uint32_t y = 0; y < MEGS_IMAGE_HEIGHT; ++y) {
+    // Step 1: Calculate the histogram for the top and bottom halves
+    for (uint32_t y = 0; y < halfHeight; ++y) {
         for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; ++x) {
-            //histogram[image[y * MEGS_IMAGE_WIDTH + x] & 0x3FFF]++;
-            histogram[image[x][y] & 0x3FFF]++;
+            topHistogram[image[x][y] & 0x3FFF]++;
+        }
+    }
+    for (uint32_t y = halfHeight; y < MEGS_IMAGE_HEIGHT; ++y) {
+        for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; ++x) {
+            bottomHistogram[image[x][y] & 0x3FFF]++;
         }
     }
 
-    // Step 2: Compute the cumulative distribution function (CDF)
-    int cdf[16383] = {0};
-    cdf[0] = histogram[0];
-    for (int i = 1; i < 16383; ++i) {
-        cdf[i] = cdf[i - 1] + histogram[i];
+    // Step 2: Compute the cumulative distribution function (CDF) for each half
+    int topCDF[16384] = {0};
+    int bottomCDF[16384] = {0};
+
+    topCDF[0] = topHistogram[0];
+    bottomCDF[0] = bottomHistogram[0];
+
+    for (int i = 1; i < 16384; ++i) {
+        topCDF[i] = topCDF[i - 1] + topHistogram[i];
+        bottomCDF[i] = bottomCDF[i - 1] + bottomHistogram[i];
     }
 
-    // Step 3: Normalize the CDF
-    float cdf_min = *std::find_if(cdf, cdf + 16383, [](int value) { return value > 0; }); // Find the first non-zero
-    float cdf_range = totalPixels - cdf_min;
+    // Step 3: Normalize the CDF for each half
+    float top_cdf_min = *std::find_if(topCDF, topCDF + 16384, [](int value) { return value > 0; });
+    float bottom_cdf_min = *std::find_if(bottomCDF, bottomCDF + 16384, [](int value) { return value > 0; });
 
-    // Step 4: Scale the CDF to 0-255
-    float scale = 255.0f / cdf_range;
-    for (uint32_t y = 0; y < MEGS_IMAGE_HEIGHT; ++y) {
+    float top_cdf_range = topHalfPixels - top_cdf_min;
+    float bottom_cdf_range = bottomHalfPixels - bottom_cdf_min;
+
+    // Step 4: Scale the CDF to 0-255 and map to textureData
+    float topScale = 255.0f / top_cdf_range;
+    float bottomScale = 255.0f / bottom_cdf_range;
+
+    for (uint32_t y = 0; y < halfHeight; ++y) {
         for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; ++x) {
-            int index = y * MEGS_IMAGE_WIDTH + x; // 1D index in textureData
+            int index = y * MEGS_IMAGE_WIDTH + x;
             int pixelValue = image[x][y] & 0x3FFF;
-            textureData[index] = static_cast<uint8_t>(scale*(cdf[pixelValue] - cdf_min));
+            textureData[index] = static_cast<uint8_t>(topScale * (topCDF[pixelValue] - top_cdf_min));
         }
     }
 
-
+    for (uint32_t y = halfHeight; y < MEGS_IMAGE_HEIGHT; ++y) {
+        for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; ++x) {
+            int index = y * MEGS_IMAGE_WIDTH + x;
+            int pixelValue = image[x][y] & 0x3FFF;
+            textureData[index] = static_cast<uint8_t>(bottomScale * (bottomCDF[pixelValue] - bottom_cdf_min));
+        }
+    }
 }
 
 void scaleImageToTexture(uint16_t (*megsImage)[MEGS_IMAGE_HEIGHT], std::vector<uint8_t>& textureData, int Image_Display_Scale) {
@@ -148,7 +170,6 @@ void scaleImageToTexture(uint16_t (*megsImage)[MEGS_IMAGE_HEIGHT], std::vector<u
     }
 }
 
-//void renderInputTextWithColor(const char* label, long value, size_t bufferSize, bool limitCheck, float lowerLimit, float upperLimit) {
 void renderInputTextWithColor(const char* label, long value, size_t bufferSize, bool limitCheck, float yHiLimit, float rHiLimit, float yLoLimit = -100., float rLoLimit = -200.) {
     LimitState state = NoCheck;
     
@@ -256,7 +277,7 @@ void displayMAImageWithControls(GLuint megsATextureID)
     ImGui::SliderFloat("MA Zoom", &mazoom, 0.25f, 4.0f, "MA Zoom %.1fx");
     
     ImGui::SetNextItemWidth(100);
-    ImGui::ListBox("##DisplayModeListBoxMA", &Image_Display_Scale_MA, Image_Display_Scale_Items, IM_ARRAYSIZE(Image_Display_Scale_Items), 3);
+    ImGui::Combo("Scaletype", &Image_Display_Scale_MA, Image_Display_Scale_Items, IM_ARRAYSIZE(Image_Display_Scale_Items));
 
     std::string iso8601 = tai_to_iso8601(globalState.megsa.tai_time_seconds);
     char* tmpiISO8601 = const_cast<char*>(iso8601.c_str());
@@ -294,7 +315,7 @@ void displayMBImageWithControls(GLuint megsBTextureID)
     ImGui::SliderFloat("MB Zoom", &mbzoom, 0.25f, 1.0f, "MB Zoom %.1fx");
     
     ImGui::SetNextItemWidth(100);
-    ImGui::ListBox("##DisplayModeListBoxMB", &Image_Display_Scale_MB, Image_Display_Scale_Items, IM_ARRAYSIZE(Image_Display_Scale_Items), 3);
+    ImGui::Combo("Scaletype", &Image_Display_Scale_MB, Image_Display_Scale_Items, IM_ARRAYSIZE(Image_Display_Scale_Items));
 
     std::string iso8601 = tai_to_iso8601(globalState.megsb.tai_time_seconds);
     char* tmpiISO8601 = const_cast<char*>(iso8601.c_str());
