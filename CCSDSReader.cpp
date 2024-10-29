@@ -33,6 +33,7 @@ bool CCSDSReader::findSyncMarker() {
   uint32_t buffer = 0;
   uint8_t onebyte = 0;
   uint32_t bytecounter = 0;
+  static bool warned = false;
 
   // read one byte at a time shifting 8 bits each iteration - endian-safe
   while (buffer != SYNC_MARKER) {
@@ -43,8 +44,9 @@ bool CCSDSReader::findSyncMarker() {
       return false; // eof
     }
   }
-  if (bytecounter > 4) {
+  if ((!warned) && (bytecounter > 4)) {
     std::cout << "Warning - findSyncMarker expected 4 bytes, counted "<< bytecounter << std::endl;
+    warned = true;
   }
   return true;
 }
