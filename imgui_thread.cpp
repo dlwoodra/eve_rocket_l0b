@@ -283,18 +283,18 @@ void displayMAImageWithControls(GLuint megsATextureID)
     char* tmpiISO8601 = const_cast<char*>(iso8601.c_str());
     ImGui::Text("MA 1st pkt: %s",tmpiISO8601);
 
+    int32_t yPosHi = globalState.MAypos;
+    int32_t yPosLo = 1024-yPosHi;
     ImGui::BeginGroup();
     {
-        int32_t yposhi = globalState.MAypos;
-        int32_t yposlo = 1024-yposhi;
         ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.0f, 1.0f, 0.0f, 0.5f)); // Green
-        ImGui::VSliderInt("##MAY1", ImVec2(30,MEGS_IMAGE_HEIGHT*mazoom*0.5), &yposhi, 512, 1023);
+        ImGui::VSliderInt("##MAY1", ImVec2(30,MEGS_IMAGE_HEIGHT*mazoom*0.5), &yPosHi, 512, 1023);
         ImGui::PopStyleColor();
         // remove spacing between sliders
         ImGui::SetCursorPosY(ImGui::GetCursorPosY() - ImGui::GetStyle().ItemSpacing.y);
         // Set the color for the second slider
         ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.0f, 0.0f, 1.0f, 1.0f)); // Blue
-        ImGui::VSliderInt("##MAY2", ImVec2(30,MEGS_IMAGE_HEIGHT*(mazoom)*0.5), &yposlo, 0, 511);
+        ImGui::VSliderInt("##MAY2", ImVec2(30,MEGS_IMAGE_HEIGHT*(mazoom)*0.5), &yPosLo, 0, 511);
         ImGui::PopStyleColor();
     }
     ImGui::EndGroup();
@@ -302,6 +302,29 @@ void displayMAImageWithControls(GLuint megsATextureID)
 
     float value = 1.0f; // changing this will crop the image
     ImGui::Image((void*)(intptr_t)megsATextureID, ImVec2(MEGS_IMAGE_WIDTH*mazoom,MEGS_IMAGE_HEIGHT*mazoom), ImVec2(0.0f,0.0f), ImVec2(value,value));
+
+    // dislpay the value of one pixel from each half
+    uint16_t hiRowValues[MEGS_IMAGE_WIDTH];
+    uint16_t lowRowValues[MEGS_IMAGE_WIDTH];
+    uint16_t maxValue = 0;
+    uint16_t minValue = 0xFFFF;
+    for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; ++x) {
+        hiRowValues[x] = globalState.megsa.image[x][yPosHi+1];
+        lowRowValues[x] = globalState.megsa.image[x][yPosLo-1];
+        if (hiRowValues[x] > maxValue) maxValue = hiRowValues[x];
+        if (hiRowValues[x] < minValue) minValue = hiRowValues[x];
+        if (lowRowValues[x] > maxValue) maxValue =lowRowValues[x];
+        if (lowRowValues[x] < minValue) minValue = lowRowValues[x];   
+    }
+    //std::cout<< "Minvalue: " << minValue << " Maxvalue: " << maxValue << std::endl;
+
+    ImPlot::SetNextAxesToFit();
+    ImPlot::BeginPlot("Pixel Values", ImVec2(450, 200));
+    std::string label = "Row "+std::to_string(yPosHi+1);
+    ImPlot::PlotLine(label.c_str(), hiRowValues, MEGS_IMAGE_WIDTH);
+    label = "Row "+std::to_string(yPosLo-1);
+    ImPlot::PlotLine(label.c_str(), lowRowValues, MEGS_IMAGE_WIDTH);
+    ImPlot::EndPlot();
 
     ImGui::End();
 }
@@ -321,18 +344,18 @@ void displayMBImageWithControls(GLuint megsBTextureID)
     char* tmpiISO8601 = const_cast<char*>(iso8601.c_str());
     ImGui::Text("MB 1st pkt: %s",tmpiISO8601);
 
+    int32_t yPosHi = globalState.MBypos;
+    int32_t yPosLo = 1024-yPosHi;
     ImGui::BeginGroup();
     {
-        int32_t yposhi = globalState.MBypos;
-        int32_t yposlo = 1024-yposhi;
         ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.0f, 1.0f, 0.0f, 0.5f)); // Green
-        ImGui::VSliderInt("##MBY1", ImVec2(30,MEGS_IMAGE_HEIGHT*mbzoom*0.5), &yposhi, 512, 1023);
+        ImGui::VSliderInt("##MBY1", ImVec2(30,MEGS_IMAGE_HEIGHT*mbzoom*0.5), &yPosHi, 512, 1023);
         ImGui::PopStyleColor();
         // remove spacing between sliders
         ImGui::SetCursorPosY(ImGui::GetCursorPosY() - ImGui::GetStyle().ItemSpacing.y);
         // Set the color for the second slider
         ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.0f, 0.0f, 1.0f, 1.0f)); // Blue
-        ImGui::VSliderInt("##MBY2", ImVec2(30,MEGS_IMAGE_HEIGHT*(mbzoom)*0.5), &yposlo, 0, 511);
+        ImGui::VSliderInt("##MBY2", ImVec2(30,MEGS_IMAGE_HEIGHT*(mbzoom)*0.5), &yPosLo, 0, 511);
         ImGui::PopStyleColor();
     }
     ImGui::EndGroup();
@@ -341,6 +364,28 @@ void displayMBImageWithControls(GLuint megsBTextureID)
     float value = 1.0f; // changing this will crop the image
     ImGui::Image((void*)(intptr_t)megsBTextureID, ImVec2(MEGS_IMAGE_WIDTH*mbzoom,MEGS_IMAGE_HEIGHT*mbzoom), ImVec2(0.0f,0.0f), ImVec2(value,value));
 
+    // dislpay the value of one pixel from each half
+    uint16_t hiRowValues[MEGS_IMAGE_WIDTH];
+    uint16_t lowRowValues[MEGS_IMAGE_WIDTH];
+    uint16_t maxValue = 0;
+    uint16_t minValue = 0xFFFF;
+    for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; ++x) {
+        hiRowValues[x] = globalState.megsb.image[x][yPosHi+1];
+        lowRowValues[x] = globalState.megsb.image[x][yPosLo-1];
+        if (hiRowValues[x] > maxValue) maxValue = hiRowValues[x];
+        if (hiRowValues[x] < minValue) minValue = hiRowValues[x];
+        if (lowRowValues[x] > maxValue) maxValue =lowRowValues[x];
+        if (lowRowValues[x] < minValue) minValue = lowRowValues[x];   
+    }
+    //std::cout<< "Minvalue: " << minValue << " Maxvalue: " << maxValue << std::endl;
+
+    ImPlot::SetNextAxesToFit();
+    ImPlot::BeginPlot("Pixel Values", ImVec2(450, 200));
+    std::string label = "Row "+std::to_string(yPosHi+1);
+    ImPlot::PlotLine(label.c_str(), hiRowValues, MEGS_IMAGE_WIDTH);
+    label = "Row "+std::to_string(yPosLo-1);
+    ImPlot::PlotLine(label.c_str(), lowRowValues, MEGS_IMAGE_WIDTH);
+    ImPlot::EndPlot();
     ImGui::End();
 }
 
@@ -495,6 +540,9 @@ void updateESPWindow()
     renderInputTextWithColor("ESP 304", globalState.esp.ESP_304[index], 12, false, 0.0, 0.9);
     renderInputTextWithColor("ESP 366", globalState.esp.ESP_366[index], 12, false, 0.0, 0.9);
     renderInputTextWithColor("ESP dark", globalState.esp.ESP_dark[index], 12, false, 0.0, 0.9);
+
+    renderInputTextWithColor("MP Ly-a", globalState.megsp.MP_lya[index], 12, false, 0.0, 0.9);
+    renderInputTextWithColor("MP dark", globalState.megsp.MP_dark[index], 12, false, 0.0, 0.9);
 
     // Column 2
     ImGui::NextColumn();
