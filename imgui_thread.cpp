@@ -612,12 +612,21 @@ void displayFPGAStatus() {
     uint16_t reg1 = globalState.FPGA_reg1;
     uint16_t reg2 = globalState.FPGA_reg2;
     uint16_t reg3 = globalState.FPGA_reg3;
+    uint32_t totalReadCounter = globalState.totalReadCounter;
+    uint32_t readsPerSecond = globalState.readsPerSecond;
+    uint32_t packetsPerSecond = globalState.packetsPerSecond;
+    uint32_t shortPacketCounter = globalState.shortPacketCounter;
     mtx.unlock();
 
     renderInputTextWithColor("Reg 0", reg0, 6, false, 0.0, 0.9);
     renderInputTextWithColor("Reg 1", reg1, 6, false, 0.0, 0.9);
     renderInputTextWithColor("Reg 2", reg2, 6, false, 0.0, 0.9);
     renderInputTextWithColor("Reg 3", reg3, 6, false, 0.0, 0.9);
+    renderInputTextWithColor("Read Cnt", totalReadCounter, 6, false, 0.0, 0.9);
+    renderInputTextWithColor("Reads/s", readsPerSecond, 6, false, 0.0, 0.9);
+    renderInputTextWithColor("USB MB/s", readsPerSecond*65536.0f, 6, true, 7.0, 10.0f, 0.1, 0.01);
+    renderInputTextWithColor("pkt/s", packetsPerSecond, 6, true, 481.0, 500.0f, 2.9f, 1.9f);
+    renderInputTextWithColor("short pkts", shortPacketCounter, 6, true, 1.0, 2.0f);
 
     ImGui::NextColumn();
     ImGui::Text("FPGA Interpreted Values");
