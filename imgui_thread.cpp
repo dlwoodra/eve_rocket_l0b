@@ -91,19 +91,42 @@ void histogramEqualization(uint16_t (*image)[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH
     constexpr uint32_t topHalfPixels = MEGS_IMAGE_WIDTH * halfHeight;
     constexpr uint32_t bottomHalfPixels = MEGS_IMAGE_WIDTH * halfHeight;
 
+    // brace initialization for zeroing out the arrays is the fastest way to initialize a large array to zero
+    // since the compiler can optimize this to either a memset or rep stosd call
     int topHistogram[16384] = {0};
     int bottomHistogram[16384] = {0};
 
     // Step 1: Calculate the histogram for the top and bottom halves
-    for (uint32_t y = 0; y < halfHeight; ++y) {
-        for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; ++x) {
-            topHistogram[(*image)[y][x] & 0x3FFF]++;
-        }
-    }
-    for (uint32_t y = halfHeight; y < MEGS_IMAGE_HEIGHT; ++y) {
-        for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; ++x) {
-            bottomHistogram[(*image)[y][x] & 0x3FFF]++;
-        }
+    // use all threads available to calculate the histogram
+
+    // #pragma omp parallel for
+    // for (uint32_t y = 0; y < MEGS_IMAGE_HEIGHT; ++y) {
+    //     // Determine whether to add to topHistogram or bottomHistogram
+    //     int* currentHistogram = (y < halfHeight) ? topHistogram : bottomHistogram;
+
+    //     for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; ++x) {
+    //         uint16_t pixelValue = (*image)[y][x] & 0x3FFF;
+    //         #pragma omp atomic
+    //         currentHistogram[pixelValue]++;
+    //     }
+    // }
+
+    // -faster code-
+    #pragma omp parallel for
+    for (uint32_t idx = 0; idx < MEGS_TOTAL_PIXELS; ++idx) {
+        // Calculate x and y coordinates
+        uint32_t y = idx / MEGS_IMAGE_WIDTH;
+        uint32_t x = idx % MEGS_IMAGE_WIDTH;
+
+        // Determine which histogram to use based on the row
+        int* currentHistogram = (y < halfHeight) ? topHistogram : bottomHistogram;
+
+        // Extract pixel value and increment the appropriate histogram
+        uint16_t pixelValue = (*image)[y][x] & 0x3FFF;
+
+        // Use atomic increment to avoid race conditions
+        #pragma omp atomic
+        currentHistogram[pixelValue]++;
     }
 
     // Step 2: Compute the cumulative distribution function (CDF) for each half
@@ -129,21 +152,21 @@ void histogramEqualization(uint16_t (*image)[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH
     float topScale = 255.0f / top_cdf_range;
     float bottomScale = 255.0f / bottom_cdf_range;
 
-    for (uint32_t y = 0; y < halfHeight; ++y) {
-        for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; ++x) {
-            int index = y * MEGS_IMAGE_WIDTH + x;
-            int pixelValue = (*image)[y][x] & 0x3FFF;
-            textureData[index] = static_cast<uint8_t>(topScale * (topCDF[pixelValue] - top_cdf_min));
-        }
+    // - faster code-
+    #pragma omp parallel for
+    for (uint32_t idx = 0; idx < MEGS_TOTAL_PIXELS; ++idx) {
+        uint32_t y = idx / MEGS_IMAGE_WIDTH;  // Compute the row
+        uint32_t x = idx % MEGS_IMAGE_WIDTH;  // Compute the column
+
+        bool isTopHalf = (y < halfHeight);  // Determine if this pixel is in the top half
+
+        // Access pixel and apply histogram equalization scaling
+        int pixelValue = (*image)[y][x] & 0x3FFF;
+        textureData[idx] = isTopHalf
+            ? static_cast<uint8_t>(topScale * (topCDF[pixelValue] - top_cdf_min))
+            : static_cast<uint8_t>(bottomScale * (bottomCDF[pixelValue] - bottom_cdf_min));
     }
 
-    for (uint32_t y = halfHeight; y < MEGS_IMAGE_HEIGHT; ++y) {
-        for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; ++x) {
-            int index = y * MEGS_IMAGE_WIDTH + x;
-            int pixelValue = (*image)[y][x] & 0x3FFF;
-            textureData[index] = static_cast<uint8_t>(bottomScale * (bottomCDF[pixelValue] - bottom_cdf_min));
-        }
-    }
 }
 
 void scaleImageToTexture(uint16_t (*megsImage)[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH], std::vector<uint8_t>& textureData, int Image_Display_Scale) {
@@ -152,19 +175,24 @@ void scaleImageToTexture(uint16_t (*megsImage)[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WID
         histogramEqualization(megsImage, textureData);
     } else if (Image_Display_Scale == 1) {
         // Scale 14-bits to 8-bits
-        for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; ++x) {
-            for (uint32_t y = 0; y < MEGS_IMAGE_HEIGHT; ++y) {
-                int index = y * MEGS_IMAGE_WIDTH + x; // 1D index in textureData
-                textureData[index] = static_cast<uint8_t>(((*megsImage)[y][x] & 0x3FFF) >> 6); // Scale 14 bits to 8 bits
+
+        #pragma omp parallel for
+        for (uint32_t y = 0; y < MEGS_IMAGE_HEIGHT; ++y) {
+            uint32_t rowIndex = y * MEGS_IMAGE_WIDTH; // Precompute row start index for 1D array
+            for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; ++x) {
+                textureData[rowIndex + x] = static_cast<uint8_t>(((*megsImage)[y][x] & 0x3FFF) >> 6);
             }
         }
+
     } else {
         // assume Image_Display_Scale == 0
         // Show LSB 8-bits
-        for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; ++x) {
-            for (uint32_t y = 0; y < MEGS_IMAGE_HEIGHT; ++y) {
-                int index = y * MEGS_IMAGE_WIDTH + x; // 1D index in textureData
-                textureData[index] = static_cast<uint8_t>((*megsImage)[y][x] & 0xFF); // Modulo 256
+
+        #pragma omp parallel for
+        for (uint32_t y = 0; y < MEGS_IMAGE_HEIGHT; ++y) {
+            uint32_t rowIndex = y * MEGS_IMAGE_WIDTH; // Precompute row start index for 1D array
+            for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; ++x) {
+                textureData[rowIndex + x] = static_cast<uint8_t>((*megsImage)[y][x] & 0xFF);
             }
         }
     }
