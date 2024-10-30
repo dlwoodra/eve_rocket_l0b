@@ -165,7 +165,8 @@ int32_t assemble_image( uint8_t * vcdu, MEGS_IMAGE_REC * ptr, uint16_t sourceSeq
 
 
     // Insert the pixel value into the image in memory            
-    ptr->image[xpos][ypos] = pix_val14;
+    ptr->image[ypos][xpos] = pix_val14;
+
     if( expectedparity != pixelparity ) {
       std::cout<< "parity error at xpos: " << xpos << " ypos: " << ypos << std::endl;
     }
