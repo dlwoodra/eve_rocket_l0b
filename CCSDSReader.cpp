@@ -57,6 +57,7 @@ bool CCSDSReader::readNextPacket(std::vector<uint8_t>& packet) {
   // slow down for debugging
   mtx.lock();
   bool guiEnabled = globalState.guiEnabled;
+  globalState.totalReadCounter++;
   mtx.unlock();
   if ( guiEnabled ) {
     //During file processing we should pause
