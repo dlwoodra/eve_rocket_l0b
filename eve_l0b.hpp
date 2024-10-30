@@ -57,6 +57,7 @@ constexpr uint16_t IMAGE_UPDATE_INTERVAL = 266; // best values are evenly divisi
 
 constexpr uint32_t MEGS_IMAGE_WIDTH = 2048;	// The CCD images are 2048 x 1024 pixels
 constexpr uint32_t MEGS_IMAGE_HEIGHT = 1024;
+constexpr uint32_t MEGS_TOTAL_PIXELS = MEGS_IMAGE_WIDTH * MEGS_IMAGE_HEIGHT;
 
 constexpr uint32_t MEGS_IMAGE_T_WIDTH = 1024; //transposed
 constexpr uint32_t MEGS_IMAGE_T_HEIGHT = 2048; //transposed
