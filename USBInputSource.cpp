@@ -150,6 +150,9 @@ int32_t USBInputSource::readDataFromUSB() {
     int16_t blockSize = 1024; // bytes
     int32_t transferLength = blockSize * 64; // bytes to read
     return dev->ReadFromBlockPipeOut(0xA3, blockSize, transferLength, (unsigned char*)RxBuff);
+    mtx.lock();
+    globalState.totalReadCounter++;
+    mtx.unlock();
 }
 
 extern void processPackets(CCSDSReader& pktReader, \
@@ -907,7 +910,7 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
     					// check to see if packet is completed in block
     					if (nPktLeft <= nBlkLeft)
     					{
-    						// remaining packet is less then data in block
+    						// remaining packet is less then data remaining in block
     						nPktLeft &= 0xFF; // not sure what this does
                             //std::cout << "CGProxRx Case 1dd -copying - state "<<state << std::endl;
     						memcpy(PktBuff, &pBlk[blkIdx], nPktLeft << 2); //the bitshift is a div by 4 to convert bytes to 32-bit words
@@ -1115,12 +1118,35 @@ unsigned short USBInputSource::readGSERegister(int addr)
 
 void USBInputSource::GSEProcessPacket(uint32_t *PktBuff, uint16_t APID, CCSDSReader& usbReader) {
     
+    static uint32_t totalPacketCounter=0;
+
+    // increment the total packet counter
+    totalPacketCounter++;
+
+    if (APID == ESP_APID) {
+        mtx.lock();
+        globalState.packetsPerSecond = totalPacketCounter;    
+        globalState.readsPerSecond = globalState.totalReadCounter;
+        globalState.totalReadCounter = 0;
+        mtx.unlock();
+        totalPacketCounter = 0;
+    }
+
     // extract the pktlength in the byte reversed 32-bit array
     // for MEGS-A, PktBuff[1] is e106, which should be 06e1
     uint16_t packetLength = ((PktBuff[1] >> 8) & 0xFF) | ((PktBuff[1] << 8) & 0xFF00);
 
     // Calculate the total number of bytes
     uint16_t packetTotalBytes = PACKET_HEADER_SIZE + 1 + packetLength; //size to copy, 6 byte hdr, CCSDS pktLen+1
+
+    if (packetTotalBytes < STANDARD_MEGSP_PACKET_LENGTH) {
+        std::cerr << "ERROR: GSEProcessPacket has short packet" << std::endl;
+        LogFileWriter::getInstance().logError("GSEProcessPacket has short packet for APID {}", APID);
+        mtx.lock();
+        globalState.shortPacketCounter++;
+        mtx.unlock();
+        return;
+    }
 
     std::vector<uint8_t> packetVector;
 
