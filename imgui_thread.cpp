@@ -211,7 +211,7 @@ static void glfw_error_callback(int error, const char* description)
 
 // initialize a texture for a MEGS image
 GLuint createProperTextureFromMEGSImage(uint16_t (*data)[MEGS_IMAGE_HEIGHT], int Image_Display_Scale) {
-    std::vector<uint8_t> textureData(MEGS_IMAGE_WIDTH * MEGS_IMAGE_HEIGHT); // 8-bit data for display
+    std::vector<uint8_t> textureData(MEGS_TOTAL_PIXELS); // 8-bit data for display
 
     scaleImageToTexture(data, textureData, Image_Display_Scale);
 
@@ -268,22 +268,24 @@ void renderUpdatedTextureFromMEGSBImage(GLuint megsBTextureID)
 void displayMAImageWithControls(GLuint megsATextureID)
 {
     ImGui::Begin("MEGS-A Image Viewer");
-
-    // Viewport size for display (1024x512)
-    //ImVec2 viewportSizea = ImVec2(1024.0f, 512.0f);
     
     // Zoom slider
-    ImGui::SetNextItemWidth(100);
-    ImGui::SliderFloat("MA Zoom", &mazoom, 0.25f, 4.0f, "MA Zoom %.1fx");
-    
+    ImGui::SetNextItemWidth(120);
+    ImGui::InputFloat("MA Zoom", &mazoom, 0.2f, 0.2f, "%.2f");
+    ImGui::SameLine();
     ImGui::SetNextItemWidth(100);
     ImGui::Combo("Scaletype", &Image_Display_Scale_MA, Image_Display_Scale_Items, IM_ARRAYSIZE(Image_Display_Scale_Items));
 
+    mtx.lock();
     std::string iso8601 = tai_to_iso8601(globalState.megsa.tai_time_seconds);
-    char* tmpiISO8601 = const_cast<char*>(iso8601.c_str());
-    ImGui::Text("MA 1st pkt: %s",tmpiISO8601);
+    mtx.unlock();
 
+    ImGui::Text("%s",iso8601.c_str());
+
+    mtx.lock();
     int32_t yPosHi = globalState.MAypos;
+    mtx.unlock();
+
     int32_t yPosLo = 1024-yPosHi;
     ImGui::BeginGroup();
     {
@@ -308,6 +310,8 @@ void displayMAImageWithControls(GLuint megsATextureID)
     uint16_t lowRowValues[MEGS_IMAGE_WIDTH];
     uint16_t maxValue = 0;
     uint16_t minValue = 0xFFFF;
+
+    mtx.lock();
     for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; ++x) {
         hiRowValues[x] = globalState.megsa.image[x][yPosHi+1];
         lowRowValues[x] = globalState.megsa.image[x][yPosLo-1];
@@ -316,17 +320,23 @@ void displayMAImageWithControls(GLuint megsATextureID)
         if (lowRowValues[x] > maxValue) maxValue =lowRowValues[x];
         if (lowRowValues[x] < minValue) minValue = lowRowValues[x];   
     }
+    mtx.unlock();
+
     //std::cout<< "Minvalue: " << minValue << " Maxvalue: " << maxValue << std::endl;
-
-    ImPlot::SetNextAxesToFit();
-    ImPlot::BeginPlot("Pixel Values", ImVec2(450, 200));
-    std::string label = "Row "+std::to_string(yPosHi+1);
-    ImPlot::PlotLine(label.c_str(), hiRowValues, MEGS_IMAGE_WIDTH);
-    label = "Row "+std::to_string(yPosLo-1);
-    ImPlot::PlotLine(label.c_str(), lowRowValues, MEGS_IMAGE_WIDTH);
-    ImPlot::EndPlot();
-
     ImGui::End();
+
+    {
+        ImGui::Begin("MA Row Plots");
+        ImPlot::SetNextAxesToFit();
+        ImPlot::BeginPlot("Pixel Values", ImVec2(450, 180));
+        std::string label = "Row "+std::to_string(yPosHi+1);
+        ImPlot::PlotLine(label.c_str(), hiRowValues, MEGS_IMAGE_WIDTH);
+        label = "Row "+std::to_string(yPosLo-1);
+        ImPlot::PlotLine(label.c_str(), lowRowValues, MEGS_IMAGE_WIDTH);
+        ImPlot::EndPlot();
+        ImGui::End();
+    }
+
 }
 
 void displayMBImageWithControls(GLuint megsBTextureID)
@@ -334,17 +344,23 @@ void displayMBImageWithControls(GLuint megsBTextureID)
     ImGui::Begin("MEGS-B Image Viewer");
 
     // Zoom slider
-    ImGui::SetNextItemWidth(100);
-    ImGui::SliderFloat("MB Zoom", &mbzoom, 0.25f, 1.0f, "MB Zoom %.1fx");
-    
+    ImGui::SetNextItemWidth(120);
+    //ImGui::SliderFloat("MB Zoom", &mbzoom, 0.25f, 1.0f, "MB Zoom %.1fx");
+    ImGui::InputFloat("MB Zoom", &mbzoom, 0.2f, 0.2f, "%.2f");
+    ImGui::SameLine();
     ImGui::SetNextItemWidth(100);
     ImGui::Combo("Scaletype", &Image_Display_Scale_MB, Image_Display_Scale_Items, IM_ARRAYSIZE(Image_Display_Scale_Items));
 
+    mtx.lock();
     std::string iso8601 = tai_to_iso8601(globalState.megsb.tai_time_seconds);
-    char* tmpiISO8601 = const_cast<char*>(iso8601.c_str());
-    ImGui::Text("MB 1st pkt: %s",tmpiISO8601);
+    mtx.unlock();
 
+    ImGui::Text("%s",iso8601.c_str());
+
+    mtx.lock();
     int32_t yPosHi = globalState.MBypos;
+    mtx.unlock();
+
     int32_t yPosLo = 1024-yPosHi;
     ImGui::BeginGroup();
     {
@@ -364,11 +380,14 @@ void displayMBImageWithControls(GLuint megsBTextureID)
     float value = 1.0f; // changing this will crop the image
     ImGui::Image((void*)(intptr_t)megsBTextureID, ImVec2(MEGS_IMAGE_WIDTH*mbzoom,MEGS_IMAGE_HEIGHT*mbzoom), ImVec2(0.0f,0.0f), ImVec2(value,value));
 
+    ImGui::End();
+
     // dislpay the value of one pixel from each half
     uint16_t hiRowValues[MEGS_IMAGE_WIDTH];
     uint16_t lowRowValues[MEGS_IMAGE_WIDTH];
     uint16_t maxValue = 0;
     uint16_t minValue = 0xFFFF;
+    mtx.lock();
     for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; ++x) {
         hiRowValues[x] = globalState.megsb.image[x][yPosHi+1];
         lowRowValues[x] = globalState.megsb.image[x][yPosLo-1];
@@ -377,16 +396,22 @@ void displayMBImageWithControls(GLuint megsBTextureID)
         if (lowRowValues[x] > maxValue) maxValue =lowRowValues[x];
         if (lowRowValues[x] < minValue) minValue = lowRowValues[x];   
     }
+    mtx.unlock();
+
     //std::cout<< "Minvalue: " << minValue << " Maxvalue: " << maxValue << std::endl;
 
-    ImPlot::SetNextAxesToFit();
-    ImPlot::BeginPlot("Pixel Values", ImVec2(450, 200));
-    std::string label = "Row "+std::to_string(yPosHi+1);
-    ImPlot::PlotLine(label.c_str(), hiRowValues, MEGS_IMAGE_WIDTH);
-    label = "Row "+std::to_string(yPosLo-1);
-    ImPlot::PlotLine(label.c_str(), lowRowValues, MEGS_IMAGE_WIDTH);
-    ImPlot::EndPlot();
-    ImGui::End();
+    {
+        ImGui::Begin("MB Row Plots");
+        ImPlot::SetNextAxesToFit();
+        ImPlot::BeginPlot("Pixel Values", ImVec2(450, 180));
+        std::string label = "Row "+std::to_string(yPosHi+1);
+        ImPlot::PlotLine(label.c_str(), hiRowValues, MEGS_IMAGE_WIDTH);
+        label = "Row "+std::to_string(yPosLo-1);
+        ImPlot::PlotLine(label.c_str(), lowRowValues, MEGS_IMAGE_WIDTH);
+        ImPlot::EndPlot();
+        ImGui::End();
+    }
+
 }
 
 
@@ -466,7 +491,8 @@ void plotESPTarget(int lastIdx) {
     //float yangleDeg = yanglearcsec / 3600.0;
 
     // Create a plot with ImPlot
-    if (ImPlot::BeginPlot("##ESP Target Plot", ImVec2(-1, 0), ImPlotFlags_Equal)) {
+    //if (ImPlot::BeginPlot("##ESP Target Plot", ImVec2(-1, 0), ImPlotFlags_Equal)) {
+    if (ImPlot::BeginPlot("##ESP Target Plot", ImVec2(200, 200), ImPlotFlags_Equal)) {
         // Set the axis ranges to be from -1 to +1
         float maxScale = (maxAbsNorm > 1.0) ? maxAbsNorm * 1.5 : 1.0;
         ImPlot::SetupAxisLimits(ImAxis_X1, -maxScale, maxScale);
@@ -518,7 +544,7 @@ void updateESPWindow()
     }
 
     // Column 1
-    ImGui::Columns(2,"ESP Data");
+    ImGui::Columns(3,"ESP Data");
     //ImGui::SetColumnWidth(0, 210.0f);
     //ImGui::Text("ESP Status Column");
     ImGui::SetNextItemWidth(ImGui::GetFontSize() * 10);
@@ -550,6 +576,24 @@ void updateESPWindow()
 
     // Plot the ESP data
     plotESPTarget(index);
+
+    // Column 3
+    ImGui::NextColumn();
+    ImPlot::SetNextAxesToFit();
+    ImPlot::BeginPlot("##Quads", ImVec2(300, 180));
+    ImPlot::PlotLine("ESP q0", globalState.esp.ESP_q0, ESP_INTEGRATIONS_PER_FILE);
+    ImPlot::PlotLine("ESP q1", globalState.esp.ESP_q1, ESP_INTEGRATIONS_PER_FILE);
+    ImPlot::PlotLine("ESP q2", globalState.esp.ESP_q2, ESP_INTEGRATIONS_PER_FILE);
+    ImPlot::PlotLine("ESP q3", globalState.esp.ESP_q3, ESP_INTEGRATIONS_PER_FILE);
+    ImPlot::EndPlot();
+    ImPlot::SetNextAxesToFit();
+    ImPlot::BeginPlot("##Others", ImVec2(300, 180));
+    ImPlot::PlotLine("ESP 17", globalState.esp.ESP_171, ESP_INTEGRATIONS_PER_FILE);
+    ImPlot::PlotLine("ESP 25", globalState.esp.ESP_257, ESP_INTEGRATIONS_PER_FILE);
+    ImPlot::PlotLine("ESP 30", globalState.esp.ESP_304, ESP_INTEGRATIONS_PER_FILE);
+    ImPlot::PlotLine("ESP 36", globalState.esp.ESP_366, ESP_INTEGRATIONS_PER_FILE);
+    ImPlot::PlotLine("ESP dark", globalState.esp.ESP_dark, ESP_INTEGRATIONS_PER_FILE);
+    ImPlot::EndPlot();
 
     // reset to single column layout
     ImGui::Columns(1);
@@ -755,10 +799,10 @@ int imgui_thread() {
         }
 
         {
-            mtx.lock();
+            //mtx.lock();
             displayMAImageWithControls(megsATextureID);
             displayMBImageWithControls(megsBTextureID);
-            mtx.unlock();
+            //mtx.unlock();
 
             // 3. Show another simple window.
             {
