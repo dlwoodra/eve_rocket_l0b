@@ -48,7 +48,7 @@ bool create_directory_if_not_exists(const std::string& path) {
 }
 
 // Convert 2d image into 1d image in transpose order for writing to a FITS image HDU
-std::vector<uint16_t> transposeImageTo1D(const uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT]) {
+std::vector<uint16_t> transposeImageTo1D(const uint16_t image[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH]) {
     const uint32_t width = MEGS_IMAGE_WIDTH;
     const uint32_t height = MEGS_IMAGE_HEIGHT;
     std::vector<uint16_t> transposedData(width * height);
@@ -56,7 +56,7 @@ std::vector<uint16_t> transposeImageTo1D(const uint16_t image[MEGS_IMAGE_WIDTH][
     for (uint32_t y = 0; y < height; ++y) {
         uint32_t yoffset = y * width;
         for (uint32_t x = 0; x < width; ++x) {
-            transposedData[x + yoffset] = image[x][y];
+            transposedData[x + yoffset] = image[y][x];
         }
     }
     return transposedData;
@@ -199,7 +199,7 @@ void populateStructureTimes(T& oneStructure, const std::vector<uint8_t>& payload
 }
 
 // Generic function to count saturated pixels in MEGS images
-void countSaturatedPixels(const uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT],
+void countSaturatedPixels(const uint16_t image[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH],
                           uint32_t& saturatedPixelsTop,
                           uint32_t& saturatedPixelsBottom,
                           bool testPattern = false) {
@@ -209,7 +209,7 @@ void countSaturatedPixels(const uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIG
     //#pragma omp parallel for reduction(+:saturatedPixelsTop, saturatedPixelsBottom)
     for (uint32_t i = 0; i < MEGS_IMAGE_WIDTH; ++i) {
         for (uint32_t j = 0; j < MEGS_IMAGE_HEIGHT; ++j) {
-            uint16_t maskedValue = image[i][j] & 0x3fff;
+            uint16_t maskedValue = image[j][i] & 0x3fff;
             if (maskedValue == 0x3fff) {
                 if (j < MEGS_IMAGE_HEIGHT / 2) {
                     // Skip the test pattern case for the first pixel

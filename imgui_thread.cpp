@@ -86,7 +86,7 @@ void populatePattern(uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT]) {
     }
 }
 
-void histogramEqualization(uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT], std::vector<uint8_t>& textureData) {
+void histogramEqualization(uint16_t (*image)[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH], std::vector<uint8_t>& textureData) {
     constexpr uint32_t halfHeight = MEGS_IMAGE_HEIGHT / 2;
     constexpr uint32_t topHalfPixels = MEGS_IMAGE_WIDTH * halfHeight;
     constexpr uint32_t bottomHalfPixels = MEGS_IMAGE_WIDTH * halfHeight;
@@ -97,12 +97,12 @@ void histogramEqualization(uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT], 
     // Step 1: Calculate the histogram for the top and bottom halves
     for (uint32_t y = 0; y < halfHeight; ++y) {
         for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; ++x) {
-            topHistogram[image[x][y] & 0x3FFF]++;
+            topHistogram[(*image)[y][x] & 0x3FFF]++;
         }
     }
     for (uint32_t y = halfHeight; y < MEGS_IMAGE_HEIGHT; ++y) {
         for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; ++x) {
-            bottomHistogram[image[x][y] & 0x3FFF]++;
+            bottomHistogram[(*image)[y][x] & 0x3FFF]++;
         }
     }
 
@@ -132,7 +132,7 @@ void histogramEqualization(uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT], 
     for (uint32_t y = 0; y < halfHeight; ++y) {
         for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; ++x) {
             int index = y * MEGS_IMAGE_WIDTH + x;
-            int pixelValue = image[x][y] & 0x3FFF;
+            int pixelValue = (*image)[y][x] & 0x3FFF;
             textureData[index] = static_cast<uint8_t>(topScale * (topCDF[pixelValue] - top_cdf_min));
         }
     }
@@ -140,13 +140,13 @@ void histogramEqualization(uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT], 
     for (uint32_t y = halfHeight; y < MEGS_IMAGE_HEIGHT; ++y) {
         for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; ++x) {
             int index = y * MEGS_IMAGE_WIDTH + x;
-            int pixelValue = image[x][y] & 0x3FFF;
+            int pixelValue = (*image)[y][x] & 0x3FFF;
             textureData[index] = static_cast<uint8_t>(bottomScale * (bottomCDF[pixelValue] - bottom_cdf_min));
         }
     }
 }
 
-void scaleImageToTexture(uint16_t (*megsImage)[MEGS_IMAGE_HEIGHT], std::vector<uint8_t>& textureData, int Image_Display_Scale) {
+void scaleImageToTexture(uint16_t (*megsImage)[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH], std::vector<uint8_t>& textureData, int Image_Display_Scale) {
     // Populate textureData directly from the 2D array
     if (Image_Display_Scale == 2) {
         histogramEqualization(megsImage, textureData);
@@ -155,7 +155,7 @@ void scaleImageToTexture(uint16_t (*megsImage)[MEGS_IMAGE_HEIGHT], std::vector<u
         for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; ++x) {
             for (uint32_t y = 0; y < MEGS_IMAGE_HEIGHT; ++y) {
                 int index = y * MEGS_IMAGE_WIDTH + x; // 1D index in textureData
-                textureData[index] = static_cast<uint8_t>((megsImage[x][y] & 0x3FFF) >> 6); // Scale 14 bits to 8 bits
+                textureData[index] = static_cast<uint8_t>(((*megsImage)[y][x] & 0x3FFF) >> 6); // Scale 14 bits to 8 bits
             }
         }
     } else {
@@ -164,7 +164,7 @@ void scaleImageToTexture(uint16_t (*megsImage)[MEGS_IMAGE_HEIGHT], std::vector<u
         for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; ++x) {
             for (uint32_t y = 0; y < MEGS_IMAGE_HEIGHT; ++y) {
                 int index = y * MEGS_IMAGE_WIDTH + x; // 1D index in textureData
-                textureData[index] = static_cast<uint8_t>(megsImage[x][y] & 0xFF); // Modulo 256
+                textureData[index] = static_cast<uint8_t>((*megsImage)[y][x] & 0xFF); // Modulo 256
             }
         }
     }
@@ -210,7 +210,7 @@ static void glfw_error_callback(int error, const char* description)
 }
 
 // initialize a texture for a MEGS image
-GLuint createProperTextureFromMEGSImage(uint16_t (*data)[MEGS_IMAGE_HEIGHT], int Image_Display_Scale) {
+GLuint createProperTextureFromMEGSImage(uint16_t (*data)[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH], int Image_Display_Scale) {
     std::vector<uint8_t> textureData(MEGS_TOTAL_PIXELS); // 8-bit data for display
 
     scaleImageToTexture(data, textureData, Image_Display_Scale);
@@ -244,7 +244,7 @@ void renderUpdatedTextureFromMEGSAImage(GLuint textureID)
     int height=MEGS_IMAGE_HEIGHT;
     std::vector<uint8_t> textureData(width * height);
 
-    scaleImageToTexture(globalState.megsa.image, textureData, Image_Display_Scale_MA);
+    scaleImageToTexture(&globalState.megsa.image, textureData, Image_Display_Scale_MA);
 
     glBindTexture(GL_TEXTURE_2D, textureID);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, textureData.data());
@@ -257,7 +257,7 @@ void renderUpdatedTextureFromMEGSBImage(GLuint megsBTextureID)
     int height=MEGS_IMAGE_HEIGHT;
     std::vector<uint8_t> textureData(width * height);
 
-    scaleImageToTexture(globalState.megsb.image, textureData, Image_Display_Scale_MB);
+    scaleImageToTexture(&globalState.megsb.image, textureData, Image_Display_Scale_MB);
 
     glBindTexture(GL_TEXTURE_2D, megsBTextureID);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, textureData.data());
@@ -313,8 +313,8 @@ void displayMAImageWithControls(GLuint megsATextureID)
 
     mtx.lock();
     for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; ++x) {
-        hiRowValues[x] = globalState.megsa.image[x][yPosHi+1];
-        lowRowValues[x] = globalState.megsa.image[x][yPosLo-1];
+        hiRowValues[x] = globalState.megsa.image[yPosHi+1][x];
+        lowRowValues[x] = globalState.megsa.image[yPosLo-1][x];
         if (hiRowValues[x] > maxValue) maxValue = hiRowValues[x];
         if (hiRowValues[x] < minValue) minValue = hiRowValues[x];
         if (lowRowValues[x] > maxValue) maxValue =lowRowValues[x];
@@ -389,8 +389,8 @@ void displayMBImageWithControls(GLuint megsBTextureID)
     uint16_t minValue = 0xFFFF;
     mtx.lock();
     for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; ++x) {
-        hiRowValues[x] = globalState.megsb.image[x][yPosHi+1];
-        lowRowValues[x] = globalState.megsb.image[x][yPosLo-1];
+        hiRowValues[x] = globalState.megsb.image[yPosHi+1][x];
+        lowRowValues[x] = globalState.megsb.image[yPosLo-1][x];
         if (hiRowValues[x] > maxValue) maxValue = hiRowValues[x];
         if (hiRowValues[x] < minValue) minValue = hiRowValues[x];
         if (lowRowValues[x] > maxValue) maxValue =lowRowValues[x];
@@ -747,8 +747,8 @@ int imgui_thread() {
     
     //std::lock_guard<std::mutex> lock(mtx); // lock the mutex
     mtx.lock();
-    GLuint megsATextureID = createProperTextureFromMEGSImage( globalState.megsa.image, Image_Display_Scale_MA);
-    GLuint megsBTextureID = createProperTextureFromMEGSImage( globalState.megsb.image, Image_Display_Scale_MB);
+    GLuint megsATextureID = createProperTextureFromMEGSImage(&globalState.megsa.image, Image_Display_Scale_MA);
+    GLuint megsBTextureID = createProperTextureFromMEGSImage(&globalState.megsb.image, Image_Display_Scale_MB);
     mtx.unlock(); // unlock the mutex
 
     // Test image for verify orientation
