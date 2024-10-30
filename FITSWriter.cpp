@@ -1,7 +1,7 @@
 #include "FITSWriter.hpp"
 #include "commonFunctions.hpp"
 
-extern std::vector<uint16_t> transposeImageTo1D(const uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT]);
+extern std::vector<uint16_t> transposeImageTo1D(const uint16_t image[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH]);
 extern std::string tai_to_iso8601(uint32_t tai);
 
 // Constructor
