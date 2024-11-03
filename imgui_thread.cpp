@@ -99,18 +99,6 @@ void histogramEqualization(uint16_t (*image)[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH
     // Step 1: Calculate the histogram for the top and bottom halves
     // use all threads available to calculate the histogram
 
-    // #pragma omp parallel for
-    // for (uint32_t y = 0; y < MEGS_IMAGE_HEIGHT; ++y) {
-    //     // Determine whether to add to topHistogram or bottomHistogram
-    //     int* currentHistogram = (y < halfHeight) ? topHistogram : bottomHistogram;
-
-    //     for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; ++x) {
-    //         uint16_t pixelValue = (*image)[y][x] & 0x3FFF;
-    //         #pragma omp atomic
-    //         currentHistogram[pixelValue]++;
-    //     }
-    // }
-
     // -faster code-
     #pragma omp parallel for
     for (uint32_t idx = 0; idx < MEGS_TOTAL_PIXELS; ++idx) {
@@ -198,24 +186,32 @@ void scaleImageToTexture(uint16_t (*megsImage)[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WID
     }
 }
 
-void renderInputTextWithColor(const char* label, long value, size_t bufferSize, bool limitCheck, float yHiLimit, float rHiLimit, float yLoLimit = -100., float rLoLimit = -200.) {
+
+void renderInputTextWithColor(const char* label, long value, size_t bufferSize, bool limitCheck,
+                              float yHiLimit, float rHiLimit, float yLoLimit = -100.0f, float rLoLimit = -200.0f,
+                              const char* format = nullptr) { // `format` is optional
     LimitState state = NoCheck;
     
     float_t itemWidthValue = ImGui::GetFontSize() * 4;
     ImGui::PushItemWidth(itemWidthValue);
 
     char strval[bufferSize];
-    snprintf(strval, bufferSize, "%ld", value);
+    // Use provided format or default to integer if format is nullptr
+    if (format) {
+        snprintf(strval, bufferSize, format, static_cast<float>(value));
+    } else {
+        snprintf(strval, bufferSize, "%ld", value); // Default to integer format
+    }
 
     if (limitCheck) {
-        const float fvalue = static_cast<float>(value); // fvalue is only used for limit checking
+        const float fvalue = static_cast<float>(value); // `fvalue` is only used for limit checking
         if (fvalue > rHiLimit) {
             state = Red;
-        } else if (fvalue > yHiLimit) { // Near violation (adjust the threshold as needed)
+        } else if (fvalue > yHiLimit) {
             state = Yellow;
         } else if (fvalue < rLoLimit) {
             state = Red;
-        } else if (fvalue < yLoLimit) { // Near violation (adjust the threshold as needed)
+        } else if (fvalue < yLoLimit) {
             state = Yellow;
         } else {
             state = Green;
@@ -225,12 +221,13 @@ void renderInputTextWithColor(const char* label, long value, size_t bufferSize, 
     // Set color before rendering
     ImGui::PushStyleColor(ImGuiCol_FrameBg, getColorForState(state));
 
-    // Render the InputText
+    // Render the InputText with formatted value
     ImGui::InputText(label, strval, bufferSize);
 
     // Restore default color
     ImGui::PopStyleColor();
 }
+
 
 static void glfw_error_callback(int error, const char* description)
 {
@@ -475,30 +472,98 @@ void renderSimpleTextureMB(GLuint textureID, const uint16_t (*image)[MEGS_IMAGE_
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
+std::string ByteArrayToHexString(const uint8_t* payloadBytes, size_t length)
+{
+    std::ostringstream oss;
+    oss << std::hex << std::setfill('0') << "Timestamp: ";
+
+    for (size_t i = 0; i + 1 < length; i += 2)
+    {
+        if (i == 8) {
+            oss << " \nMode:";
+        }
+        if ( i == 10 )
+        {
+            oss << "\nData Samples: "; // add a newline after 10 values (timestamp and mode)
+        }
+
+        uint16_t value = (static_cast<uint16_t>(payloadBytes[i]) << 8) | payloadBytes[i + 1];
+        oss << std::setw(4) << value << " ";
+    }
+
+    return oss.str();
+}
+
+// Wrapper function for using ByteArrayToHexString with a std::vector<uint8_t>
+std::string ByteArrayToHexString(const std::vector<uint8_t>& payloadBytes)
+{
+    return ByteArrayToHexString(payloadBytes.data(), payloadBytes.size());
+}
+
 void updateStatusWindow()
 {
     ImGuiIO& io = ImGui::GetIO();
-    ImGui::Text("Refresh rate: %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
-    renderInputTextWithColor("601 a59 MEGS-A Pkts", globalState.packetsReceived.MA, 12, false, 0.0, 0.9);
-    renderInputTextWithColor("602 a5a MEGS-B Pkts", globalState.packetsReceived.MB, 12, false, 0.0, 0.9);
-    renderInputTextWithColor("604 a5c ESP Pkts", globalState.packetsReceived.ESP, 12, false, 0.0, 0.9);
-    renderInputTextWithColor("605 a5d MEGS-P Pkts", globalState.packetsReceived.MP, 12, false, 0.0, 0.9);
-    renderInputTextWithColor("606 a5e SHK Pkts",globalState.packetsReceived.SHK, 12, false, 0.0, 0.9);
-    renderInputTextWithColor("Unknown Packets", globalState.packetsReceived.Unknown, 12, true, 0.0, 0.9);
+    if ( ImGui::TreeNode("Display Status") )
+    {
+        ImGui::Text("Refresh rate: %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+        ImGui::TreePop();
+    }
+    if ( ImGui::TreeNode("ESP Raw Packet"))
+    {
+        ImGui::Text("ESP Payload: \n%s", ByteArrayToHexString(globalState.espPayloadBytes, sizeof(globalState.espPayloadBytes)).c_str());
+        ImGui::TreePop();
+    }
+    if (ImGui::TreeNode("MEGS-P Raw Packet"))
+    {
+        ImGui::Text("MP_ Payload: \n%s", ByteArrayToHexString(globalState.megsPPayloadBytes, sizeof(globalState.megsPPayloadBytes)).c_str());
+        ImGui::TreePop();
+    }
+    if (ImGui::TreeNode("SHK Raw Packet"))
+    {
+        ImGui::Text("SHK Payload: \n%s", ByteArrayToHexString(globalState.shkPayloadBytes, sizeof(globalState.shkPayloadBytes)).c_str());
+        ImGui::TreePop();
+    }
+    if (ImGui::TreeNode("MEGS-A Raw Packet"))
+    {
+        ImGui::Text("MA_ Payload: \n%s", ByteArrayToHexString(globalState.megsAPayloadBytes, sizeof(globalState.megsAPayloadBytes)).c_str());
+        ImGui::TreePop();
+    }
+    if (ImGui::TreeNode("MEGS-B Raw Packet"))
+    {
+        ImGui::Text("MB_ Payload: \n%s", ByteArrayToHexString(globalState.megsBPayloadBytes, sizeof(globalState.megsBPayloadBytes)).c_str());
+        ImGui::TreePop();
+    }
+    if ( ImGui::TreeNodeEx("Packet Counters", ImGuiTreeNodeFlags_DefaultOpen)) {
+        renderInputTextWithColor("601 a59 MEGS-A Pkts", globalState.packetsReceived.MA, 12, false, 0.0, 0.9);
+        renderInputTextWithColor("602 a5a MEGS-B Pkts", globalState.packetsReceived.MB, 12, false, 0.0, 0.9);
+        renderInputTextWithColor("604 a5c ESP Pkts", globalState.packetsReceived.ESP, 12, false, 0.0, 0.9);
+        renderInputTextWithColor("605 a5d MEGS-P Pkts", globalState.packetsReceived.MP, 12, false, 0.0, 0.9);
+        renderInputTextWithColor("606 a5e SHK Pkts",globalState.packetsReceived.SHK, 12, false, 0.0, 0.9);
+        renderInputTextWithColor("Unknown Packets", globalState.packetsReceived.Unknown, 12, true, 0.0, 0.9);
+        ImGui::TreePop();
+    }
+    if (ImGui::TreeNodeEx("Packet Gap Counters", ImGuiTreeNodeFlags_DefaultOpen)) {
+        renderInputTextWithColor("MEGS-A Gap Count", globalState.dataGapsMA, 12, !globalState.isFirstMAImage, 0.0, 0.9);
+        renderInputTextWithColor("MEGS-B Gap Count", globalState.dataGapsMB, 12, !globalState.isFirstMBImage, 0.0, 0.9);
+        renderInputTextWithColor("MEGS-P Gap Count", globalState.dataGapsMP, 12, true, 0.0, 0.9);
+        renderInputTextWithColor("ESP Gap Count", globalState.dataGapsESP, 12, true, 0.0, 0.9);
+        renderInputTextWithColor("SHK Gap Count", globalState.dataGapsSHK, 12, true, 0.0, 0.9);
+        ImGui::TreePop();
+    }
 
-    renderInputTextWithColor("MEGS-A Gap Count", globalState.dataGapsMA, 12, !globalState.isFirstMAImage, 0.0, 0.9);
-    renderInputTextWithColor("MEGS-B Gap Count", globalState.dataGapsMB, 12, !globalState.isFirstMBImage, 0.0, 0.9);
-    renderInputTextWithColor("MEGS-P Gap Count", globalState.dataGapsMP, 12, true, 0.0, 0.9);
-    renderInputTextWithColor("ESP Gap Count", globalState.dataGapsESP, 12, true, 0.0, 0.9);
-    renderInputTextWithColor("SHK Gap Count", globalState.dataGapsSHK, 12, true, 0.0, 0.9);
+    if (ImGui::TreeNodeEx("Parity Error Counters", ImGuiTreeNodeFlags_DefaultOpen)) {
+        renderInputTextWithColor("MEGS-A Parity Errors", globalState.parityErrorsMA, 12, true, 0.0, 0.9);
+        renderInputTextWithColor("MEGS-B Parity Errors", globalState.parityErrorsMB, 12, true, 0.0, 0.9);
+        ImGui::TreePop();
+    }
 
-    renderInputTextWithColor("MEGS-A Parity Errors", globalState.parityErrorsMA, 12, true, 0.0, 0.9);
-    renderInputTextWithColor("MEGS-B Parity Errors", globalState.parityErrorsMB, 12, true, 0.0, 0.9);
-
-    renderInputTextWithColor("MEGS-A Top Saturated", globalState.saturatedPixelsMATop, 12, true, 0.0, 0.9);
-    renderInputTextWithColor("MEGS-A Bottom Saturated", globalState.saturatedPixelsMABottom, 12, true, 0.0, 0.9);
-    renderInputTextWithColor("MEGS-B Top Saturated", globalState.saturatedPixelsMBTop, 12, true, 0.0, 0.9);
-    renderInputTextWithColor("MEGS-B Bottom Saturated", globalState.saturatedPixelsMBBottom, 12, true, 0.0, 0.9);
+    if (ImGui::TreeNodeEx("Saturated Pixels", ImGuiTreeNodeFlags_DefaultOpen)) {
+        renderInputTextWithColor("MEGS-A Top Saturated", globalState.saturatedPixelsMATop, 12, true, 0.0, 0.9);
+        renderInputTextWithColor("MEGS-A Bottom Saturated", globalState.saturatedPixelsMABottom, 12, true, 0.0, 0.9);
+        renderInputTextWithColor("MEGS-B Top Saturated", globalState.saturatedPixelsMBTop, 12, true, 0.0, 0.9);
+        renderInputTextWithColor("MEGS-B Bottom Saturated", globalState.saturatedPixelsMBBottom, 12, true, 0.0, 0.9);
+        ImGui::TreePop();
+    }
 }
 
 void plotESPTarget(int lastIdx) {
@@ -633,56 +698,62 @@ void displayFPGAStatus() {
     // Column 1
     ImGui::Columns(2,"FPGA ");
     ImGui::SetColumnWidth(0, 130.0f);
-    ImGui::Text("FPGA Registers");
 
     mtx.lock();
     uint16_t reg0 = globalState.FPGA_reg0;
     uint16_t reg1 = globalState.FPGA_reg1;
     uint16_t reg2 = globalState.FPGA_reg2;
     uint16_t reg3 = globalState.FPGA_reg3;
-    uint32_t totalReadCounter = globalState.totalReadCounter;
+    //uint32_t totalReadCounter = globalState.totalReadCounter;
     uint32_t readsPerSecond = globalState.readsPerSecond;
     uint32_t packetsPerSecond = globalState.packetsPerSecond;
     uint32_t shortPacketCounter = globalState.shortPacketCounter;
     mtx.unlock();
 
-    renderInputTextWithColor("Reg 0", reg0, 6, false, 0.0, 0.9);
-    renderInputTextWithColor("Reg 1", reg1, 6, false, 0.0, 0.9);
-    renderInputTextWithColor("Reg 2", reg2, 6, false, 0.0, 0.9);
-    renderInputTextWithColor("Reg 3", reg3, 6, false, 0.0, 0.9);
-    renderInputTextWithColor("Read Cnt", totalReadCounter, 6, false, 0.0, 0.9);
-    renderInputTextWithColor("Reads/s", readsPerSecond, 6, false, 0.0, 0.9);
-    renderInputTextWithColor("USB MB/s", readsPerSecond*65536.0f, 6, true, 7.0, 10.0f, 0.1, 0.01);
-    renderInputTextWithColor("pkt/s", packetsPerSecond, 6, true, 481.0, 500.0f, 2.9f, 1.9f);
-    renderInputTextWithColor("short pkts", shortPacketCounter, 6, true, 1.0, 2.0f);
+    if (ImGui::TreeNodeEx("FPGA Registers", ImGuiTreeNodeFlags_DefaultOpen)) {
+        renderInputTextWithColor("Reg 0", reg0, 6, false, 0.0, 0.9);
+        renderInputTextWithColor("Reg 1", reg1, 6, false, 0.0, 0.9);
+        renderInputTextWithColor("Reg 2", reg2, 6, false, 0.0, 0.9);
+        renderInputTextWithColor("Reg 3", reg3, 6, false, 0.0, 0.9);
+        renderInputTextWithColor("64k Reads/s", readsPerSecond, 6, true, 14.9f, 15.9f, 12.9f, 11.9f);
+        // to convert reads per second to Mb/s div by 2 (read/s * 65536Bytes/read * 8bits/Byte * 1Mb/(1024*1024bits)=Mb/s )
+        float mBps = (readsPerSecond >> 1); // * 65536.0f * 8.0f/ 1024.0f / 1024.0f is same as 2^16 * 2^3 / 2^10 / 2^10 = 2^-1
+        renderInputTextWithColor("USB Mb/s", mBps, 6, true, 7.0, 10.0f, 0.1, 0.01, "%.1f");
+        renderInputTextWithColor("pkt/s", packetsPerSecond, 6, true, 481.0, 500.0f, 2.9f, 1.9f);
+        renderInputTextWithColor("short pkts", shortPacketCounter, 6, true, 1.0, 2.0f);
+        ImGui::TreePop();
+    }
 
     ImGui::NextColumn();
-    ImGui::Text("FPGA Interpreted Values");
-    //reg0 is multiple status bits
-    renderInputTextWithColor("FIFO TxEmpty", (reg0) & 0x01, 12, false, 0.0, 0.9);
-    renderInputTextWithColor("FIFO RxEmpty", (reg0 >> 1) & 0x01, 12, true, 0.9, 1.9);
-    renderInputTextWithColor("FIFO RxErr", (reg0 >> 2) & 0x01, 12, true, 0.0, 0.9);
-    //reg1 is version
-    renderInputTextWithColor("Firmware Ver", reg1, 12, false, 0.0, 0.9);
-    int gseType=reg1>>12;
-    switch (gseType) {
-        case 1:
-            ImGui::Text("GSEType: SyncSerial");
-            break;
-        case 2:
-            ImGui::Text("GSEType: SpaceWire");
-            break;
-        case 3:
-            ImGui::Text("GSEType: Parallel");
-            break;
-        default: 
-            ImGui::Text("GSEType: Unknown");
+    if (ImGui::TreeNodeEx("FPGA Interpreted Values", ImGuiTreeNodeFlags_DefaultOpen)) {
+        //reg0 is multiple status bits
+        renderInputTextWithColor("FIFO TxEmpty", (reg0) & 0x01, 12, false, 0.0, 0.9);
+        renderInputTextWithColor("FIFO RxEmpty", (reg0 >> 1) & 0x01, 12, true, 0.9, 1.9);
+        renderInputTextWithColor("FIFO RxErr", (reg0 >> 2) & 0x01, 12, true, 0.0, 0.9);
+        //reg1 is version
+        renderInputTextWithColor("Firmware Ver", reg1, 12, false, 0.0, 0.9);
+
+        int gseType=reg1>>12;
+        switch (gseType) {
+            case 1:
+                ImGui::Text("GSEType: SyncSerial");
+                break;
+            case 2:
+                ImGui::Text("GSEType: SpaceWire");
+                break;
+            case 3:
+                ImGui::Text("GSEType: Parallel");
+                break;
+            default: 
+                ImGui::Text("GSEType: Unknown");
+        }
+        //reg2 is overflow
+        renderInputTextWithColor("FIFO Overflow", reg2, 12, true, 0, 0.9f);
+        //reg3 is temperature
+        float temperature = (reg3 >> 4) * 503.975f / 4096.0f - 273.15f;
+        renderInputTextWithColor("FPGA Temp (C)", temperature, 12, true, 40.0f, 45.0f, 20.0f, 10.0f, "%.1f");
+        ImGui::TreePop();
     }
-    //reg2 is overflow
-    renderInputTextWithColor("FIFO Overflow", reg2, 12, true, 0, 0.9f);
-    //reg3 is temperature
-    float temperature = (reg3 >> 4) * 503.975f / 4096.0f - 273.15f;
-    renderInputTextWithColor("FPGA Temp (C)", temperature, 12, true, 40.0f, 45.0f, 20.0f, 10.0f);
 
 
 }
@@ -830,7 +901,7 @@ int imgui_thread() {
             //static int counter = 0;
 
             ImGui::Begin("SDO-EVE Rocket FPGA Status");                          // Create a window called "Hello, world!" and append into it.
-            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+            //ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
             displayFPGAStatus();
             ImGui::End();
         }
