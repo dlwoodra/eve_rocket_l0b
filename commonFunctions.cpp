@@ -281,6 +281,9 @@ void processMegsAPacket(std::vector<uint8_t> payload,
         globalState.megsa.tai_time_subseconds = oneMEGSStructure.tai_time_subseconds;
         globalState.megsa.sod = oneMEGSStructure.sod;
         globalState.megsa.yyyydoy = oneMEGSStructure.yyyydoy;
+
+        std::memcpy(globalState.megsAPayloadBytes, payload.data(), payload.size());
+
         mtx.unlock();
 
         processedPacketCounter=0;
@@ -411,7 +414,9 @@ void processMegsBPacket(std::vector<uint8_t> payload, uint16_t sourceSequenceCou
         globalState.megsb.tai_time_subseconds = oneMEGSStructure.tai_time_subseconds;
         globalState.megsb.sod = oneMEGSStructure.sod;
         globalState.megsb.yyyydoy = oneMEGSStructure.yyyydoy;
-        //globalState.megsb.cstrISO8601 = oneMEGSStructure.cstrISO8601;
+
+        std::memcpy(globalState.megsBPayloadBytes, payload.data(), payload.size());
+
         mtx.unlock();
 
         processedPacketCounter=0;
@@ -533,6 +538,7 @@ void processMegsPPacket(std::vector<uint8_t> payload,
 
         std::copy(oneMEGSPStructure.MP_lya, oneMEGSPStructure.MP_lya + MEGSP_INTEGRATIONS_PER_FILE, globalState.megsp.MP_lya);
         std::copy(oneMEGSPStructure.MP_dark, oneMEGSPStructure.MP_dark + MEGSP_INTEGRATIONS_PER_FILE, globalState.megsp.MP_dark);
+        std::memcpy(globalState.megsPPayloadBytes, payload.data(), payload.size());
 
         mtx.unlock();
     }
@@ -631,6 +637,8 @@ void processESPPacket(std::vector<uint8_t> payload,
             globalState.esp.rec_tai_subseconds = oneESPStructure.tai_time_subseconds;
             dataGapsESP = 0; // reset to zero
         //}
+
+        std::memcpy(globalState.espPayloadBytes, payload.data(), payload.size());
         mtx.unlock();
     }
 
@@ -809,6 +817,7 @@ void processHKPacket(std::vector<uint8_t> payload,
         std::copy(std::begin(oneSHKStructure.MEGSB_Thermistor_Diode), std::end(oneSHKStructure.MEGSB_Thermistor_Diode), std::begin(globalState.shk.MEGSB_Thermistor_Diode));
         std::copy(std::begin(oneSHKStructure.MEGSB_PRT), std::end(oneSHKStructure.MEGSB_PRT), std::begin(globalState.shk.MEGSB_PRT));
         
+        std::memcpy(globalState.shkPayloadBytes, payload.data(), payload.size());
         mtx.unlock();
     }
 
