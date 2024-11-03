@@ -20,6 +20,7 @@
 #include <sys/file.h>
 #include <wchar.h>
 #include <cstdint>
+#include "CCSDSReader.hpp"
 
 constexpr int32_t MEGSP_INTEGRATIONS_PER_PACKET = 4;
 constexpr int32_t SECONDS_PER_MEGSP_FILE = 10;
@@ -405,17 +406,18 @@ struct ProgramState {
 	uint16_t FPGA_reg3=0;
 	uint32_t totalReadCounter=0; // Counter of number of packets read between ESP packets
 	uint32_t readsPerSecond=0; // Counter of packets read between ESP packets
+	// readsPerSecond is the totalReadCounter value when an ESP packet is received
 	uint32_t packetsPerSecond=0; // Number of packets read between ESP packets
 	uint32_t shortPacketCounter=0;
     int count = 0; // Number of iterations
     bool running = true; // Whether the program is still running
 	MEGS_IMAGE_REC megsa; 
+	uint8_t megsAPayloadBytes[STANDARD_MEGSAB_PACKET_LENGTH+1];
 	bool megsAUpdated = true;
 	bool isFirstMAImage = true;
 	int MAypos = 0;
-	//uint16_t sclMegsA[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT];
 	MEGS_IMAGE_REC megsb;
-	//uint16_t sclMegsB[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT];
+	uint8_t megsBPayloadBytes[STANDARD_MEGSAB_PACKET_LENGTH+1];
 	bool megsBUpdated = true;
 	bool isFirstMBImage = true;
 	int MBypos = 0;
@@ -432,8 +434,11 @@ struct ProgramState {
 	uint32_t saturatedPixelsMBTop = 0;
 	uint32_t saturatedPixelsMBBottom = 0;
 	ESP_PACKET esp;
+	uint8_t espPayloadBytes[STANDARD_ESP_PACKET_LENGTH+1];
 	MEGSP_PACKET megsp;
+	uint8_t megsPPayloadBytes[STANDARD_MEGSP_PACKET_LENGTH+1];
 	SHK_PACKET shk;
+	uint8_t shkPayloadBytes[STANDARD_HK_PACKET_LENGTH+1];
 };
 
 
