@@ -149,10 +149,8 @@ void USBInputSource::handleReceiveFIFOError() {
 int32_t USBInputSource::readDataFromUSB() {
     int16_t blockSize = 1024; // bytes
     int32_t transferLength = blockSize * 64; // bytes to read
-    return dev->ReadFromBlockPipeOut(0xA3, blockSize, transferLength, (unsigned char*)RxBuff);
-    mtx.lock();
-    globalState.totalReadCounter++;
-    mtx.unlock();
+    size_t bytesRead = dev->ReadFromBlockPipeOut(0xA3, blockSize, transferLength, (unsigned char*)RxBuff);
+    return bytesRead; // if negative, there was an error
 }
 
 extern void processPackets(CCSDSReader& pktReader, \
@@ -227,6 +225,11 @@ void USBInputSource::close() {
 bool USBInputSource::read(uint8_t* buffer, size_t maxSize) {
     std::cout << "USBSource::read calling ReadFromBlockPipeOut" << std::endl;
     size_t bytesRead = dev->ReadFromBlockPipeOut(0xA3, 1024, maxSize, reinterpret_cast<unsigned char*>(buffer));
+
+    mtx.lock();
+    globalState.totalReadCounter++; // this does not seem to be called
+    mtx.unlock();
+
     return bytesRead == maxSize;
 }
 
@@ -845,6 +848,10 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
         //}
 
         int32_t blockPipeOutStatus = readDataFromUSB();
+        mtx.lock();
+        globalState.totalReadCounter++;
+        mtx.unlock();
+        
         // This is only used for testing. It generates a large file quickly.
         //writeBinaryToFile("./tmp.bin", RxBuff, sizeof(RxBuff) / sizeof(RxBuff[0]));
 
