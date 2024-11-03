@@ -112,7 +112,6 @@ int32_t assemble_image( uint8_t * vcdu, MEGS_IMAGE_REC * ptr, uint16_t sourceSeq
       parityerrors++;
       *status = W_INVALID_PARITY;
 
-      std::cout << "Parity error: 0x" << std::hex << std::setw(4) << std::setfill('0')<< pixval16 << "SSC:"<< sourceSequenceCounter<< std::dec << std::endl;
     }
 #endif
 
@@ -168,7 +167,7 @@ int32_t assemble_image( uint8_t * vcdu, MEGS_IMAGE_REC * ptr, uint16_t sourceSeq
     ptr->image[ypos][xpos] = pix_val14;
 
     if( expectedparity != pixelparity ) {
-      std::cout<< "parity error at xpos: " << xpos << " ypos: " << ypos << std::endl;
+      std::cout<< "parity error at xpos: " << xpos << " ypos: " << ypos << " value: " << std::hex << std::setw(4) << std::setfill('0')<<pixval16 << std::dec << " SSC: " << sourceSequenceCounter << std::endl;
     }
     if (pix_val14 == 0x3FFF) {
       std::cout << "assemble_image: saturated - SSC:" << sourceSequenceCounter << 
