@@ -94,17 +94,20 @@ const uint16_t USBInputSource::LUT_APID[USBInputSource::nAPID] = {
   MEGSA_APID, MEGSB_APID, ESP_APID, MEGSP_APID, HK_APID 
   };
 const uint16_t USBInputSource::LUT_PktLen[USBInputSource::nAPID] = { 
-    STANDARD_MEGSAB_PACKET_LENGTH, 
-    STANDARD_MEGSAB_PACKET_LENGTH, 
-    STANDARD_MEGSAB_PACKET_LENGTH, 
-    STANDARD_MEGSAB_PACKET_LENGTH, 
-    STANDARD_MEGSAB_PACKET_LENGTH };
-//const uint16_t USBInputSource::LUT_PktLen[USBInputSource::nAPID] = { 
-//    STANDARD_MEGSAB_PACKET_LENGTH, 
-//    STANDARD_MEGSAB_PACKET_LENGTH, 
-//    STANDARD_ESP_PACKET_LENGTH, 
-//    STANDARD_MEGSP_PACKET_LENGTH, 
-//    STANDARD_HK_PACKET_LENGTH };
+    STANDARD_MEGSAB_PACKET_LENGTH, // MA
+    STANDARD_MEGSAB_PACKET_LENGTH, // MB
+    STANDARD_MEGSAB_PACKET_LENGTH, // ESP
+    STANDARD_MEGSAB_PACKET_LENGTH, // MP
+    STANDARD_MEGSAB_PACKET_LENGTH }; // SHK
+
+constexpr int FindAPIDIndex(uint16_t APID) {
+    if (APID == 601) return 0;
+    else if (APID == 602) return 1;
+    else if (APID == 604) return 2;
+    else if (APID == 605) return 3;
+    else if (APID == 606) return 4;
+    else return -1; // Not found
+}
 
 // replacement for Windows sleep
 void Sleep(int32_t milliSeconds) {
@@ -905,14 +908,16 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
     				APID |= ((pBlk[blkIdx] >> 8) & 0xFF);
 
     				// find APID index
-	    			for (i = 0; i < nAPID; ++i)
-	    			{
-	    				if (LUT_APID[i] == APID)
-	    				{
-                            //std::cout << "CGProxRx Case 1c - found apid" << APID <<" i="<<i<<std::endl;
-	    					break;
-	    				}
-	    			}
+                    i = FindAPIDIndex(APID);
+
+	    			// for (i = 0; i < nAPID; ++i)
+	    			// {
+	    			// 	if (LUT_APID[i] == APID)
+	    			// 	{
+                    //         //std::cout << "CGProxRx Case 1c - found apid" << APID <<" i="<<i<<std::endl;
+	    			// 		break;
+	    			// 	}
+	    			// }
 
     				// APID is recognized
     				if (i < nAPID)
@@ -940,9 +945,10 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
 
                             //std::cout << "CGProxRx Case 1ddd -call GSEProcessPacket - state " <<state<< std::endl;
 
-                            if (bytesCopiedToPktBuff != (LUT_PktLen[APIDidx] + 1 + PACKET_HEADER_SIZE)) {
-                                std::cerr << "***ERROR: CGProxRx case 1 bytesCopiedToPktBuff does not match LUT_PktLen" << std::endl;
-                                LogFileWriter::getInstance().logError("CGProxRx case 1 bytesCopiedToPktBuff does not match LUT_PktLen");
+                            uint32_t expectedNumBytes = LUT_PktLen[APIDidx] + 1 + PACKET_HEADER_SIZE;
+                            if (bytesCopiedToPktBuff != (expectedNumBytes)) {
+                                std::cerr << "***ERROR: CGProxRx case 1 bytesCopiedToPktBuff does not match expectedNumBytes" << std::endl;
+                                //LogFileWriter::getInstance().logError("CGProxRx case 1 bytesCopiedToPktBuff %s does not match expectedNumBytes %s",bytesCopiedToPktBuff,expectedNumBytes,expectedNumBytes);
                             }
     						GSEProcessPacket(PktBuff, APID, usbReader);
                             bytesCopiedToPktBuff = 0; // reset the count
@@ -992,9 +998,10 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
                         // logging the block data
 
                         //std::cout << "Case 1eee -call GSEProcessPacket - state " <<state<< std::endl;
-                        if (bytesCopiedToPktBuff != (LUT_PktLen[APIDidx] + 1 + PACKET_HEADER_SIZE)) {
-                            std::cerr << "***ERROR: CGProxRx bytesCopiedToPktBuff does not match LUT_PktLen" << std::endl;
-                            LogFileWriter::getInstance().logError("CGProxRx bytesCopiedToPktBuff does not match LUT_PktLen");
+                        uint32_t expectedNumBytes = LUT_PktLen[APIDidx] + 1 + PACKET_HEADER_SIZE;
+                        if (bytesCopiedToPktBuff != (expectedNumBytes)) {
+                            std::cerr << "***ERROR: CGProxRx case 2 bytesCopiedToPktBuff "<< bytesCopiedToPktBuff<<" does not match LUT_PktLen "<< expectedNumBytes << std::endl;
+                        //    LogFileWriter::getInstance().logError("CGProxRx bytesCopiedToPktBuff %s does not match LUT_PktLen",bytesCopiedToPktBuff);
                         }
     					GSEProcessPacket(PktBuff, APID, usbReader);
                         bytesCopiedToPktBuff = 0; // reset the count
