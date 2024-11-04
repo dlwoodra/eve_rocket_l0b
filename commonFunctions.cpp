@@ -528,6 +528,10 @@ void processMegsPPacket(std::vector<uint8_t> payload,
 
         oneMEGSPStructure.MP_lya[index] = (uint16_t (payload[incr]) << 8) | (uint16_t (payload[incr + 1]));
         oneMEGSPStructure.MP_dark[index] = (uint16_t (payload[incr+2]) << 8) | (uint16_t (payload[incr+3]));
+        mtx.lock();
+        globalState.megsp.MP_lya[index] = oneMEGSPStructure.MP_lya[index];
+        globalState.megsp.MP_dark[index] = oneMEGSPStructure.MP_dark[index];
+        mtx.unlock();
     }
 
     processedPacketCounter++;
@@ -536,8 +540,8 @@ void processMegsPPacket(std::vector<uint8_t> payload,
         mtx.lock();
         globalState.packetsReceived.MP++;
 
-        std::copy(oneMEGSPStructure.MP_lya, oneMEGSPStructure.MP_lya + MEGSP_INTEGRATIONS_PER_FILE, globalState.megsp.MP_lya);
-        std::copy(oneMEGSPStructure.MP_dark, oneMEGSPStructure.MP_dark + MEGSP_INTEGRATIONS_PER_FILE, globalState.megsp.MP_dark);
+        //std::copy(oneMEGSPStructure.MP_lya, oneMEGSPStructure.MP_lya + MEGSP_INTEGRATIONS_PER_FILE, globalState.megsp.MP_lya);
+        //std::copy(oneMEGSPStructure.MP_dark, oneMEGSPStructure.MP_dark + MEGSP_INTEGRATIONS_PER_FILE, globalState.megsp.MP_dark);
         std::memcpy(globalState.megsPPayloadBytes, payload.data(), payload.size());
 
         mtx.unlock();
