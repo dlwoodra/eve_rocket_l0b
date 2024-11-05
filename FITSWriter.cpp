@@ -76,7 +76,7 @@ std::string FITSWriter::createFITSFilename(uint16_t apid, double tai_seconds) {
 
     oss << filename_prefix << std::put_time(tm, "%Y%j_%H%M%S") << ".fit";
 
-    std::cout<< "createFITSFilename - " << oss.str() << std::endl;
+    //std::cout<< "createFITSFilename - " << oss.str() << std::endl;
 
     return oss.str();
 }
@@ -162,7 +162,7 @@ int FITSWriter::writeBinaryTable(const std::string& filename,
     int status = 0;  // CFITSIO status value
     fitsfile* fptr = nullptr;  // Pointer to the FITS file
 
-    std::cout << "writeBinaryTable data 1"<<std::endl;
+    //std::cout << "writeBinaryTable data 1"<<std::endl;
 
     // Lock file mechanism
     std::string lockfile = filename + ".lock";
@@ -374,7 +374,7 @@ int FITSWriter::writeMegsFITSBinaryTable(
 
 // primary function to manage FITS file writing for CCD images with a binary table
 bool FITSWriter::writeMegsFITS(const MEGS_IMAGE_REC& megsStructure, uint16_t apid, const std::string& extname) {
-    std::cout << "writing MEGS FITS file for APID: " << apid << std::endl;
+    //std::cout << "writing MEGS FITS file for APID: " << apid << std::endl;
     LogFileWriter::getInstance().logInfo("writing MEGS FITS file");
 
     int32_t status = 0;
@@ -489,7 +489,7 @@ int FITSWriter::writeMegsPFITSBinaryTable(const std::string& filename, const MEG
 // MEGS-P main writer
 bool FITSWriter::writeMegsPFITS( const MEGSP_PACKET& megsPStructure) {
 
-    std::cout << "writing MEGS-P FITS file for APID: " << MEGSP_APID << std::endl;
+    //std::cout << "writing MEGS-P FITS file for APID: " << MEGSP_APID << std::endl;
     LogFileWriter::getInstance().logInfo("writing MEGS-P FITS file");
 
     int32_t status = 0;
@@ -595,7 +595,7 @@ int FITSWriter::writeESPFITSBinaryTable(const std::string& filename, const ESP_P
 // ESP main writer
 bool FITSWriter::writeESPFITS( const ESP_PACKET& ESPStructure) {
 
-    std::cout << "writing ESP FITS file for APID: " << ESP_APID << std::endl;
+    //std::cout << "writing ESP FITS file for APID: " << ESP_APID << std::endl;
     LogFileWriter::getInstance().logInfo("writing ESP FITS file");
 
     int32_t status = 0;
@@ -846,7 +846,7 @@ int FITSWriter::writeSHKFITSBinaryTable(const std::string& filename, const SHK_P
 // SHK main writer
 bool FITSWriter::writeSHKFITS( const SHK_PACKET& SHKStructure) {
 
-    std::cout << "writing SHK FITS file for APID: " << HK_APID << std::endl;
+    //std::cout << "writing SHK FITS file for APID: " << HK_APID << std::endl;
     LogFileWriter::getInstance().logInfo("writing SHK FITS file");
 
     int32_t status = 0;
