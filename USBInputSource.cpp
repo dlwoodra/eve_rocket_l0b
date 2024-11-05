@@ -984,7 +984,7 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
 		    			// remaining packet data is less than data left in block
 		    			nPktLeft &= 0xFF;
                         //std::cout << "Case 1ee -contination copy - state "<<state << std::endl;
-		    			memcpy(&PktBuff[pktIdx], &pBlk[blkIdx], nPktLeft << 2);
+		    			memcpy(&PktBuff[pktIdx], &pBlk[blkIdx], WORDS_TO_BYTES(nPktLeft));
                         bytesCopiedToPktBuff += WORDS_TO_BYTES(nPktLeft); // count bytes copied to PktBuff
                         LogFileWriter::getInstance().logInfo("CGProxRx: ProcessPacket case 2 nPktLeft:{} nBlkLeft:{} blkIdx:{}",nPktLeft,nBlkLeft,blkIdx);
 		    			nBlkLeft -= nPktLeft;
@@ -1000,7 +1000,7 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
                         //std::cout << "Case 1eee -call GSEProcessPacket - state " <<state<< std::endl;
                         uint32_t expectedNumBytes = LUT_PktLen[APIDidx] + 1 + PACKET_HEADER_SIZE;
                         if (bytesCopiedToPktBuff != (expectedNumBytes)) {
-                            std::cerr << "***ERROR: CGProxRx case 2 bytesCopiedToPktBuff "<< bytesCopiedToPktBuff<<" does not match LUT_PktLen "<< expectedNumBytes << std::endl;
+                            std::cerr << "***ERROR: CGProxRx case 2 bytesCopiedToPktBuff "<< bytesCopiedToPktBuff<<" does not match expectedNumBytes "<< expectedNumBytes << std::endl;
                         //    LogFileWriter::getInstance().logError("CGProxRx bytesCopiedToPktBuff %s does not match LUT_PktLen",bytesCopiedToPktBuff);
                         }
     					GSEProcessPacket(PktBuff, APID, usbReader);
