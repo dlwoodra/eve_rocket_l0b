@@ -166,15 +166,15 @@ int32_t assemble_image( uint8_t * vcdu, MEGS_IMAGE_REC * ptr, uint16_t sourceSeq
     // Insert the pixel value into the image in memory            
     ptr->image[ypos][xpos] = pix_val14;
 
-    if( expectedparity != pixelparity ) {
-      std::cout<< "parity error at xpos: " << xpos << " ypos: " << ypos << " value: " << std::hex << std::setw(4) << std::setfill('0')<<pixval16 << std::dec << " SSC: " << sourceSequenceCounter << std::endl;
-    }
-    if (pix_val14 == 0x3FFF) {
-      std::cout << "assemble_image: saturated - SSC:" << sourceSequenceCounter << 
-        " xpos:" << xpos << " ypos:" << ypos << " pixval16:"<<
-        std::hex<<std::setw(2)<<std::setfill('0')<< pixval16 <<std::dec<< std::endl;
-      printBytesToStdOut(vcdu, j, j+8);
-    }
+    //if( expectedparity != pixelparity ) {
+    //  std::cout<< "parity error at xpos: " << xpos << " ypos: " << ypos << " value: " << std::hex << std::setw(4) << std::setfill('0')<<pixval16 << std::dec << " SSC: " << sourceSequenceCounter << std::endl;
+    //}
+    //if (pix_val14 == 0x3FFF) {
+    //  std::cout << "assemble_image: saturated - SSC:" << sourceSequenceCounter << 
+    //    " xpos:" << xpos << " ypos:" << ypos << " pixval16:"<<
+    //    std::hex<<std::setw(2)<<std::setfill('0')<< pixval16 <<std::dec<< std::endl;
+    //  printBytesToStdOut(vcdu, j, j+8);
+    //}
 
   } //end of j for loop
          
