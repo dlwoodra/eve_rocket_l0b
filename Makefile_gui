@@ -15,7 +15,7 @@ IMGUI_DIR = ./imgui
 IMGUI_BACKEND_DIR = $(IMGUI_DIR)/backends
 
 INCLUDE_PATH = -I/usr/local/include -I$(IMGUI_DIR) -I$(IMGUI_BACKEND_DIR)
-CXXFLAGS = -std=c++11 -fopenmp    #`pkg-config --cflags glfw3`
+CXXFLAGS = -std=c++17 -fopenmp    #`pkg-config --cflags glfw3`
 
 # Check if SKIPPARITY is defined during compilation
 ifdef SKIPPARITY
@@ -26,11 +26,11 @@ CXXFLAGS += -DENABLEGUI
 
 PCH_FLAGS = -include spdlog_pch.hpp
 
-FAST_FLAGS =  -Wall -O2 #-g #-O2
-TEST_FLAGS = -Wall -g
+FAST_FLAGS =  -Wall -O2 #-O2
+TEST_FLAGS = -Wall -O2 # -O1 is considered safe for valgrind
 DEBUG_FLAGS = -g -Wall
 
-LFLAGS = -lcfitsio -lm -lspdlog -lfmt -lokFrontPanel -fopenmp -lGL
+LFLAGS = -lcfitsio -lm -lspdlog -lfmt -lokFrontPanel -fopenmp -lGL -lz
 LINKED_LIBS = -L/usr/local/lib -Wl,-rpath=/usr/local/lib
 LINKED_LIBS += `pkg-config --static --libs glfw3`   # -lglfw -lrt -lm -ldl
 
