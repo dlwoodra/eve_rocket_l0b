@@ -261,9 +261,9 @@ void processMegsAPacket(std::vector<uint8_t> payload,
     if ((previousSrcSeqCount == -1) || (sourceSequenceCounter == 0) || 
         (sourceSequenceCounter <= previousSrcSeqCount)) {
         // packet is from a new image
-        std::string logMsg = "MA starting new image first SrcSeqCounter: " + std::to_string(sourceSequenceCounter);
+        //std::string logMsg = "MA starting new image first SrcSeqCounter: " + std::to_string(sourceSequenceCounter);
         LogFileWriter::getInstance().logInfo("MA starting new image first SrcSeqCounter: {}", sourceSequenceCounter);
-        std::cout << "Info: " << logMsg << std::endl;
+        //std::cout << "Info: " << logMsg << std::endl;
 
         //reset oneMEGSStructure
         oneMEGSStructure = MEGS_IMAGE_REC{0}; // c++11 
@@ -331,7 +331,7 @@ void processMegsAPacket(std::vector<uint8_t> payload,
     processedPacketCounter++; // count packets processed
 
     if ( sourceSequenceCounter == 2394) {
-        std::cout<<"end of MEGS-A at 2394"<<"\n";
+        //std::cout<<"end of MEGS-A at 2394"<<"\n";
         LogFileWriter::getInstance().logInfo("end of MEGS-A image ssc=2394");
 
         isFirstImage = false;
@@ -344,7 +344,7 @@ void processMegsAPacket(std::vector<uint8_t> payload,
         // the c++14 way fitsFileWriter = std::make_unique<FITSWriter>();
         //std::cout << "processMegsAPacket number of packets: " << processedPacketCounter << std::endl;
         if (fitsFileWriter) {
-            std::cout << "processMegsAPacket: tai_time_seconds = " << oneMEGSStructure.tai_time_seconds << std::endl;
+            //std::cout << "processMegsAPacket: tai_time_seconds = " << oneMEGSStructure.tai_time_seconds << std::endl;
 
             if (!fitsFileWriter->writeMegsAFITS( oneMEGSStructure )) {
                 LogFileWriter::getInstance().logInfo("writeMegsAFITS write error");
@@ -389,9 +389,9 @@ void processMegsBPacket(std::vector<uint8_t> payload, uint16_t sourceSequenceCou
     if ((previousSrcSeqCount == -1) || (sourceSequenceCounter == 0) || 
         (sourceSequenceCounter <= previousSrcSeqCount)) {
         // packet is from a new image
-        std::string logMsg = "MB starting new image first SrcSeqCounter: " + std::to_string(sourceSequenceCounter);
+        //std::string logMsg = "MB starting new image first SrcSeqCounter: " + std::to_string(sourceSequenceCounter);
         LogFileWriter::getInstance().logInfo("MB starting new image first SrcSeqCounter: {}", sourceSequenceCounter);
-        std::cout << "Info: " << logMsg << std::endl;
+        //std::cout << "Info: " << logMsg << std::endl;
 
         //reset oneMEGSStructure
         oneMEGSStructure = MEGS_IMAGE_REC{0}; // c++11 
@@ -468,7 +468,7 @@ void processMegsBPacket(std::vector<uint8_t> payload, uint16_t sourceSequenceCou
     processedPacketCounter++; // count packets processed
 
     if ( sourceSequenceCounter == 2394) {
-        std::cout<<"end of MEGS-B at 2394"<<"\n";
+        //std::cout<<"end of MEGS-B at 2394"<<"\n";
         LogFileWriter::getInstance().logInfo("end of MEGS-B image ssc=2394");
 
         isFirstImage = false;
@@ -561,7 +561,7 @@ void processMegsPPacket(std::vector<uint8_t> payload,
                 LogFileWriter::getInstance().logInfo("writeMegsPFITS write error");
                 std::cout << "ERROR: writeMegsPFITS returned an error" << std::endl;
             }
-            std::cout<<"processMegsPPacket - MP_lya values" << std::endl;
+            //std::cout<<"processMegsPPacket - MP_lya values" << std::endl;
             //printBytes(oneMEGSPStructure.MP_lya,19);
 
             processedPacketCounter = 0;
@@ -656,7 +656,7 @@ void processESPPacket(std::vector<uint8_t> payload,
         // the c++14 way fitsFileWriter = std::make_unique<FITSWriter>();
 
         if (fitsFileWriter) {
-            std::cout << "procesESPPacket: tai_time_seconds = " << oneESPStructure.tai_time_seconds << std::endl;
+            //std::cout << "procesESPPacket: tai_time_seconds = " << oneESPStructure.tai_time_seconds << std::endl;
 
             if (!fitsFileWriter->writeESPFITS( oneESPStructure )) {
                 LogFileWriter::getInstance().logInfo("writeESPFITS write error");
