@@ -66,10 +66,10 @@ int32_t assemble_image( uint8_t * vcdu, MEGS_IMAGE_REC * ptr, uint16_t sourceSeq
   not_tp2043 = (!testPattern) * 2044; /* 2047 - 4 compensates for virtual column insertion */
 
   // print the byte in the vcdu
-  if (sourceSequenceCounter == 0) {
-    std::cout << "assemble_image: first vcdu in image to assemble " << std::endl;
-    printBytesToStdOut(vcdu, 30, 60);
-  }
+  // if (sourceSequenceCounter == 0) {
+  //   std::cout << "assemble_image: first vcdu in image to assemble " << std::endl;
+  //   printBytesToStdOut(vcdu, 30, 60);
+  // }
 
   // pixel data begins 30 bytes from the start of the VCDU
 
