@@ -37,7 +37,7 @@ constexpr int32_t SECONDS_PER_SHK_FILE = 10;
 constexpr int32_t SHK_PACKETS_PER_FILE = SECONDS_PER_SHK_FILE;
 constexpr int32_t SHK_INTEGRATIONS_PER_FILE = SHK_INTEGRATIONS_PER_PACKET * SECONDS_PER_SHK_FILE;
 
-constexpr uint16_t IMAGE_UPDATE_INTERVAL = 266; // best values are evenly divisibe into 2394: 1,2,3,6,7,9,14,18,19,21,38,42,57,63,114,126,133,171,266,342,399,798,1197
+constexpr uint16_t IMAGE_UPDATE_INTERVAL = 114; //266; // best values are evenly divisible into 2394: 1,2,3,6,7,9,14,18,19,21,38,42,57,63,114,126,133,171,266,342,399,798,1197
 
 #define BAD_PIXEL 16384 			// 2^14	- Image fill value
 
