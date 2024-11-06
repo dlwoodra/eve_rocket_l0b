@@ -81,7 +81,6 @@ void processPackets(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& r
         // Process packet
         processOnePacket(pktReader, packet);
 
-        // This is a good to to update gui state
     }
 }
 
