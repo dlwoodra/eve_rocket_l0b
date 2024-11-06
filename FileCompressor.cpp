@@ -16,7 +16,7 @@ void FileCompressor::compressWithPigz(const std::string& inputFile) {
         std::cerr << "Compression failed with pigz" << std::endl;
         LogFileWriter::getInstance().logError("ERROR: Compression failed with pigz: " + inputFile);
     } else {
-        std::cout << "Compression completed with pigz: " << inputFile << std::endl;
+        //std::cout << "Compression completed with pigz: " << inputFile << std::endl;
         LogFileWriter::getInstance().logInfo("Compression completed with pigz: " + inputFile);
     }
 }
