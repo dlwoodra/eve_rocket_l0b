@@ -1,5 +1,6 @@
 #include "FITSWriter.hpp"
 #include "commonFunctions.hpp"
+#include "FileCompressor.hpp"
 
 extern std::vector<uint16_t> transposeImageTo1D(const uint16_t image[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH]);
 extern std::string tai_to_iso8601(uint32_t tai);
@@ -419,6 +420,9 @@ bool FITSWriter::writeMegsFITS(const MEGS_IMAGE_REC& megsStructure, uint16_t api
     std::cout << "FITSWriter::writeMegsFITS successfully wrote " << filename << std::endl;
     LogFileWriter::getInstance().logInfo("FITSWriter::writeMegsFITS successfully wrote {}", filename);
 
+    FileCompressor compressor;
+    compressor.compressFile(filename);
+
     return true;
 }
 
@@ -513,6 +517,9 @@ bool FITSWriter::writeMegsPFITS( const MEGSP_PACKET& megsPStructure) {
 
     std::cout << "FITSWriter::writeMegsPFITS successfully wrote " << filename << std::endl;
     LogFileWriter::getInstance().logInfo("FITSWriter::writeMegsPFITS successfully wrote {}", filename);
+
+    FileCompressor compressor;
+    compressor.compressFile(filename);
 
     return true;
 
@@ -619,6 +626,9 @@ bool FITSWriter::writeESPFITS( const ESP_PACKET& ESPStructure) {
 
     std::cout << "FITSWriter::writeESPFITS successfully wrote " << filename << std::endl;
     LogFileWriter::getInstance().logInfo("FITSWriter::writeESPFITS successfully wrote {}", filename);
+
+    FileCompressor compressor;
+    compressor.compressFile(filename);
 
     return true;
 
@@ -868,7 +878,7 @@ bool FITSWriter::writeSHKFITS( const SHK_PACKET& SHKStructure) {
         return false;
     }
 
-    // Close the FITS file adn check for errors
+    // Close the FITS file and check for errors
     fits_close_file(fptr, &status);
     if (status) {
         std::cerr << "ERROR: Failed to close FITS file: " << filename << std::endl;
@@ -880,6 +890,9 @@ bool FITSWriter::writeSHKFITS( const SHK_PACKET& SHKStructure) {
 
     std::cout << "FITSWriter::writeSHKFITS successfully wrote " << filename << std::endl;
     LogFileWriter::getInstance().logInfo("FITSWriter::writeSHKFITS successfully wrote {}", filename);
+
+    FileCompressor compressor;
+    compressor.compressFile(filename);
 
     return true;
 
