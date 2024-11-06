@@ -1,4 +1,5 @@
 #include "LogFileWriter.hpp"
+#include "FileCompressor.hpp"
 
 LogFileWriter::LogFileWriter()
     : logFile(generateLogFilename()), logFileMinute(-1) {
@@ -22,8 +23,11 @@ bool LogFileWriter::checkAndRotateFile() {
     int currentMinute = currentTime.getMinute();
 
     if (logFileMinute == -1 || logFileMinute != currentMinute) {
+        std::string oldLogFile = logFile;
+
         // Minute has changed, rotate log file
         spdlog::drop("log_file_logger"); // Drop the old logger
+
         logFile = generateLogFilename(); // Generate new filename
         logger = spdlog::basic_logger_mt("log_file_logger", logFile);
         logger->set_level(spdlog::level::info);
@@ -31,6 +35,10 @@ bool LogFileWriter::checkAndRotateFile() {
 
         logFileMinute = currentMinute;
         std::cout << "Log file rotated: " << logFile << std::endl;
+
+        // compress the old log file
+        FileCompressor compressor;
+        compressor.compressFile(oldLogFile);
     }
 
     return true;
