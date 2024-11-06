@@ -29,7 +29,7 @@ LINKED_LIBS = -L/usr/local/lib -Wl,-rpath=/usr/local/lib
 COMSRC = LogFileWriter.cpp CCSDSReader.cpp RecordFileWriter.cpp \
 	USBInputSource.cpp FileInputSource.cpp FITSWriter.cpp PacketProcessor.cpp \
     TimeInfo.cpp assemble_image.cpp tai_to_ydhms.cpp \
-    commonFunctions.cpp
+    commonFunctions.cpp FileCompressor.cpp
 
 SRCS = ${COMSRC} main.cpp
 TEST_SRCS = ${COMSRC} test_main.cpp 
