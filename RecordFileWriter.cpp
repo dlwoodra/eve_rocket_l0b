@@ -1,5 +1,6 @@
 #include "RecordFileWriter.hpp"
 #include "TimeInfo.hpp"
+#include "FileCompressor.hpp"
 
 int recordFileMinute=-1;
 
@@ -98,9 +99,10 @@ bool RecordFileWriter::checkAndRotateFile() {
 
     TimeInfo currentTime;
     int currentMinute = currentTime.getMinute();
-    //int lastMinute = -1;
     
     if ((recordFileMinute == -1) || (recordFileMinute != currentMinute)) {
+        std::string oldOutputFile = outputFile;
+
         // The minute has changed, close the current file and open a new one
         //if (lastMinute != -1) { close(); } // Close the old file
         close(); // Close the old file
@@ -114,6 +116,11 @@ bool RecordFileWriter::checkAndRotateFile() {
 
         std::cout << "Record file rotated: " << outputFile << std::endl;
         recordFileMinute = currentMinute;
+
+        // Compress the old record file
+        FileCompressor compressor;
+        compressor.compressFile(oldOutputFile);
+        
     } // otherwise the minute has not changed, keep writing to the same recordFile
 
     return true;
