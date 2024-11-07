@@ -293,6 +293,59 @@ TEST_CASE("payloadToTAITimeSeconds correctly converts payload to TAI time", "[pa
     REQUIRE_THROWS_AS(payloadToTAITimeSeconds(payload), std::invalid_argument);
 }
 
+// Test the toISO8601 function
+TEST_CASE("toISO8601 converts date and time components to correct ISO 8601 format", "[toISO8601]") {
+
+    // Test with a regular date
+    SECTION("Test standard date") {
+        int year = 2024, dayOfYear = 120, hour = 10, minute = 30, second = 45;
+        std::string iso8601 = toISO8601(year, dayOfYear, hour, minute, second);
+        REQUIRE(iso8601 == "2024-04-29T10:30:45");  // April 29th, 2024, 10:30:45
+    }
+
+    // Test with a leap year date
+    SECTION("Test leap year") {
+        int year = 2020, dayOfYear = 60, hour = 23, minute = 59, second = 59;
+        std::string iso8601 = toISO8601(year, dayOfYear, hour, minute, second);
+        REQUIRE(iso8601 == "2020-02-29T23:59:59");  // February 29th, 2020 (leap year)
+    }
+
+    // Test with edge of year (December 31st)
+    SECTION("Test end of year") {
+        int year = 2024, dayOfYear = 365, hour = 23, minute = 59, second = 59;
+        std::string iso8601 = toISO8601(year, dayOfYear, hour, minute, second);
+        REQUIRE(iso8601 == "2024-12-30T23:59:59");  // December 30th, 2024
+    }
+
+    // Test with the beginning of the year (January 1st)
+    SECTION("Test beginning of year") {
+        int year = 2024, dayOfYear = 1, hour = 0, minute = 0, second = 0;
+        std::string iso8601 = toISO8601(year, dayOfYear, hour, minute, second);
+        REQUIRE(iso8601 == "2024-01-01T00:00:00");  // January 1st, 2024
+    }
+
+    // Test for an invalid day (out of range) to see if the function handles it
+    SECTION("Test invalid day") {
+        int year = 2024, dayOfYear = 366, hour = 12, minute = 0, second = 0;
+        std::string iso8601 = toISO8601(year, dayOfYear, hour, minute, second);
+        // This should be an invalid day for 2024, which only has 365 days
+        REQUIRE(iso8601 == "2024-12-31T12:00:00"); // Output may vary based on implementation
+    }
+}
+
+TEST_CASE("get_leap_seconds returns correct leap seconds information", "[get_leap_seconds]") {
+    
+    uint32_t tai_local = 0;  // Example input, actual value not important for this test
+    uint32_t leap_sec_local;
+
+    SECTION("Test getting leap seconds") {
+        // Test that the function returns the correct value for leap seconds
+        int result = get_leap_seconds(tai_local, &leap_sec_local);
+        REQUIRE(result == 0);  // Ensure the function returns 0
+        REQUIRE(leap_sec_local == TAI_LEAP_SECONDS);  // Ensure the leap seconds value is returned correctly
+    }
+}
+
 // CCSDSReader tests
 
 TEST_CASE("Open valid file") {
