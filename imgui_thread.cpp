@@ -307,9 +307,7 @@ void displayMAImageWithControls(GLuint megsATextureID)
 
     ImGui::Text("%s",iso8601.c_str());
 
-    mtx.lock();
-    int32_t yPosHi = globalState.MAypos;
-    mtx.unlock();
+    int32_t yPosHi = globalState.MAypos.load(std::memory_order_relaxed);
 
     int32_t yPosLo = 1024-yPosHi;
     ImGui::BeginGroup();
@@ -382,9 +380,7 @@ void displayMBImageWithControls(GLuint megsBTextureID)
 
     ImGui::Text("%s",iso8601.c_str());
 
-    mtx.lock();
-    int32_t yPosHi = globalState.MBypos;
-    mtx.unlock();
+    int32_t yPosHi = globalState.MBypos.load(std::memory_order_relaxed);
 
     int32_t yPosLo = 1024-yPosHi;
     ImGui::BeginGroup();
@@ -508,6 +504,7 @@ void updateStatusWindow()
         ImGui::Text("Refresh rate: %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
         ImGui::TreePop();
     }
+    mtx.lock();
     if ( ImGui::TreeNode("ESP Raw Packet"))
     {
         ImGui::Text("ESP Payload: \n%s", ByteArrayToHexString(globalState.espPayloadBytes, sizeof(globalState.espPayloadBytes)).c_str());
@@ -533,35 +530,37 @@ void updateStatusWindow()
         ImGui::Text("MB_ Payload: \n%s", ByteArrayToHexString(globalState.megsBPayloadBytes, sizeof(globalState.megsBPayloadBytes)).c_str());
         ImGui::TreePop();
     }
+    mtx.unlock();
+    
     if ( ImGui::TreeNodeEx("Packet Counters", ImGuiTreeNodeFlags_DefaultOpen)) {
-        renderInputTextWithColor("601 a59 MEGS-A Pkts", globalState.packetsReceived.MA, 12, false, 0.0, 0.9);
-        renderInputTextWithColor("602 a5a MEGS-B Pkts", globalState.packetsReceived.MB, 12, false, 0.0, 0.9);
-        renderInputTextWithColor("604 a5c ESP Pkts", globalState.packetsReceived.ESP, 12, false, 0.0, 0.9);
-        renderInputTextWithColor("605 a5d MEGS-P Pkts", globalState.packetsReceived.MP, 12, false, 0.0, 0.9);
-        renderInputTextWithColor("606 a5e SHK Pkts",globalState.packetsReceived.SHK, 12, false, 0.0, 0.9);
-        renderInputTextWithColor("Unknown Packets", globalState.packetsReceived.Unknown, 12, true, 0.0, 0.9);
+        renderInputTextWithColor("601 a59 MEGS-A Pkts", globalState.packetsReceived.MA.load(std::memory_order_relaxed), 12, false, 0.0, 0.9);
+        renderInputTextWithColor("602 a5a MEGS-B Pkts", globalState.packetsReceived.MB.load(std::memory_order_relaxed), 12, false, 0.0, 0.9);
+        renderInputTextWithColor("604 a5c ESP Pkts", globalState.packetsReceived.ESP.load(std::memory_order_relaxed), 12, false, 0.0, 0.9);
+        renderInputTextWithColor("605 a5d MEGS-P Pkts", globalState.packetsReceived.MP.load(std::memory_order_relaxed), 12, false, 0.0, 0.9);
+        renderInputTextWithColor("606 a5e SHK Pkts",globalState.packetsReceived.SHK.load(std::memory_order_relaxed), 12, false, 0.0, 0.9);
+        renderInputTextWithColor("Unknown Packets", globalState.packetsReceived.Unknown.load(std::memory_order_relaxed), 12, true, 0.0, 0.9);
         ImGui::TreePop();
     }
     if (ImGui::TreeNodeEx("Packet Gap Counters", ImGuiTreeNodeFlags_DefaultOpen)) {
-        renderInputTextWithColor("MEGS-A Gap Count", globalState.dataGapsMA, 12, !globalState.isFirstMAImage, 0.0, 0.9);
-        renderInputTextWithColor("MEGS-B Gap Count", globalState.dataGapsMB, 12, !globalState.isFirstMBImage, 0.0, 0.9);
-        renderInputTextWithColor("MEGS-P Gap Count", globalState.dataGapsMP, 12, true, 0.0, 0.9);
-        renderInputTextWithColor("ESP Gap Count", globalState.dataGapsESP, 12, true, 0.0, 0.9);
-        renderInputTextWithColor("SHK Gap Count", globalState.dataGapsSHK, 12, true, 0.0, 0.9);
+        renderInputTextWithColor("MEGS-A Gap Count", globalState.dataGapsMA.load(std::memory_order_relaxed), 12, !globalState.isFirstMAImage.load(std::memory_order_relaxed), 0.0, 0.9);
+        renderInputTextWithColor("MEGS-B Gap Count", globalState.dataGapsMB.load(std::memory_order_relaxed), 12, !globalState.isFirstMBImage.load(std::memory_order_relaxed), 0.0, 0.9);
+        renderInputTextWithColor("MEGS-P Gap Count", globalState.dataGapsMP.load(std::memory_order_relaxed), 12, true, 0.0, 0.9);
+        renderInputTextWithColor("ESP Gap Count", globalState.dataGapsESP.load(std::memory_order_relaxed), 12, true, 0.0, 0.9);
+        renderInputTextWithColor("SHK Gap Count", globalState.dataGapsSHK.load(std::memory_order_relaxed), 12, true, 0.0, 0.9);
         ImGui::TreePop();
     }
 
     if (ImGui::TreeNodeEx("Parity Error Counters", ImGuiTreeNodeFlags_DefaultOpen)) {
-        renderInputTextWithColor("MEGS-A Parity Errors", globalState.parityErrorsMA, 12, true, 0.0, 0.9);
-        renderInputTextWithColor("MEGS-B Parity Errors", globalState.parityErrorsMB, 12, true, 0.0, 0.9);
+        renderInputTextWithColor("MEGS-A Parity Errors", globalState.parityErrorsMA.load(std::memory_order_relaxed), 12, true, 0.0, 0.9);
+        renderInputTextWithColor("MEGS-B Parity Errors", globalState.parityErrorsMB.load(std::memory_order_relaxed), 12, true, 0.0, 0.9);
         ImGui::TreePop();
     }
 
     if (ImGui::TreeNodeEx("Saturated Pixels", ImGuiTreeNodeFlags_DefaultOpen)) {
-        renderInputTextWithColor("MEGS-A Top Saturated", globalState.saturatedPixelsMATop, 12, true, 0.0, 0.9);
-        renderInputTextWithColor("MEGS-A Bottom Saturated", globalState.saturatedPixelsMABottom, 12, true, 0.0, 0.9);
-        renderInputTextWithColor("MEGS-B Top Saturated", globalState.saturatedPixelsMBTop, 12, true, 0.0, 0.9);
-        renderInputTextWithColor("MEGS-B Bottom Saturated", globalState.saturatedPixelsMBBottom, 12, true, 0.0, 0.9);
+        renderInputTextWithColor("MEGS-A Top Saturated", globalState.saturatedPixelsMATop.load(std::memory_order_relaxed), 12, true, 0.0, 0.9);
+        renderInputTextWithColor("MEGS-A Bottom Saturated", globalState.saturatedPixelsMABottom.load(std::memory_order_relaxed), 12, true, 0.0, 0.9);
+        renderInputTextWithColor("MEGS-B Top Saturated", globalState.saturatedPixelsMBTop.load(std::memory_order_relaxed), 12, true, 0.0, 0.9);
+        renderInputTextWithColor("MEGS-B Bottom Saturated", globalState.saturatedPixelsMBBottom.load(std::memory_order_relaxed), 12, true, 0.0, 0.9);
         ImGui::TreePop();
     }
 }
@@ -699,16 +698,16 @@ void displayFPGAStatus() {
     ImGui::Columns(2,"FPGA ");
     ImGui::SetColumnWidth(0, 130.0f);
 
-    mtx.lock();
-    uint16_t reg0 = globalState.FPGA_reg0;
-    uint16_t reg1 = globalState.FPGA_reg1;
-    uint16_t reg2 = globalState.FPGA_reg2;
-    uint16_t reg3 = globalState.FPGA_reg3;
-    //uint32_t totalReadCounter = globalState.totalReadCounter;
-    uint32_t readsPerSecond = globalState.readsPerSecond;
-    uint32_t packetsPerSecond = globalState.packetsPerSecond;
-    uint32_t shortPacketCounter = globalState.shortPacketCounter;
-    mtx.unlock();
+    //mtx.lock();
+    uint16_t reg0 = globalState.FPGA_reg0.load();
+    uint16_t reg1 = globalState.FPGA_reg1.load();
+    uint16_t reg2 = globalState.FPGA_reg2.load();
+    uint16_t reg3 = globalState.FPGA_reg3.load();
+
+    uint32_t readsPerSecond = globalState.readsPerSecond.load();
+    uint32_t packetsPerSecond = globalState.packetsPerSecond.load();
+    uint32_t shortPacketCounter = globalState.shortPacketCounter.load();
+    //mtx.unlock();
 
     if (ImGui::TreeNodeEx("FPGA Registers", ImGuiTreeNodeFlags_DefaultOpen)) {
         renderInputTextWithColor("Reg 0", reg0, 6, false, 0.0, 0.9);
@@ -754,7 +753,6 @@ void displayFPGAStatus() {
         renderInputTextWithColor("FPGA Temp (C)", temperature, 12, true, 40.0f, 45.0f, 20.0f, 10.0f, "%.1f");
         ImGui::TreePop();
     }
-
 
 }
 
@@ -859,7 +857,9 @@ int imgui_thread() {
     //     }
     //     std::cout << std::endl;
     // }
+    // mtx.lock();
     // GLuint mbSimpleTextureID = createProperTextureFromMEGSImage(testimg, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, true, true);
+    // mtx.unlock();
 
     // Main loop
 #ifdef __EMSCRIPTEN__
@@ -915,9 +915,7 @@ int imgui_thread() {
             // 3. Show another simple window.
             {
                 ImGui::Begin("Channel Status");
-                mtx.lock();
                 updateStatusWindow();
-                mtx.unlock();
                 ImGui::End();
             }
 
@@ -951,21 +949,21 @@ int imgui_thread() {
 
         // this is the part that draws stuff to the screen
         {
-            mtx.lock();
-            if (globalState.megsAUpdated) {
+            if (globalState.megsAUpdated.load(std::memory_order_relaxed)) {
+                mtx.lock();
                 renderUpdatedTextureFromMEGSAImage(megsATextureID);
-                globalState.megsAUpdated = false;  // Reset flag after updating texture
+                mtx.unlock();
+                globalState.megsAUpdated.store(false, std::memory_order_relaxed);  // Reset flag after updating texture
             }
-            mtx.unlock();
 
-            mtx.lock();
-            if (globalState.megsBUpdated) {
+            if (globalState.megsBUpdated.load(std::memory_order_relaxed)) {
+                mtx.lock();
                 renderUpdatedTextureFromMEGSBImage(megsBTextureID);
+                mtx.unlock();
                 // debugging image display
                 // renderSimpleTextureMB(mbSimpleTextureID, testimg);
-                globalState.megsBUpdated = false;  // Reset flag after updating texture
+                globalState.megsBUpdated.store(false, std::memory_order_relaxed);  // Reset flag after updating texture
             }
-            mtx.unlock();
 
         }
 
