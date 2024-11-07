@@ -146,7 +146,7 @@ void processOnePacket(CCSDSReader& pktReader, const std::vector<uint8_t>& packet
 
 // payloadBytesToUint32 creates a 32-bit int from 4 bytes in TAI time order starting at offsetByte
 uint32_t payloadBytesToUint32(const std::vector<uint8_t>&payload, const int32_t offsetByte) {
-    if (payload.size() < offsetByte + 4) {
+    if (payload.size() < offsetByte + (uint32_t) 4) {
         // Handle the error case, perhaps by throwing an exception
         throw std::invalid_argument("payloadBytesToUint32 - Payload must contain at least 4 bytes.");
     }
