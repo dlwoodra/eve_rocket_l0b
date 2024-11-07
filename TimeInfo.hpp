@@ -7,6 +7,12 @@
 #include <iostream>
 #include <sstream>
 
+std::string toISO8601(int year, int dayOfYear, int hour, int minute, int second);
+int get_leap_seconds(uint32_t tai_local, uint32_t* leap_sec_local);
+int tai_to_ydhms(uint32_t tai_in, uint16_t* year, uint16_t* doy, uint32_t* sod, uint16_t* hh, uint16_t* mm, uint16_t* ss, std::string& iso8601);
+std::string tai_to_iso8601(uint32_t tai);
+std::string tai_to_iso8601sss(const std::string& isoTimestamp, uint32_t subseconds);
+
 constexpr double TAI_LEAP_SECONDS = 37.0; //update as needed
 
 // static offset is Jan 1 1958 to Jan 1 1970
