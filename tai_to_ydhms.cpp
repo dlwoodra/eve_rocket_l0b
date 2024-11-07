@@ -34,7 +34,7 @@ std::string toISO8601(int year, int dayOfYear, int hour, int minute, int second)
     return oss.str();
 }
 
-inline int get_leap_seconds(uint32_t tai_local, uint32_t* leap_sec_local) {
+int get_leap_seconds(uint32_t tai_local, uint32_t* leap_sec_local) {
     // Function to get leap seconds
     // should read tai-utc.dat, refer to         
     *leap_sec_local = TAI_LEAP_SECONDS;
