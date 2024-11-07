@@ -41,6 +41,11 @@ public:
         logger->error(message, std::forward<Args>(args)...);
     }
 
+    // Add a getter for the current log file path
+    const std::string& getLogFilePath() const {
+        return logFile;
+    }
+
 private:
     LogFileWriter();
     ~LogFileWriter();
