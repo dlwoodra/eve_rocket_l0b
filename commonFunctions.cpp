@@ -94,27 +94,43 @@ void processOnePacket(CCSDSReader& pktReader, const std::vector<uint8_t>& packet
     auto payload = std::vector<uint8_t>(packet.cbegin() + PACKET_HEADER_SIZE, packet.cend());
     double timeStamp = pktReader.getPacketTimeStamp(payload);
 
-    LogFileWriter::getInstance().logInfo("APID {} SSC {} pktLen {} time {}", apid,
-        sourceSequenceCounter, packetLength, timeStamp
-    );
+    // if packets are being dropped, this will be a good place to check
+    //LogFileWriter::getInstance().logInfo("APID {} SSC {} pktLen {} time {}", apid,
+    //    sourceSequenceCounter, packetLength, timeStamp );
 
     switch (apid) {
         case MEGSA_APID:
+            if ( sourceSequenceCounter == 0) {
+                LogFileWriter::getInstance().logInfo("APID {} SSC {} pktLen {} time {}", apid,
+                    sourceSequenceCounter, packetLength, timeStamp );
+            }
             processMegsAPacket(payload, sourceSequenceCounter, packetLength, timeStamp);
             break;
         case MEGSB_APID:
+            if ( sourceSequenceCounter == 0) {
+                LogFileWriter::getInstance().logInfo("APID {} SSC {} pktLen {} time {}", apid,
+                    sourceSequenceCounter, packetLength, timeStamp );
+            }
             processMegsBPacket(payload, sourceSequenceCounter, packetLength, timeStamp);
             break;
         case ESP_APID:
+            LogFileWriter::getInstance().logInfo("APID {} SSC {} pktLen {} time {}", apid,
+                sourceSequenceCounter, packetLength, timeStamp );
             processESPPacket(payload, sourceSequenceCounter, packetLength, timeStamp);
             break;
         case MEGSP_APID:
+            LogFileWriter::getInstance().logInfo("APID {} SSC {} pktLen {} time {}", apid,
+                sourceSequenceCounter, packetLength, timeStamp );
             processMegsPPacket(payload, sourceSequenceCounter, packetLength, timeStamp);
             break;
         case HK_APID:
+            LogFileWriter::getInstance().logInfo("APID {} SSC {} pktLen {} time {}", apid,
+                sourceSequenceCounter, packetLength, timeStamp );
             processHKPacket(payload, sourceSequenceCounter, packetLength, timeStamp);
             break;
         default:
+            LogFileWriter::getInstance().logError("APID {} SSC {} pktLen {} time {}", apid,
+                sourceSequenceCounter, packetLength, timeStamp );
             std::cerr << "Unrecognized APID: " << apid << std::endl;
             // Handle error or unknown APID case if necessary
             globalState.packetsReceived.Unknown.fetch_add(1, std::memory_order_relaxed);
@@ -130,6 +146,10 @@ void processOnePacket(CCSDSReader& pktReader, const std::vector<uint8_t>& packet
 
 // payloadBytesToUint32 creates a 32-bit int from 4 bytes in TAI time order starting at offsetByte
 uint32_t payloadBytesToUint32(const std::vector<uint8_t>&payload, const int32_t offsetByte) {
+    if (payload.size() < offsetByte + 4) {
+        // Handle the error case, perhaps by throwing an exception
+        throw std::invalid_argument("payloadBytesToUint32 - Payload must contain at least 4 bytes.");
+    }
     return (static_cast<uint32_t>(payload[offsetByte]) << 24) |
            (static_cast<uint32_t>(payload[offsetByte+1]) << 16) |
            (static_cast<uint32_t>(payload[offsetByte+2]) << 8)  |
