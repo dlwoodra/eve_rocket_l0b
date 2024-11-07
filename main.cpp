@@ -17,6 +17,7 @@
 #include "eve_l0b.hpp"
 
 #include <csignal> // needed for SIGINT
+#include <optional>
 
 
 // prototypes
@@ -38,13 +39,11 @@ void extern processHKPacket(std::vector<uint8_t> payload,
 
 std::mutex mtx;
 ProgramState globalState;
+std::optional<std::thread> imguiThread;
+
 #ifdef ENABLEGUI
 int imgui_thread();
-// Start the ImGui loop in a new thread object imguiThread
-// passing function pointer imgui_thread
-std::thread imguiThread(imgui_thread);
 #endif
-
 
 // Function to handle the Ctrl-C (SIGINT) signal
 void handleSigint(int signal) {
@@ -53,28 +52,15 @@ void handleSigint(int signal) {
     spdlog::info("SIGINT received, flushing log and exiting.");
     spdlog::shutdown();
 
-    // in order to flush the recordFileWriter a global variable is needed
-    // I'd rather keep this simple
-    // we could do by making a global
-    //like RecordFileWriter* g_recordFileWriter = nullptr;
-    // then in here there would be code
-    // like         
-    // Flush the buffer and close the file
-    //    if (g_recordFileWriter) {
-    //        g_recordFileWriter->flush();
-    //        g_recordFileWriter->close();
-    //    }
-
-    // then in main this would be needed
-    //// Assign the global pointer
-    //g_recordFileWriter = &recordFileWriter;
-
     globalState.running = false;  // allow dear imgui to shut itself down
-    // wait a short amount for imgui to respond
-    //std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    // instead join the imgui thread
+
+    // joining the imgui thread 
 #ifdef ENABLEGUI
-    imguiThread.join();
+    if (imguiThread && imguiThread->joinable()) 
+    {
+        imguiThread->join();
+    }
+    //imguiThread.join();
 #endif
     std::exit(signal); // Exit the program with the signal code
 }
@@ -87,6 +73,11 @@ int main(int argc, char* argv[]) {
 
     // initialize the programState structure contents
     globalStateInit();
+
+#ifdef ENABLEGUI
+    //std::thread imguiThread(imgui_thread); // Start the GUI thread safely after initialization
+    imguiThread.emplace(imgui_thread); // Start the GUI thread safely after initialization
+#endif
 
     // Register the signal handler for SIGINT
     std::signal(SIGINT, handleSigint);
@@ -184,10 +175,11 @@ void globalStateInit() {
     mtx.lock();
     globalState.megsa.image[0][0] = {0xff};
     globalState.megsb.image[0][0] = {0x3fff};
-    globalState.running = true;
 #ifdef ENABLEGUI
     globalState.guiEnabled = true;
 #endif
+    globalState.running = true;
+    globalState.initComplete = true;
     mtx.unlock(); // unlock the mutex
 }
 
