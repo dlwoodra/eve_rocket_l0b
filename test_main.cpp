@@ -68,6 +68,185 @@ public:
     }
 };
 
+// commonFunctions tests
+TEST_CASE("create_single_directory creates directory correctly", "[create_single_directory]") {
+    std::string dirPath = "./test_dir";
+
+    // Ensure the directory does not exist before test
+    rmdir(dirPath.c_str());
+
+    // Test creating a new directory
+    REQUIRE(create_single_directory(dirPath) == true);
+
+    // Check if directory was created
+    struct stat info;
+    REQUIRE(stat(dirPath.c_str(), &info) == 0);  // Check if stat call is successful
+    REQUIRE(info.st_mode & S_IFDIR);  // Ensure it's a directory
+
+    // Clean up
+    rmdir(dirPath.c_str());
+}
+
+TEST_CASE("create_single_directory fails if path is not a directory", "[create_single_directory]") {
+    std::string nonDirPath = "./test_file.txt";
+    
+    // Create a file at that path (to simulate existing non-directory path)
+    std::ofstream file(nonDirPath);
+    file.close();
+
+    // Test that the function returns false when path exists but isn't a directory
+    REQUIRE(create_single_directory(nonDirPath) == false);
+
+    // Clean up
+    remove(nonDirPath.c_str());
+}
+
+TEST_CASE("create_single_directory returns true if directory already exists", "[create_single_directory]") {
+    std::string dirPath = "./test_dir_existing";
+
+    // Create the directory before testing
+    REQUIRE(create_single_directory(dirPath) == true);
+
+    // Test that the function returns true if directory already exists
+    REQUIRE(create_single_directory(dirPath) == true);
+
+    // Clean up
+    rmdir(dirPath.c_str());
+}
+
+TEST_CASE("create_directory_if_not_exists creates nested directories", "[create_directory_if_not_exists]") {
+    std::string nestedDirPath = "./test_dir/nested_dir/subdir";
+
+    // Ensure no such directories exist before the test
+    rmdir("./test_dir/nested_dir/subdir");  // Cleanup if any part exists
+    rmdir("./test_dir/nested_dir");  
+    rmdir("./test_dir");
+
+    // Test creating nested directories
+    REQUIRE(create_directory_if_not_exists(nestedDirPath) == true);
+
+    // Check if all directories were created
+    struct stat info;
+    REQUIRE(stat("./test_dir", &info) == 0);
+    REQUIRE(info.st_mode & S_IFDIR);
+
+    REQUIRE(stat("./test_dir/nested_dir", &info) == 0);
+    REQUIRE(info.st_mode & S_IFDIR);
+
+    REQUIRE(stat("./test_dir/nested_dir/subdir", &info) == 0);
+    REQUIRE(info.st_mode & S_IFDIR);
+
+    // Clean up
+    rmdir("./test_dir/nested_dir/subdir");
+    rmdir("./test_dir/nested_dir");
+    rmdir("./test_dir");
+}
+
+TEST_CASE("create_directory_if_not_exists works when directories already exist", "[create_directory_if_not_exists]") {
+    std::string nestedDirPath = "./test_dir/nested_dir/existing_subdir";
+
+    // Ensure the directory exists for the test
+    create_directory_if_not_exists(nestedDirPath);
+
+    // Test that it returns true even if directories already exist
+    REQUIRE(create_directory_if_not_exists(nestedDirPath) == true);
+
+    // Clean up
+    rmdir("./test_dir/nested_dir/existing_subdir");
+    rmdir("./test_dir/nested_dir");
+    rmdir("./test_dir");
+}
+
+TEST_CASE("transposeImageTo1D correctly transposes a single row from a large image", "[transposeImageTo1D]") {
+    uint16_t image[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH] = {};
+
+    // Set values in the first row for testing
+    for (uint32_t i = 0; i < MEGS_IMAGE_WIDTH; ++i) {
+        image[0][i] = i + 1; // 1, 2, 3, ..., 2048
+    }
+
+    std::vector<uint16_t> result = transposeImageTo1D(image);
+
+    // Check the first 2048 elements, which should match the first row
+    REQUIRE(result.size() == MEGS_IMAGE_HEIGHT * MEGS_IMAGE_WIDTH);
+    for (uint32_t i = 0; i < MEGS_IMAGE_WIDTH; ++i) {
+        REQUIRE(result[i] == i + 1);
+    }
+}
+
+TEST_CASE("transposeImageTo1D correctly transposes the entire 1024x2048 image", "[transposeImageTo1D]") {
+    uint16_t image[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH] = {};
+
+    // Initialize the image with some values for testing
+    uint16_t value = 1; //confusing because it wraps at 65535 back to 0
+    for (uint32_t y = 0; y < MEGS_IMAGE_HEIGHT; ++y) {
+        for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; ++x) {
+            image[y][x] = value++;
+        }
+    }
+
+    std::vector<uint16_t> result = transposeImageTo1D(image);
+
+    // Check the size of the resulting vector
+    REQUIRE(result.size() == MEGS_IMAGE_HEIGHT * MEGS_IMAGE_WIDTH);
+
+    // Check a few values to ensure the function is working correctly (start, middle, end)
+    REQUIRE(result[0] == 1); // First element
+    REQUIRE(result[MEGS_IMAGE_WIDTH - 1] == MEGS_IMAGE_WIDTH); // Last element of the first row
+    REQUIRE(result[MEGS_IMAGE_WIDTH] == MEGS_IMAGE_WIDTH + 1); // First element of the second row
+    REQUIRE(result[result.size() - 1] == 0);
+    REQUIRE(result[result.size() - 2] == 65535);
+    REQUIRE(result[result.size() - 3] == 65534);
+    REQUIRE(result[2048 - 1] == 2048); // Last element of the first row
+    REQUIRE(result[4096 - 1] == 4096); // Last element of the second row
+    // all values that are mutiples of 65536 will be 0 because value wraps around
+}
+
+TEST_CASE("transposeImageTo1D correctly handles boundary values", "[transposeImageTo1D]") {
+    uint16_t image[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH] = {};
+
+    // Set boundary values (max uint16_t) at strategic positions
+    image[0][0] = 65535;  // Top-left corner
+    image[0][MEGS_IMAGE_WIDTH - 1] = 65535;  // Top-right corner
+    image[MEGS_IMAGE_HEIGHT - 1][0] = 65535;  // Bottom-left corner
+    image[MEGS_IMAGE_HEIGHT - 1][MEGS_IMAGE_WIDTH - 1] = 65535;  // Bottom-right corner
+
+    std::vector<uint16_t> result = transposeImageTo1D(image);
+
+    // Check that boundary values are in the correct positions
+    REQUIRE(result[0] == 65535);  // First element (top-left)
+    REQUIRE(result[MEGS_IMAGE_WIDTH - 1] == 65535);  // Last element of the first row
+    REQUIRE(result[MEGS_IMAGE_WIDTH * (MEGS_IMAGE_HEIGHT - 1)] == 65535);  // First element of the last row
+    REQUIRE(result[result.size() - 1] == 65535);  // Last element (bottom-right)
+}
+
+TEST_CASE("transposeImageTo1D performs efficiently for large images", "[transposeImageTo1D][performance]") {
+    uint16_t image[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH] = {};
+
+    // Initialize the image with random values for performance test
+    for (uint32_t y = 0; y < MEGS_IMAGE_HEIGHT; ++y) {
+        for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; ++x) {
+            image[y][x] = (y * MEGS_IMAGE_WIDTH + x) % 65536;
+        }
+    }
+
+    // Measure the time it takes to transpose the image
+    int iterationPower = 4; // 2^4 = 16 iterations
+    int numIterations = (1<<iterationPower); // 16 iterations
+    auto start = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < numIterations; ++i) {
+        std::vector<uint16_t> result = transposeImageTo1D(image);
+    }
+    auto end = std::chrono::high_resolution_clock::now();
+    
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+    int meanDuration = duration>>iterationPower;
+    // vm takes 1977-2170 microseconds, compiler optimizes so that mean is 1368 over 16 iterations
+
+    std::cout<< "transposeImageTo1D performance test: " << meanDuration << " microsec/iteration over " <<numIterations<<" iterations."<< std::endl;
+    REQUIRE(duration < 1000000); // Ensure that the operation takes less than 1 second (1 million microseconds)
+}
+
 // CCSDSReader tests
 
 TEST_CASE("Open valid file") {
