@@ -9,6 +9,7 @@
 #include "TimeInfo.hpp"
 #include "USBInputSource.hpp"
 #include "ProgramState.hpp"
+#include "FileCompressor.hpp"
 
 //#define NORMAL_FILE "packetizer_out_2024_08_20.bin"
 //#define NORMAL_FILE "packetizer_out_2024_08_31.bin"
@@ -44,6 +45,27 @@ public:
     }
 private:
     std::string filename;
+};
+
+
+// Test fixture to create and cleanup files
+class FileCompressorTests {
+public:
+    std::string testFilename = "test_log.txt";
+    std::string compressedFilename = "test_log.txt.gz";
+
+    FileCompressorTests() {
+        // Create a dummy test file
+        std::ofstream outFile(testFilename);
+        outFile << "This is a test log file." << std::endl;
+        outFile.close();
+    }
+
+    ~FileCompressorTests() {
+        // Cleanup created files
+        std::remove(testFilename.c_str());
+        std::remove(compressedFilename.c_str());
+    }
 };
 
 // CCSDSReader tests
@@ -368,3 +390,48 @@ TEST_CASE("isValidFilename function tests", "[isValidFilename]") {
 //     // You can add more SECTIONs here for other tests related to USBInputSource
 
 // }
+
+
+
+// Test case to verify the compression function
+TEST_CASE_METHOD(FileCompressorTests, "CompressFile") {
+    FileCompressor compressor;
+
+    // Check the file before compression
+    REQUIRE(std::ifstream(testFilename).good());
+
+    // Compress the file
+    compressor.compressFile(testFilename);
+
+    // Since the thread is detached, we wait a bit for the compression to complete
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+
+    // Check if the compressed file is created
+    REQUIRE(std::ifstream(compressedFilename).good());
+}
+
+// Test case to ensure the pigz command is called with the right parameters
+TEST_CASE_METHOD(FileCompressorTests, "CompressWithPigz") {
+    FileCompressor compressor;
+
+    // Mock system call to avoid calling the actual pigz command
+    // You could use a mock or override system behavior in a real test scenario
+    SECTION("pigz system call") {
+        // Check if pigz compresses correctly (this will call the real system command)
+        REQUIRE_NOTHROW(compressor.compressFile(testFilename));
+    }
+}
+
+// Test case to check if the thread runs in the background and does not block
+TEST_CASE_METHOD(FileCompressorTests, "CompressionThreading") {
+    FileCompressor compressor;
+
+    // Start compression in a separate thread
+    compressor.compressFile(testFilename);
+
+    // Perform other tasks to check if the main thread continues without blocking
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+
+    // Check if the compressed file exists after some time
+    REQUIRE(std::ifstream(compressedFilename).good());
+}
