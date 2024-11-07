@@ -1,11 +1,9 @@
 #include "CCSDSReader.hpp"
 #include "commonFunctions.hpp"
 #include "eve_l0b.hpp"
+//#include "ProgramState.hpp"
 
-constexpr double ONE_OVER_65536 = (double (1.0) / double (65536.0));
-
-extern ProgramState globalState;
-//extern std::mutex mtx;
+//extern ProgramState globalState;
 
 // initialize to use filename
 CCSDSReader::CCSDSReader(InputSource* source) : source(source) {}

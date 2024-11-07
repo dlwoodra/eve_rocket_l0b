@@ -38,7 +38,7 @@ LINKED_LIBS += `pkg-config --static --libs glfw3`   # -lglfw -lrt -lm -ldl
 COMSRC = CCSDSReader.cpp RecordFileWriter.cpp USBInputSource.cpp \
     FileInputSource.cpp FITSWriter.cpp PacketProcessor.cpp \
     TimeInfo.cpp assemble_image.cpp tai_to_ydhms.cpp LogFileWriter.cpp \
-    commonFunctions.cpp FileCompressor.cpp imgui_thread.cpp
+    commonFunctions.cpp FileCompressor.cpp ProgramState.cpp imgui_thread.cpp
 
 # ImGui source files
 IMGUI_SOURCES = $(IMGUI_DIR)/imgui.cpp $(IMGUI_DIR)/imgui_draw.cpp \

@@ -1,9 +1,6 @@
 #define CATCH_CONFIG_MAIN // tell catch to include a main()
 #include "catch.hpp" 
 
-//#include "spdlog/spdlog.h" // fancy logging needs a main
-//#include "spdlog_pch.hpp" // precompiled binary
-
 #include "CCSDSReader.hpp"
 #include "commonFunctions.hpp"
 #include "FileInputSource.hpp"
@@ -11,11 +8,21 @@
 #include "RecordFileWriter.hpp"
 #include "TimeInfo.hpp"
 #include "USBInputSource.hpp"
+#include "ProgramState.hpp"
 
 //#define NORMAL_FILE "packetizer_out_2024_08_20.bin"
-#define NORMAL_FILE "packetizer_out_2024_08_31.bin"
+//#define NORMAL_FILE "packetizer_out_2024_08_31.bin"
+#define NORMAL_FILE "packetizer_out_2024_10_23.bin"
 
 std::string normalFile = NORMAL_FILE;
+
+void testGlobalStateInit() {
+    globalStateInit();
+    REQUIRE(globalState.megsa.image[0][0] == 0xff);
+    REQUIRE(globalState.megsb.image[0][0] == 0x3fff);
+    REQUIRE(globalState.running == true);
+    REQUIRE(globalState.initComplete == true);
+}
 
 // Helper function to get current year using std::chrono for testing TimeInfo
 int getCurrentYear() {

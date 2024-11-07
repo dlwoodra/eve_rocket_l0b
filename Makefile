@@ -9,7 +9,7 @@
 
 CXX = g++
 INCLUDE_PATH = -I/usr/local/include 
-CXXFLAGS = -std=c++11 -fopenmp
+CXXFLAGS = -std=c++17 -fopenmp
 
 # Check if SKIPPARITY is defined during compilation
 ## active using make SKIPPARITY=1 target
@@ -19,23 +19,22 @@ endif
 
 PCH_FLAGS = -include spdlog_pch.hpp
 
-FAST_FLAGS = -O2 -Wall #-g
-TEST_FLAGS = -Wall #-g
+FAST_FLAGS = -O1 -Wall #-g
+TEST_FLAGS = -Wall -O1 #-g
 DEBUG_FLAGS = -g -Wall
 
-LFLAGS = -lcfitsio -lm -lspdlog -lfmt -lokFrontPanel -fopenmp
+LFLAGS = -lcfitsio -lm -lspdlog -lfmt -lokFrontPanel -fopenmp -lz
 LINKED_LIBS = -L/usr/local/lib -Wl,-rpath=/usr/local/lib 
 
-COMSRC = LogFileWriter.cpp CCSDSReader.cpp RecordFileWriter.cpp \
-	USBInputSource.cpp FileInputSource.cpp FITSWriter.cpp PacketProcessor.cpp \
-    TimeInfo.cpp assemble_image.cpp tai_to_ydhms.cpp \
-    commonFunctions.cpp FileCompressor.cpp
+COMSRC = CCSDSReader.cpp RecordFileWriter.cpp USBInputSource.cpp \
+	FileInputSource.cpp FITSWriter.cpp PacketProcessor.cpp \
+    TimeInfo.cpp assemble_image.cpp tai_to_ydhms.cpp LogFileWriter.cpp \
+    commonFunctions.cpp FileCompressor.cpp ProgramState.cpp
 
 SRCS = ${COMSRC} main.cpp
 TEST_SRCS = ${COMSRC} test_main.cpp 
 
 COM_OBJS = ${COMSRC:.cpp=.o}
-
 MAIN_OBJS = main.o
 TEST_OBJS = test_main.o
 

@@ -1,3 +1,4 @@
 #!/bin/tcsh
 
-time make -j2 -f Makefile rl0b_main
+# no gui
+time make -j4 -f Makefile rl0b_main

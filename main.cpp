@@ -15,6 +15,7 @@
 
 #include "commonFunctions.hpp"
 #include "eve_l0b.hpp"
+#include "ProgramState.hpp"
 
 #include <csignal> // needed for SIGINT
 #include <optional>
@@ -37,8 +38,7 @@ void extern processESPPacket(std::vector<uint8_t> payload,
 void extern processHKPacket(std::vector<uint8_t> payload, 
     uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp);
 
-std::mutex mtx;
-ProgramState globalState;
+// global variables
 std::optional<std::thread> imguiThread;
 
 #ifdef ENABLEGUI
@@ -60,7 +60,6 @@ void handleSigint(int signal) {
     {
         imguiThread->join();
     }
-    //imguiThread.join();
 #endif
     std::exit(signal); // Exit the program with the signal code
 }
@@ -75,7 +74,6 @@ int main(int argc, char* argv[]) {
     globalStateInit();
 
 #ifdef ENABLEGUI
-    //std::thread imguiThread(imgui_thread); // Start the GUI thread safely after initialization
     imguiThread.emplace(imgui_thread); // Start the GUI thread safely after initialization
 #endif
 
@@ -168,21 +166,6 @@ void parseCommandLineArgs(int argc, char* argv[], std::string& filename, bool& s
     }
 }
 
-void globalStateInit() {
-    std::cout << "globablStateInit executing" << std::endl;
-    LogFileWriter::getInstance().logInfo("globalStateInit executing");
-    //std::lock_guard<std::mutex> lock(mtx); // lock the mutex
-    mtx.lock();
-    globalState.megsa.image[0][0] = {0xff};
-    globalState.megsb.image[0][0] = {0x3fff};
-#ifdef ENABLEGUI
-    globalState.guiEnabled = true;
-#endif
-    globalState.running = true;
-    globalState.initComplete = true;
-    mtx.unlock(); // unlock the mutex
-}
-
 void print_help() {
   std::cout << "Main c++ program to support SDO EVE Rocket calibration at SURF." << std::endl;
   std::cout << "Compiled: " << __DATE__ << " " << __TIME__ << std::endl;
@@ -190,7 +173,7 @@ void print_help() {
   std::cout << "Basefile: " << __BASE_FILE__ << std::endl;
   std::cout << " " << std::endl;
   std::cout << "Usage:" << std::endl;
-  std::cout << " ./ql [tlmfilename] [options]" << std::endl;
+  std::cout << " ./rl0b_main_gui [tlmfilename] [options]" << std::endl;
   std::cout << " " << std::endl;
   std::cout << "Options: " << std::endl;
   std::cout << " -help runs print_help to display this message and exit" << std::endl;

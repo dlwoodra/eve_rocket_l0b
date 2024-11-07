@@ -14,6 +14,7 @@
 #include <string>
 #include <time.h>
 #include <math.h>
+#include <mutex>
 #include <byteswap.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -21,7 +22,23 @@
 #include <sys/file.h>
 #include <wchar.h>
 #include <cstdint>
-#include "CCSDSReader.hpp"
+//#include "CCSDSReader.hpp"
+
+// Constants
+constexpr uint32_t SYNC_MARKER = 0x1ACFFC1D; // sync marker
+constexpr uint32_t BSWAP_SYNC_MARKER = 0x1DFCCF1A;
+constexpr size_t PACKET_HEADER_SIZE = 6;     // CCSDS packet primary header size in bytes
+constexpr uint16_t STANDARD_MEGSAB_PACKET_LENGTH = 1761; // value from packet (one less than size)
+constexpr uint16_t STANDARD_MEGSP_PACKET_LENGTH = 1761; //25; // apid 604
+constexpr uint16_t STANDARD_ESP_PACKET_LENGTH = 1761; //89; // apid 605
+constexpr uint16_t STANDARD_HK_PACKET_LENGTH = 1761; //265; // apid 606
+
+// David's definitions of APIDs
+constexpr uint16_t MEGSA_APID = 601; // same as SDO EVE
+constexpr uint16_t MEGSB_APID = 602; // same as SDO EVE
+constexpr uint16_t MEGSP_APID = 604; // was SHK in SDO EVE
+constexpr uint16_t ESP_APID = 605; // not used in SDO EVE, MEGS-P and ESP were both in 603
+constexpr uint16_t HK_APID = 606; // rocket housekeeping only
 
 constexpr int32_t MEGSP_INTEGRATIONS_PER_PACKET = 4;
 constexpr int32_t SECONDS_PER_MEGSP_FILE = 10;
@@ -397,52 +414,10 @@ struct TLM_ERRORS
 
 extern TLM_ERRORS tlm_errors;
 
-// There is only one programState structure, and it is defined in main.cpp as a global to pass info to the imgui instance.
-struct ProgramState {
-	bool guiEnabled = false;
-	std::atomic<uint16_t> FPGA_reg0{0};
-	std::atomic<uint16_t> FPGA_reg1{0};
-	std::atomic<uint16_t> FPGA_reg2{0};
-	std::atomic<uint16_t> FPGA_reg3{0};
-	std::atomic<uint32_t> totalReadCounter{0}; // Counter of number of packets read between ESP packets
-	std::atomic<uint32_t> readsPerSecond{0}; // Counter of packets read between ESP packets
-	// readsPerSecond is the totalReadCounter value when an ESP packet is received
-	std::atomic<uint32_t> packetsPerSecond{0}; // Number of packets read between ESP packets
-	std::atomic<uint32_t> shortPacketCounter{0};
 
-    //int count = 0; // Number of iterations
-    bool running = true; // Whether the program is still running
-	bool initComplete = false;
-	MEGS_IMAGE_REC megsa; 
-	uint8_t megsAPayloadBytes[STANDARD_MEGSAB_PACKET_LENGTH+1];
-	std::atomic<bool> megsAUpdated{true};
-	std::atomic<bool> isFirstMAImage{true};
-	std::atomic<int> MAypos{0};
-	MEGS_IMAGE_REC megsb;
-	uint8_t megsBPayloadBytes[STANDARD_MEGSAB_PACKET_LENGTH+1];
-	std::atomic<bool> megsBUpdated{true};
-	std::atomic<bool> isFirstMBImage{true};
-	std::atomic<int> MBypos{0};
-	PKT_COUNT_REC packetsReceived;
-	std::atomic<int64_t> parityErrorsMA{0};
-	std::atomic<int64_t> parityErrorsMB{0};
-	std::atomic<int64_t> dataGapsMA{0};
-	std::atomic<int64_t> dataGapsMB{0};
-	std::atomic<int64_t> dataGapsMP{0};
-	std::atomic<int64_t> dataGapsESP{0};
-	std::atomic<int64_t> dataGapsSHK{0};
-	std::atomic<uint32_t> saturatedPixelsMATop{0};
-	std::atomic<uint32_t> saturatedPixelsMABottom{0};
-	std::atomic<uint32_t> saturatedPixelsMBTop{0};
-	std::atomic<uint32_t> saturatedPixelsMBBottom{0};
-	ESP_PACKET esp;
-	uint8_t espPayloadBytes[STANDARD_ESP_PACKET_LENGTH+1];
-	MEGSP_PACKET megsp;
-	uint8_t megsPPayloadBytes[STANDARD_MEGSP_PACKET_LENGTH+1];
-	SHK_PACKET shk;
-	uint8_t shkPayloadBytes[STANDARD_HK_PACKET_LENGTH+1];
-};
-
+//global variables
+//extern std::mutex mtx;
+//extern ProgramState globalState; //Declaration only
 
 
 // +++++++++++++++++  The procedure prototypes  ++++++++++++++++++

@@ -11,6 +11,7 @@
 #include "LogFileWriter.hpp"
 #include "RecordFileWriter.hpp"
 #include "USBInputSource.hpp"
+#include "ProgramState.hpp"
 
 //#include <chrono> // included in RecordFileWriter.hpp
 //#include <cstdint> // included in CCSDSReader.hpp

@@ -8,6 +8,7 @@
 #include "LogFileWriter.hpp"
 #include "RecordFileWriter.hpp"
 #include "TimeInfo.hpp"
+#include "ProgramState.hpp"
 #include <cstdint>
 #include <cstdio>
 #include <memory>

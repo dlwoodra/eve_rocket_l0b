@@ -5,8 +5,6 @@
 extern ProgramState globalState;
 extern std::mutex mtx;
 
-extern int convertToCString(const std::string& str, const char** cstr, size_t& size);
-
 // Function returns false if filename is empty
 bool isValidFilename(const std::string& filename) {
     return !filename.empty();
