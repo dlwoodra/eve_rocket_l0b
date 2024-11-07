@@ -5,7 +5,7 @@
 constexpr double ONE_OVER_65536 = (double (1.0) / double (65536.0));
 
 extern ProgramState globalState;
-extern std::mutex mtx;
+//extern std::mutex mtx;
 
 // initialize to use filename
 CCSDSReader::CCSDSReader(InputSource* source) : source(source) {}
@@ -54,16 +54,13 @@ bool CCSDSReader::findSyncMarker() {
 // read the sync marker, packet header, and packet data
 bool CCSDSReader::readNextPacket(std::vector<uint8_t>& packet) {
 
-  // slow down for debugging
-  mtx.lock();
-  bool guiEnabled = globalState.guiEnabled;
-  globalState.totalReadCounter++;
-  mtx.unlock();
-  if ( guiEnabled ) {
-    //During file processing we should pause
-    std::this_thread::sleep_for(std::chrono::milliseconds(2));
-  }
+  globalState.totalReadCounter.fetch_add(1, std::memory_order_relaxed);
 
+  // slow down for debugging
+  //if ( guiEnabled ) {
+  //  //During file processing we should pause
+  //  std::this_thread::sleep_for(std::chrono::milliseconds(2));
+  //}
 
   if (!findSyncMarker()) {
     std::cout << "ERROR: CCSDSREADER::readNextPacket did not find sync marker " << std::endl;
@@ -77,8 +74,6 @@ bool CCSDSReader::readNextPacket(std::vector<uint8_t>& packet) {
     return false; // failed to read a packet header
   }
 
-  //std::cout << "readNextPacket calling getPacketLength" << std::endl;
-
   uint16_t packetLength = getPacketLength(header);
   if ((packetLength != STANDARD_MEGSAB_PACKET_LENGTH) && \
   (packetLength != STANDARD_ESP_PACKET_LENGTH) && \
@@ -89,31 +84,23 @@ bool CCSDSReader::readNextPacket(std::vector<uint8_t>& packet) {
     return false;
   }
 
+  if (getAPID(header) == ESP_APID) {
+    globalState.packetsPerSecond.store(globalState.totalReadCounter.load()); //totalPacketCounter;    
+    globalState.readsPerSecond.store(globalState.totalReadCounter.load());
+    globalState.totalReadCounter.store(0, std::memory_order_relaxed);
+  }
+
   // Allocate space for the packet
   packet.resize(PACKET_HEADER_SIZE + packetLength + 1) ; // Allocate space for the packet
   
   // Copy primary header to packet
   std::memcpy(packet.data(), header.data(), PACKET_HEADER_SIZE); 
 
-  // Debugging output: print header in hex
-  //std::cout << "Header: ";
-  //for (size_t i = 0; i < PACKET_HEADER_SIZE; ++i) {
-  //    std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(header[i]) << " ";
-  //}
-  //std::cout << std::endl;
-
   // Read the packet data
   if (!source->read((packet.data() + PACKET_HEADER_SIZE), packetLength + 1)) {
     std::cout << "ERROR: CCSDSREADER::readNextPacket failed to read data " << std::endl;
     return false; // Failed to read the packet data
   }
-
-  // Debugging output: print payload in hex
-  //std::cout << "Payload: ";
-  //for (size_t i = PACKET_HEADER_SIZE; i < packet.size(); ++i) {
-  //  std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(packet[i]) << " ";
-  //}
-  //std::cout << std::endl;
 
   return true;
 }
