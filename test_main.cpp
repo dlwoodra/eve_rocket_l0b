@@ -10,6 +10,7 @@
 #include "USBInputSource.hpp"
 #include "ProgramState.hpp"
 #include "FileCompressor.hpp"
+#include <stdexcept>
 
 //#define NORMAL_FILE "packetizer_out_2024_08_20.bin"
 //#define NORMAL_FILE "packetizer_out_2024_08_31.bin"
@@ -245,6 +246,51 @@ TEST_CASE("transposeImageTo1D performs efficiently for large images", "[transpos
 
     std::cout<< "transposeImageTo1D performance test: " << meanDuration << " microsec/iteration over " <<numIterations<<" iterations."<< std::endl;
     REQUIRE(duration < 1000000); // Ensure that the operation takes less than 1 second (1 million microseconds)
+}
+
+
+TEST_CASE("payloadBytesToUint32 correctly converts four bytes to uint32_t", "[payloadBytesToUint32]") {
+    // Test case 1: Normal conversion
+    std::vector<uint8_t> payload = {0x12, 0x34, 0x56, 0x78};  // Expected value: 0x12345678
+    int offset = 0;
+    uint32_t result = payloadBytesToUint32(payload, offset);
+    REQUIRE(result == 0x12345678);  // Check if the conversion is correct
+
+    // Test case 2: Different byte values
+    payload = {0xFF, 0x00, 0x11, 0x22};  // Expected value: 0xFF001122
+    result = payloadBytesToUint32(payload, offset);
+    REQUIRE(result == 0xFF001122);  // Check if the conversion is correct
+
+    // Test case 3: Edge case with offset
+    payload = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06};  // Expected value: 0x05040302 at offset 1
+    offset = 1;
+    result = payloadBytesToUint32(payload, offset);
+    REQUIRE(result == 0x02030405);  // Check if the conversion is correct
+
+    // Test case 4: Incorrect offset (out of bounds)
+    payload = {0x01, 0x02, 0x03};  // Only 3 bytes, should cause an issue when accessing four bytes
+    offset = 1;
+    REQUIRE_THROWS_AS(payloadBytesToUint32(payload, offset), std::invalid_argument);
+}
+
+TEST_CASE("payloadToTAITimeSeconds correctly converts payload to TAI time", "[payloadToTAITimeSeconds]") {
+    // Test case 1: Valid 4-byte payload
+    std::vector<uint8_t> payload = {0x12, 0x34, 0x56, 0x78};  // Expected value: 0x12345678
+    uint32_t result = payloadToTAITimeSeconds(payload);
+    REQUIRE(result == 0x12345678);  // Check if the conversion is correct
+
+    // Test case 2: Another valid payload
+    payload = {0xFF, 0x00, 0x11, 0x22};  // Expected value: 0xFF001122
+    result = payloadToTAITimeSeconds(payload);
+    REQUIRE(result == 0xFF001122);  // Check if the conversion is correct
+
+    // Test case 3: Payload size less than 4 bytes (should throw an exception)
+    payload = {0x01, 0x02};  // Only 2 bytes, should throw an exception
+    REQUIRE_THROWS_AS(payloadToTAITimeSeconds(payload), std::invalid_argument);
+
+    // Test case 4: Empty payload (should throw an exception)
+    payload = {};  // Empty payload, should throw an exception
+    REQUIRE_THROWS_AS(payloadToTAITimeSeconds(payload), std::invalid_argument);
 }
 
 // CCSDSReader tests
