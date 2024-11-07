@@ -6,6 +6,7 @@
 
 // absorbed eve_structures.h
 
+#include <atomic>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -138,12 +139,12 @@ constexpr uint32_t MEGS_IMAGE_T_HEIGHT = 2048; //transposed
 // define program state variables to use across both threads here
 
 struct PKT_COUNT_REC {
-  long MA=0;
-  long MB=0;
-  long ESP=0;
-  long MP=0;
-  long SHK=0;
-  long Unknown=0;
+  std::atomic<int64_t> MA{0};
+  std::atomic<int64_t> MB{0};
+  std::atomic<int64_t> ESP{0};
+  std::atomic<int64_t> MP{0};
+  std::atomic<int64_t> SHK{0};
+  std::atomic<int64_t> Unknown{0};
 }; //pkt_count;
 
 extern PKT_COUNT_REC pkt_count;
@@ -383,7 +384,6 @@ struct MEGS_IMAGE_REC {
   uint32_t rec_tai_subseconds;
   uint16_t vcdu_count;
   uint16_t image[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH];
-  //uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT];
 }; // __attribute__ ((packed));
 
 extern struct MEGS_IMAGE_REC megs_image_rec;
@@ -400,39 +400,41 @@ extern TLM_ERRORS tlm_errors;
 // There is only one programState structure, and it is defined in main.cpp as a global to pass info to the imgui instance.
 struct ProgramState {
 	bool guiEnabled = false;
-	uint16_t FPGA_reg0=0;
-	uint16_t FPGA_reg1=0;
-	uint16_t FPGA_reg2=0;
-	uint16_t FPGA_reg3=0;
-	uint32_t totalReadCounter=0; // Counter of number of packets read between ESP packets
-	uint32_t readsPerSecond=0; // Counter of packets read between ESP packets
+	std::atomic<uint16_t> FPGA_reg0{0};
+	std::atomic<uint16_t> FPGA_reg1{0};
+	std::atomic<uint16_t> FPGA_reg2{0};
+	std::atomic<uint16_t> FPGA_reg3{0};
+	std::atomic<uint32_t> totalReadCounter{0}; // Counter of number of packets read between ESP packets
+	std::atomic<uint32_t> readsPerSecond{0}; // Counter of packets read between ESP packets
 	// readsPerSecond is the totalReadCounter value when an ESP packet is received
-	uint32_t packetsPerSecond=0; // Number of packets read between ESP packets
-	uint32_t shortPacketCounter=0;
-    int count = 0; // Number of iterations
+	std::atomic<uint32_t> packetsPerSecond{0}; // Number of packets read between ESP packets
+	std::atomic<uint32_t> shortPacketCounter{0};
+
+    //int count = 0; // Number of iterations
     bool running = true; // Whether the program is still running
+	bool initComplete = false;
 	MEGS_IMAGE_REC megsa; 
 	uint8_t megsAPayloadBytes[STANDARD_MEGSAB_PACKET_LENGTH+1];
-	bool megsAUpdated = true;
-	bool isFirstMAImage = true;
-	int MAypos = 0;
+	std::atomic<bool> megsAUpdated{true};
+	std::atomic<bool> isFirstMAImage{true};
+	std::atomic<int> MAypos{0};
 	MEGS_IMAGE_REC megsb;
 	uint8_t megsBPayloadBytes[STANDARD_MEGSAB_PACKET_LENGTH+1];
-	bool megsBUpdated = true;
-	bool isFirstMBImage = true;
-	int MBypos = 0;
+	std::atomic<bool> megsBUpdated{true};
+	std::atomic<bool> isFirstMBImage{true};
+	std::atomic<int> MBypos{0};
 	PKT_COUNT_REC packetsReceived;
-	long parityErrorsMA = 0;
-	long parityErrorsMB = 0;
-	long dataGapsMA = 0;
-	long dataGapsMB = 0;
-	long dataGapsMP = 0;
-	long dataGapsESP = 0;
-	long dataGapsSHK = 0;
-	uint32_t saturatedPixelsMATop = 0;
-	uint32_t saturatedPixelsMABottom = 0;
-	uint32_t saturatedPixelsMBTop = 0;
-	uint32_t saturatedPixelsMBBottom = 0;
+	std::atomic<int64_t> parityErrorsMA{0};
+	std::atomic<int64_t> parityErrorsMB{0};
+	std::atomic<int64_t> dataGapsMA{0};
+	std::atomic<int64_t> dataGapsMB{0};
+	std::atomic<int64_t> dataGapsMP{0};
+	std::atomic<int64_t> dataGapsESP{0};
+	std::atomic<int64_t> dataGapsSHK{0};
+	std::atomic<uint32_t> saturatedPixelsMATop{0};
+	std::atomic<uint32_t> saturatedPixelsMABottom{0};
+	std::atomic<uint32_t> saturatedPixelsMBTop{0};
+	std::atomic<uint32_t> saturatedPixelsMBBottom{0};
 	ESP_PACKET esp;
 	uint8_t espPayloadBytes[STANDARD_ESP_PACKET_LENGTH+1];
 	MEGSP_PACKET megsp;
