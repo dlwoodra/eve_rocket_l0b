@@ -22,6 +22,8 @@
 #include <sys/file.h>
 #include <wchar.h>
 #include <cstdint>
+#include <thread>
+#include <chrono>
 //#include "CCSDSReader.hpp"
 
 // Constants
@@ -405,14 +407,14 @@ struct MEGS_IMAGE_REC {
 
 extern struct MEGS_IMAGE_REC megs_image_rec;
 
-struct TLM_ERRORS
-{
-	uint16_t	crc;
-	uint16_t	parity;
-	uint16_t	sync;
-};
+// struct TLM_ERRORS
+// {
+// 	uint16_t	crc;
+// 	uint16_t	parity;
+// 	uint16_t	sync;
+// };
 
-extern TLM_ERRORS tlm_errors;
+// extern TLM_ERRORS tlm_errors;
 
 
 //global variables

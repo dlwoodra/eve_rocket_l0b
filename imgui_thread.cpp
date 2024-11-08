@@ -868,7 +868,7 @@ int imgui_thread() {
     io.IniFilename = nullptr;
     EMSCRIPTEN_MAINLOOP_BEGIN
 #else
-    while ((!glfwWindowShouldClose(window)) && (globalState.running))
+    while ((!glfwWindowShouldClose(window)) && (globalState.running.load()))
 #endif
     {
         // Poll and handle events (inputs, window resize, etc.)

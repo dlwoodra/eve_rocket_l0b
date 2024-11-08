@@ -15,7 +15,6 @@ void globalStateInit() {
 #ifdef ENABLEGUI
     globalState.guiEnabled = true;
 #endif
-    globalState.running = true;
     globalState.initComplete = true;
     mtx.unlock(); // unlock the mutex
 }
