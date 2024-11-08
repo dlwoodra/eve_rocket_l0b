@@ -217,11 +217,11 @@ void populateStructureTimes(T& oneStructure, const std::vector<uint8_t>& payload
 void countSaturatedPixels(const uint16_t image[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH],
                           uint32_t& saturatedPixelsTop,
                           uint32_t& saturatedPixelsBottom,
-                          bool testPattern = false) {
+                          bool testPattern) {
     saturatedPixelsTop = 0;
     saturatedPixelsBottom = 0;
 
-    //#pragma omp parallel for reduction(+:saturatedPixelsTop, saturatedPixelsBottom)
+    #pragma omp parallel for reduction(+:saturatedPixelsTop, saturatedPixelsBottom)
     for (uint32_t i = 0; i < MEGS_IMAGE_WIDTH; ++i) {
         for (uint32_t j = 0; j < MEGS_IMAGE_HEIGHT; ++j) {
             uint16_t maskedValue = image[j][i] & 0x3fff;
