@@ -60,7 +60,7 @@ uint32_t payloadToTAITimeSubseconds(const std::vector<uint8_t>& payload);
 void countSaturatedPixels(const uint16_t image[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH],
                           uint32_t& saturatedPixelsTop,
                           uint32_t& saturatedPixelsBottom,
-                          bool testPattern);
+                          bool testPattern = false);
 
 
 #endif // COMMONFUNCTIONS_H
