@@ -418,8 +418,6 @@ void processMegsBPacket(std::vector<uint8_t> payload, uint16_t sourceSequenceCou
             std::cout << "processMegsBPacket identified a test pattern" <<std::endl;
         }
 
-        //TODO: can this stuff be replaced with populateStructureTimes?
-
         populateStructureTimes(oneMEGSStructure, payload);
 
         // only assign the time from the first packet, the rest keep changing
