@@ -14,7 +14,6 @@ FITSWriter::~FITSWriter() {}
 // Function to create a FITS filename based on APID and timestamp
 std::string FITSWriter::createFITSFilename(uint16_t apid, double tai_seconds) {
     std::ostringstream oss;
-    //oss << "APID_" << apid << "_";
 
     // Convert TAI seconds into a std::time_t object so it can use built-in conversions for human-readable format (e.g., YYYYMMDD_HHMMSS)
     // std::time_t argument is is seconds since Unix time epoch
@@ -27,6 +26,7 @@ std::string FITSWriter::createFITSFilename(uint16_t apid, double tai_seconds) {
     std::time_t t = static_cast<std::time_t>(unixtime);
     std::tm* tm = std::gmtime(&t);
 
+    // this env is checked in main.cpp
     static const char* env_eve_data_root = std::getenv("eve_data_root");
     if (env_eve_data_root == nullptr) {
         std::cout<< "***";
@@ -147,7 +147,6 @@ void FITSWriter::freeCharPtrArray(std::vector<char*>& array) {
     for (size_t i = 0; i < array.size(); ++i) {
         delete[] array[i];  // Free each char array
     }
-    //array.clear();  // Optional: Clear the vector after cleanup
 }
 
 // Function to write a binary table to a FITS file
@@ -162,8 +161,6 @@ int FITSWriter::writeBinaryTable(const std::string& filename,
 
     int status = 0;  // CFITSIO status value
     fitsfile* fptr = nullptr;  // Pointer to the FITS file
-
-    //std::cout << "writeBinaryTable data 1"<<std::endl;
 
     // Lock file mechanism
     std::string lockfile = filename + ".lock";
@@ -190,9 +187,6 @@ int FITSWriter::writeBinaryTable(const std::string& filename,
     // Convert types to char* array
     std::vector<char*> typeArray = convertTypesToCharPtrArray(types); // "U,V, etc"
     std::vector<char*> tFormArray = convertTypesToTFormPtrArray(types, columnLengths); // "1U,1V, etc"
-
-    //std::cout<<"writeBinaryTable sizeof(tFormArray) " <<sizeof(tFormArray.data())<< std::endl;
-    //printBytes(tFormArray.data(), sizeof(tFormArray.data()));
 
     // Open or create FITS file
     if (fits_open_file(&fptr, filename.c_str(), READWRITE, &status)) {
