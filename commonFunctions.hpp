@@ -12,6 +12,7 @@
 #include "RecordFileWriter.hpp"
 #include "USBInputSource.hpp"
 #include "ProgramState.hpp"
+#include <omp.h>
 
 //#include <chrono> // included in RecordFileWriter.hpp
 //#include <cstdint> // included in CCSDSReader.hpp
