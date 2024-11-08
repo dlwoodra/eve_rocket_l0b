@@ -1,5 +1,6 @@
 #define CATCH_CONFIG_MAIN // tell catch to include a main()
-#include "catch.hpp" 
+//#include "catch.hpp" 
+#include <catch2/catch.hpp>
 
 #include "CCSDSReader.hpp"
 #include "commonFunctions.hpp"
@@ -11,6 +12,7 @@
 #include "ProgramState.hpp"
 #include "FileCompressor.hpp"
 #include <stdexcept>
+#include <omp.h>
 
 //#define NORMAL_FILE "packetizer_out_2024_08_20.bin"
 //#define NORMAL_FILE "packetizer_out_2024_08_31.bin"
@@ -345,6 +347,241 @@ TEST_CASE("get_leap_seconds returns correct leap seconds information", "[get_lea
         REQUIRE(leap_sec_local == TAI_LEAP_SECONDS);  // Ensure the leap seconds value is returned correctly
     }
 }
+
+// countSaturatedPixels tests
+TEST_CASE("countSaturatedPixels - General Test Cases") {
+
+    uint32_t saturatedPixelsTop = 0;
+    uint32_t saturatedPixelsBottom = 0;
+
+    SECTION("All pixels are non-saturated") {
+        uint16_t image[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH] = {0};
+        countSaturatedPixels(image, saturatedPixelsTop, saturatedPixelsBottom);
+        REQUIRE(saturatedPixelsTop == 0);
+        REQUIRE(saturatedPixelsBottom == 0);
+    }
+
+    SECTION("All pixels are saturated") {
+        uint16_t image[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH];
+        std::fill(&image[0][0], &image[0][0] + MEGS_IMAGE_HEIGHT * MEGS_IMAGE_WIDTH, 0x3fff);
+        
+        countSaturatedPixels(image, saturatedPixelsTop, saturatedPixelsBottom);
+        
+        REQUIRE(saturatedPixelsTop == (MEGS_IMAGE_HEIGHT / 2) * MEGS_IMAGE_WIDTH);
+        REQUIRE(saturatedPixelsBottom == (MEGS_IMAGE_HEIGHT / 2) * MEGS_IMAGE_WIDTH);
+    }
+
+    SECTION("Half of the pixels are saturated in top half") {
+        uint16_t image[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH] = {0};
+        for (uint32_t i = 0; i < MEGS_IMAGE_WIDTH; ++i) {
+            for (uint32_t j = 0; j < MEGS_IMAGE_HEIGHT / 2; ++j) {
+                image[j][i] = 0x3fff;
+            }
+        }
+
+        countSaturatedPixels(image, saturatedPixelsTop, saturatedPixelsBottom);
+
+        REQUIRE(saturatedPixelsTop == (MEGS_IMAGE_HEIGHT / 2) * MEGS_IMAGE_WIDTH);
+        REQUIRE(saturatedPixelsBottom == 0);
+    }
+
+    SECTION("Saturated pixels only in bottom half") {
+        uint16_t image[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH] = {0};
+        for (uint32_t i = 0; i < MEGS_IMAGE_WIDTH; ++i) {
+            for (uint32_t j = MEGS_IMAGE_HEIGHT / 2; j < MEGS_IMAGE_HEIGHT; ++j) {
+                image[j][i] = 0x3fff;
+            }
+        }
+
+        countSaturatedPixels(image, saturatedPixelsTop, saturatedPixelsBottom);
+
+        REQUIRE(saturatedPixelsTop == 0);
+        REQUIRE(saturatedPixelsBottom == (MEGS_IMAGE_HEIGHT / 2) * MEGS_IMAGE_WIDTH);
+    }
+
+    SECTION("Single saturated pixel in top half") {
+        uint16_t image[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH] = {0};
+        image[10][10] = 0x3fff;
+
+        countSaturatedPixels(image, saturatedPixelsTop, saturatedPixelsBottom);
+
+        REQUIRE(saturatedPixelsTop == 1);
+        REQUIRE(saturatedPixelsBottom == 0);
+    }
+
+    SECTION("Single saturated pixel in bottom half") {
+        uint16_t image[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH] = {0};
+        image[MEGS_IMAGE_HEIGHT - 10][10] = 0x3fff;
+
+        countSaturatedPixels(image, saturatedPixelsTop, saturatedPixelsBottom);
+
+        REQUIRE(saturatedPixelsTop == 0);
+        REQUIRE(saturatedPixelsBottom == 1);
+    }
+
+    SECTION("Test pattern with single saturated pixel at the start in top half") {
+        uint16_t image[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH] = {0};
+        image[0][0] = 0x3fff;
+
+        countSaturatedPixels(image, saturatedPixelsTop, saturatedPixelsBottom, true);
+
+        REQUIRE(saturatedPixelsTop == 0);  // Should be skipped due to testPattern flag
+        REQUIRE(saturatedPixelsBottom == 0);
+    }
+    
+    SECTION("Test pattern with a mix of saturated and non-saturated pixels") {
+        uint16_t image[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH] = {0};
+        for (uint32_t i = 0; i < MEGS_IMAGE_WIDTH; ++i) {
+            image[0][i] = 0x3fff;  // Saturated in the top row
+            image[MEGS_IMAGE_HEIGHT / 2][i] = 0x3fff;  // Saturated in the bottom half row
+        }
+
+        countSaturatedPixels(image, saturatedPixelsTop, saturatedPixelsBottom, true);
+
+        REQUIRE(saturatedPixelsTop == MEGS_IMAGE_WIDTH - 1);  // Skip the first pixel
+        REQUIRE(saturatedPixelsBottom == MEGS_IMAGE_WIDTH);
+    }
+}
+
+void populateTestImage(uint16_t image[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH], uint16_t saturationValue = 0x3FFF) {
+    for (uint32_t i = 0; i < MEGS_IMAGE_HEIGHT; ++i) {
+        for (uint32_t j = 0; j < MEGS_IMAGE_WIDTH; ++j) {
+            image[i][j] = (i + j) % 2 == 0 ? saturationValue : 0x0000; // Example pattern for testing
+        }
+    }
+}
+
+// Timing utility function
+double measureCountSaturatedPixelsExecutionTime(int numThreads, uint16_t image[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH],
+                            uint32_t& saturatedPixelsTop, uint32_t& saturatedPixelsBottom) {
+    omp_set_num_threads(numThreads);  // Set the number of threads
+    auto start = std::chrono::high_resolution_clock::now();
+    countSaturatedPixels(image, saturatedPixelsTop, saturatedPixelsBottom);
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = end - start;
+    return elapsed.count();
+}
+
+TEST_CASE("Performance test for countSaturatedPixels", "[performance]") {
+    uint16_t image[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH];
+    uint32_t saturatedPixelsTop = 0;
+    uint32_t saturatedPixelsBottom = 0;
+
+    populateTestImage(image); // Populate image with test pattern
+
+    SECTION("Single-threaded performance") {
+        double timeTaken = measureCountSaturatedPixelsExecutionTime(1, image, saturatedPixelsTop, saturatedPixelsBottom);
+        REQUIRE(saturatedPixelsTop > 0);
+        REQUIRE(saturatedPixelsBottom > 0);
+        std::cout << "countSaturatePixels Single-threaded time: " << timeTaken << " seconds" << std::endl;
+
+    }
+
+    SECTION("Multi-threaded performance with OpenMP") {
+        for (int numThreads = 2; numThreads <= 16; numThreads *= 2) {
+            saturatedPixelsTop = 0;
+            saturatedPixelsBottom = 0;
+            double timeTaken = measureCountSaturatedPixelsExecutionTime(numThreads, image, saturatedPixelsTop, saturatedPixelsBottom);
+            REQUIRE(saturatedPixelsTop > 0);
+            REQUIRE(saturatedPixelsBottom > 0);
+            std::cout << "countPixelsSaturates Time with " << numThreads << " threads: " << timeTaken << " seconds" << std::endl;
+        }
+    }
+}
+
+
+// assemble_image tests
+// Helper function to populate a VCDU with a specific pattern
+void populateVCDU(uint8_t *vcdu, int size, uint16_t pattern) {
+    for (int i = 30; i < size; i += 2) { // pixels start at 30 bytes
+        vcdu[i] = (pattern >> 8) & 0xFF;
+        vcdu[i + 1] = pattern & 0xFF;
+    }
+}
+
+TEST_CASE("Basic Functionality of assemble_image", "[assemble_image]") {
+    uint8_t vcdu[1781] = {0}; // Test VCDU buffer (size based on max offset used in function)
+    MEGS_IMAGE_REC imageRec;   // Struct to hold image data and VCDU counter
+    std::memset(imageRec.image, 0, sizeof(imageRec.image));
+    int32_t xpos, ypos;
+    int8_t status = NOERROR;
+    imageRec.vcdu_count = 0; // init
+
+    // Case 1: Basic functionality, no test pattern, expect parity errors to be 0
+    populateVCDU(vcdu, sizeof(vcdu), 0x000b); // Populate VCDU with all 0x000b test values
+    int32_t parityErrors = assemble_image(vcdu, &imageRec, 0, false, xpos, ypos, &status);
+
+    REQUIRE(parityErrors == 0);                // No parity errors
+    REQUIRE(status == NOERROR);                // Status should be NOERROR
+    REQUIRE(imageRec.vcdu_count == 1);         // VCDU count should be incremented
+    REQUIRE(imageRec.image[0][0] == 0x200b);   // First pixel should have the 2s comp of the test value
+
+    // Check a specific pixel
+    REQUIRE(imageRec.image[0][10] == 0x200b); // Arbitrary pixel in first VCDU range should have the expected value
+    REQUIRE(imageRec.image[0][433] == 0x200b); // Arbitrary pixel in first VCDU range should have the expected value
+    REQUIRE(imageRec.image[0][434] == 0x0000); // Pixel NOT in first VCDU range should be 0
+    REQUIRE(imageRec.image[1023][2048-435] == 0x0000); // Pixel NOT in first VCDU range should be 0
+    REQUIRE(imageRec.image[1023][2048-434] == 0x200b); // Pixel IS in first VCDU range should have the expected value
+
+}
+
+TEST_CASE("Test Pattern Mode", "[assemble_image]") {
+    uint8_t vcdu[1781] = {0};
+    MEGS_IMAGE_REC imageRec;
+    std::memset(imageRec.image, 0, sizeof(imageRec.image));
+    int32_t xpos, ypos;
+    int8_t status = NOERROR;
+    imageRec.vcdu_count = 0; // init
+
+    // Case 2: Test pattern mode, specific pattern
+    populateVCDU(vcdu, sizeof(vcdu), 0x800F); // Test pattern example (0x800F)
+    int32_t parityErrors = assemble_image(vcdu, &imageRec, 0, true, xpos, ypos, &status);
+
+    REQUIRE(parityErrors == 0);
+    REQUIRE(status == NOERROR);
+    REQUIRE(imageRec.image[0][0] == 0x000F); // Verify top-left pixel is the pattern
+}
+
+#ifndef SKIPPARITY
+TEST_CASE("Parity Error Handling", "[assemble_image]") {
+    uint8_t vcdu[1781] = {0};
+    MEGS_IMAGE_REC imageRec;
+    std::memset(imageRec.image, 0, sizeof(imageRec.image));
+    int32_t xpos, ypos;
+    int8_t status = NOERROR;
+    imageRec.vcdu_count = 0; // init
+
+    // Case 3: Induce a parity error
+    populateVCDU(vcdu, sizeof(vcdu), 0x8001); // odd parity mismatch
+    int32_t parityErrors = assemble_image(vcdu, &imageRec, 1, false, xpos, ypos, &status);
+
+    REQUIRE(parityErrors > 0);                  // Expect parity errors to be non-zero
+    REQUIRE(status == W_INVALID_PARITY);        // Status should indicate invalid parity
+}
+#endif
+
+TEST_CASE("Source Sequence Counter Impact", "[assemble_image]") {
+    uint8_t vcdu[1781] = {0};
+    MEGS_IMAGE_REC imageRec = {0};
+    std::memset(imageRec.image, 0, sizeof(imageRec.image));
+    int32_t xpos, ypos;
+    int8_t status = NOERROR;
+    uint16_t ssc=0;
+    imageRec.vcdu_count = 0; // init
+
+    // Case 4: Different source sequence counters
+    populateVCDU(vcdu, sizeof(vcdu), 0x1FFF); // 2s complement of 0x3fff
+    assemble_image(vcdu, &imageRec, ssc, false, xpos, ypos, &status); // Source sequence counter 0
+    REQUIRE(imageRec.vcdu_count == 1);
+    REQUIRE(imageRec.image[0][0] == 0x3FFF); // this pixel should be set only in ssc=0
+
+    //ssc=1;
+    //assemble_image(vcdu, &imageRec, ssc, false, xpos, ypos, &status); // Source sequence counter 1
+    //REQUIRE(imageRec.vcdu_count == 2);
+    //REQUIRE(imageRec.image[0][0] == 0x3FFF); need to calculate pixel location based on ssc
+}
+
+
 
 // CCSDSReader tests
 
