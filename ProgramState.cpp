@@ -8,7 +8,7 @@ std::mutex mtx;
 void globalStateInit() {
     std::cout << "globablStateInit executing" << std::endl;
     LogFileWriter::getInstance().logInfo("globalStateInit executing");
-    //std::lock_guard<std::mutex> lock(mtx); // lock the mutex
+
     mtx.lock();
     globalState.megsa.image[0][0] = {0xff};
     globalState.megsb.image[0][0] = {0x3fff};

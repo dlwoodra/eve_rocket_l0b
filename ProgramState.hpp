@@ -15,10 +15,10 @@ struct ProgramState {
 	std::atomic<uint32_t> totalReadCounter{0}; // Counter of number of packets read between ESP packets
 	std::atomic<uint32_t> readsPerSecond{0}; // Counter of packets read between ESP packets
 	// readsPerSecond is the totalReadCounter value when an ESP packet is received
+	
 	std::atomic<uint32_t> packetsPerSecond{0}; // Number of packets read between ESP packets
 	std::atomic<uint32_t> shortPacketCounter{0};
 
-    //int count = 0; // Number of iterations
     bool running = true; // Whether the program is still running
 	bool initComplete = false;
 	MEGS_IMAGE_REC megsa; 
