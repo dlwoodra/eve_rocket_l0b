@@ -10,6 +10,7 @@
 #include <chrono>
 #include <iomanip>
 #include <sstream>
+#include <thread>
 #include "TimeInfo.hpp"
 
 class LogFileWriter {
@@ -45,6 +46,8 @@ public:
     const std::string& getLogFilePath() const {
         return logFile;
     }
+    
+    void close();
 
 private:
     LogFileWriter();

@@ -27,9 +27,13 @@ bool LogFileWriter::checkAndRotateFile() {
 
         // Minute has changed, rotate log file
         spdlog::drop("log_file_logger"); // Drop the old logger
+        logger.reset(); // Clear any remaining references to the logger
+        // sometimes the logger is not dropped from all threads, so we need to wait
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
         logFile = generateLogFilename(); // Generate new filename
-        logger = spdlog::basic_logger_mt("log_file_logger", logFile);
+        logger = spdlog::basic_logger_mt("log_file_logger", logFile); // this creates a new logger
+        
         logger->set_level(spdlog::level::info);
         logger->set_pattern("%Y-%m-%d %H:%M:%S [%l] %v");
 
@@ -66,4 +70,18 @@ std::string LogFileWriter::generateLogFilename() const {
     oss << std::put_time(&buf, "log_%Y_%j_%m_%d_%H_%M_%S") << ".log";
 
     return oss.str();
+}
+
+void LogFileWriter::close() {
+    // Flush and shutdown the logger
+    if (logger) {
+        logger->flush();
+        spdlog::drop("log_file_logger"); // Drop from registry
+    }
+
+    // Compress the log file
+    FileCompressor compressor;
+    compressor.compressFile(logFile);
+
+    std::cout << "Log file closed and compressed: " << logFile << std::endl;
 }
