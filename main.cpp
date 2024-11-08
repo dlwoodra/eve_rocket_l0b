@@ -16,6 +16,7 @@
 #include "commonFunctions.hpp"
 #include "eve_l0b.hpp"
 #include "ProgramState.hpp"
+#include "FileCompressor.hpp"
 
 #include <csignal> // needed for SIGINT
 #include <optional>
@@ -49,19 +50,20 @@ int imgui_thread();
 void handleSigint(int signal) {
     std::cout << "\nCaught Ctrl-C (SIGINT)! Cleaning up and exiting..." << std::endl;
 
-    spdlog::info("SIGINT received, flushing log and exiting.");
-    spdlog::shutdown();
+    // imgui and filecompressor threads self-terminate when globalState.running is set to false
+    globalState.running.store(false);  // allow dear imgui to shut itself down
 
-    globalState.running = false;  // allow dear imgui to shut itself down
+    std::this_thread::sleep_for(std::chrono::milliseconds(100)); // wait for the imgui thread to finish
 
-    // joining the imgui thread 
-#ifdef ENABLEGUI
-    if (imguiThread && imguiThread->joinable()) 
-    {
-        imguiThread->join();
-    }
-#endif
-    std::exit(signal); // Exit the program with the signal code
+    // other threads may write to the log, so close the log last
+    LogFileWriter::getInstance().logInfo("SIGINT received, flushing log and exiting.");
+    // Close the log file and compress it
+    LogFileWriter::getInstance().close();
+    //spdlog::shutdown(); // shutdown any other loggers if any
+    std::cout <<  "Log file closed and compressed." << std::endl;
+
+    return;
+    
 }
 
 int main(int argc, char* argv[]) {
@@ -138,6 +140,8 @@ int main(int argc, char* argv[]) {
     std::cout << "Finished at " << std::ctime(&end_time) << std::endl;
 
     handleSigint(SIGINT); // call the signal handler to clean up and exit
+
+    std::cout <<  "Clean termination" << std::endl;
     return EXIT_SUCCESS;
 }
 
