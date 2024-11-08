@@ -24,7 +24,7 @@ void testGlobalStateInit() {
     globalStateInit();
     REQUIRE(globalState.megsa.image[0][0] == 0xff);
     REQUIRE(globalState.megsb.image[0][0] == 0x3fff);
-    REQUIRE(globalState.running == true);
+    REQUIRE(globalState.running.load(std::memory_order_relaxed) == true);
     REQUIRE(globalState.initComplete == true);
 }
 
