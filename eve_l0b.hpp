@@ -119,7 +119,7 @@ constexpr uint32_t MEGS_IMAGE_T_HEIGHT = 2048; //transposed
 #define OPEN_FILE_ERROR		154			//  Error opening file
 
 // MEGS ERORS
-#define W_INVALID_PARITY 	201			// MEGS image - Invalid Parity
+#define W_INVALID_PARITY 	21			// MEGS image - Invalid Parity
 
 // FITS Errors
 #define E_FITS_IO			401			// Error Reading/Writing Fits file
