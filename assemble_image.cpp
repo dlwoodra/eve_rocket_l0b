@@ -64,12 +64,7 @@ int32_t assemble_image( uint8_t * vcdu, MEGS_IMAGE_REC * ptr, uint16_t sourceSeq
   uint32_t not_tp2043;
 
   not_tp2043 = (!testPattern) * 2044; /* 2047 - 4 compensates for virtual column insertion */
-
-  // print the byte in the vcdu
-  // if (sourceSequenceCounter == 0) {
-  //   std::cout << "assemble_image: first vcdu in image to assemble " << std::endl;
-  //   printBytesToStdOut(vcdu, 30, 60);
-  // }
+  *status = NOERROR; // default to no error
 
   // pixel data begins 30 bytes from the start of the VCDU
 
@@ -125,32 +120,6 @@ int32_t assemble_image( uint8_t * vcdu, MEGS_IMAGE_REC * ptr, uint16_t sourceSeq
     // assign pix_val14 to proper x,y or xpos,ypos location in image
     // find whether the jrel pixel is from the top (even) or bottom (odd) half of the CCD
 
-    // This code is correct, but the new code is supposed to be faster.
-    // if ((jrel & 0x1) == 0)
-    // {
-    //   /* jrel is even, so pixel is in top half */
-              
-    //   kk = (src_seq_times_pixels_per_half_vcdu) + ((jrel) >> 1);
-    //   ypos = (kk >> MEGS_IMAGE_WIDTH_SHIFT);
-    //   xpos = ((kk + not_tp2043) & MEGS_IMAGE_WIDTH_LESS1); 
-    //   // for the mode is fixed topmode=0 always
-    //   // if ( topmode == 1)
-    //   // {
-    //   //   xpos = MEGS_IMAGE_WIDTH_LESS1 - xpos; /* the old simple way */
-    //   // }
-    // }
-    //   else 
-    // {
-    //   /* jrel is odd, so pixel is in bottom half */
-
-    //   kk = (src_seq_times_pixels_per_half_vcdu) +  ((jrel-1) >> 1);
-    //   ypos = (MEGS_IMAGE_HEIGHT_LESS1) - (kk >> MEGS_IMAGE_WIDTH_SHIFT);
-    //   xpos = ((kk + not_tp2043) & MEGS_IMAGE_WIDTH_LESS1); //assumes left
-    //   //if ( bottommode == 1) // always true
-    //   //{
-    //     xpos = MEGS_IMAGE_WIDTH_LESS1 - xpos; 
-    //   //}
-    // }
     jrel = (j-30)>>1;
     kk = src_seq_times_pixels_per_half_vcdu + (jrel>>1);
     ypos = (jrel & 0x1) == 0 ? (kk >> MEGS_IMAGE_WIDTH_SHIFT) : (MEGS_IMAGE_HEIGHT_LESS1) - (kk >> MEGS_IMAGE_WIDTH_SHIFT);
@@ -158,28 +127,13 @@ int32_t assemble_image( uint8_t * vcdu, MEGS_IMAGE_REC * ptr, uint16_t sourceSeq
     if ((jrel & 0x1) == 1) {
       xpos = MEGS_IMAGE_WIDTH_LESS1 - xpos;
     }
-    // if (newxpos != xpos || newypos != ypos) {
-    //   std::cout << "assemble_image: xpos, ypos, newxpos, newypos " << xpos << " " << ypos << " " << newxpos << " " << newypos << std::endl;
-    // } // this proves the two calculations for xpos and ypos are equivalent
-
 
     // Insert the pixel value into the image in memory            
     ptr->image[ypos][xpos] = pix_val14;
-
-    //if( expectedparity != pixelparity ) {
-    //  std::cout<< "parity error at xpos: " << xpos << " ypos: " << ypos << " value: " << std::hex << std::setw(4) << std::setfill('0')<<pixval16 << std::dec << " SSC: " << sourceSequenceCounter << std::endl;
-    //}
-    //if (pix_val14 == 0x3FFF) {
-    //  std::cout << "assemble_image: saturated - SSC:" << sourceSequenceCounter << 
-    //    " xpos:" << xpos << " ypos:" << ypos << " pixval16:"<<
-    //    std::hex<<std::setw(2)<<std::setfill('0')<< pixval16 <<std::dec<< std::endl;
-    //  printBytesToStdOut(vcdu, j, j+8);
-    //}
 
   } //end of j for loop
          
   // increment vcdu counter for assembling the image
   ptr->vcdu_count++;
-  *status = NOERROR;
   return parityerrors;
 }
