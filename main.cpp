@@ -53,7 +53,10 @@ void handleSigint(int signal) {
     // imgui and filecompressor threads self-terminate when globalState.running is set to false
     globalState.running.store(false);  // allow dear imgui to shut itself down
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(100)); // wait for the imgui thread to finish
+    // join the imgui thread if it is still joinable
+    if (imguiThread && imguiThread->joinable()) {
+        imguiThread->join();
+    }
 
     // other threads may write to the log, so close the log last
     LogFileWriter::getInstance().logInfo("SIGINT received, flushing log and exiting.");
@@ -61,7 +64,7 @@ void handleSigint(int signal) {
     LogFileWriter::getInstance().close();
     //spdlog::shutdown(); // shutdown any other loggers if any
     std::cout <<  "Log file closed and compressed." << std::endl;
-
+    exit(EXIT_SUCCESS);
     return;
     
 }
