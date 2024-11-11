@@ -445,5 +445,8 @@ inline uint16_t 		bitswap16( uint16_t inbits );
 
 int checkdir( char * filename );
 
+// imgui_thread.cpp function prototypes
+//void histogramEqualization(uint16_t (*image)[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH], std::vector<uint8_t>& textureData);
+
 
 #endif
