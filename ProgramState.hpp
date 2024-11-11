@@ -25,11 +25,13 @@ struct ProgramState {
 	uint8_t megsAPayloadBytes[STANDARD_MEGSAB_PACKET_LENGTH+1];
 	std::atomic<bool> megsAUpdated{true};
 	std::atomic<bool> isFirstMAImage{true};
+	std::atomic<bool> isMATestPattern{false};
 	std::atomic<int> MAypos{0};
 	MEGS_IMAGE_REC megsb;
 	uint8_t megsBPayloadBytes[STANDARD_MEGSAB_PACKET_LENGTH+1];
 	std::atomic<bool> megsBUpdated{true};
 	std::atomic<bool> isFirstMBImage{true};
+	std::atomic<bool> isMBTestPattern{false};
 	std::atomic<int> MBypos{0};
 	PKT_COUNT_REC packetsReceived;
 	std::atomic<int64_t> parityErrorsMA{0};
