@@ -59,6 +59,22 @@ ImVec4 getColorForState(LimitState state) {
 float mazoom = 0.2f;         // Zoom level (1.0 = full resolution)
 float mbzoom = 0.2f;         // Zoom level (1.0 = full resolution)
 
+void addFilledCircleToTreeNode(LimitState state) {
+    // Position elements on the same line
+    ImGui::SameLine();
+
+    // Get the position to place the circle after the text
+    ImVec2 circlePos = ImGui::GetCursorScreenPos();
+
+    // Adjust position for a more visually appealing alignment
+    circlePos.x += 10;  // Slightly to the right of the TreeNode label
+    circlePos.y += 8;   // Centered vertically with the text (adjust as needed)
+
+    // Draw a filled circle inline with the text
+    ImGui::GetWindowDrawList()->AddCircleFilled(circlePos, 8, ImGui::ColorConvertFloat4ToU32(getColorForState(state))); // colored circle
+    ImGui::Dummy(ImVec2(0, 15));  // Move cursor down after circle, if adding more content below
+
+}
 
 // Function to populate the image with an asymetric pattern, 4 quadrants, lowest quad is a gradian, second is a checkerboard, third is a constant value, fourth is a sinusoidal pattern
 // topleft is gradient, topright is checkerboard, bottomleft is 128, bottom right is sine wave
@@ -334,6 +350,8 @@ void displayMAImageWithControls(GLuint megsATextureID)
     uint16_t maxValue = 0;
     uint16_t minValue = 0xFFFF;
 
+    uint16_t row255[MEGS_IMAGE_WIDTH]={0};
+    uint16_t row767[MEGS_IMAGE_WIDTH]={0};
     mtx.lock();
     for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; ++x) {
         hiRowValues[x] = globalState.megsa.image[yPosHi+1][x];
@@ -343,6 +361,9 @@ void displayMAImageWithControls(GLuint megsATextureID)
         if (lowRowValues[x] > maxValue) maxValue =lowRowValues[x];
         if (lowRowValues[x] < minValue) minValue = lowRowValues[x];   
     }
+    std::memcpy(row255, globalState.megsa.image[255], sizeof(row255));
+    std::memcpy(row767, globalState.megsa.image[767], sizeof(row767));
+
     mtx.unlock();
 
     //std::cout<< "Minvalue: " << minValue << " Maxvalue: " << maxValue << std::endl;
@@ -352,10 +373,16 @@ void displayMAImageWithControls(GLuint megsATextureID)
         ImGui::Begin("MA Row Plots");
         ImPlot::SetNextAxesToFit();
         ImPlot::BeginPlot("Pixel Values", ImVec2(450, 180));
-        std::string label = "Row "+std::to_string(yPosHi+1);
+        std::string label; 
+        label = "Row "+std::to_string(yPosHi+1);
         ImPlot::PlotLine(label.c_str(), hiRowValues, MEGS_IMAGE_WIDTH);
+        label = "Row "+std::to_string(255);
+        ImPlot::SetNextLineStyle(ImVec4(235.0f / 255.0f, 137.0f / 255.0f, 52.0f / 255.0f, 1.0f));
+        ImPlot::PlotLine(label.c_str(), row255, MEGS_IMAGE_WIDTH);
         label = "Row "+std::to_string(yPosLo-1);
         ImPlot::PlotLine(label.c_str(), lowRowValues, MEGS_IMAGE_WIDTH);
+        label = "Row "+std::to_string(767);
+        ImPlot::PlotLine(label.c_str(), row767, MEGS_IMAGE_WIDTH);
         ImPlot::EndPlot();
         ImGui::End();
     }
@@ -448,15 +475,25 @@ void renderSimpleTextureMB(GLuint textureID, const uint16_t (*image)[MEGS_IMAGE_
     std::vector<uint8_t> textureData(width * height);
 
     // Populate textureData directly from the 2D array
-    for (int x = 0; x < width; ++x) {
-        for (int y = 0; y < height; ++y) {
-            int index = y * width + x; // 1D index in textureData
-            uint16_t value = image[x][y]; // Fetch pixel value
-
-            // Example scaling to fit into 8-bit texture (adjust logic as needed)
+    // TODO: need to switch indices
+    #pragma omp parallel for
+    for (int y = 0; y < height; ++y) {
+        int rowStartIndex = y * width;
+        for (int x = 0; x < width; ++x) {
+            int index = rowStartIndex + x;
+            uint16_t value = image[x][y];
             textureData[index] = static_cast<uint8_t>(value & 0xFF);
         }
     }
+    // for (int x = 0; x < width; ++x) {
+    //     for (int y = 0; y < height; ++y) {
+    //         int index = y * width + x; // 1D index in textureData
+    //         uint16_t value = image[x][y]; // Fetch pixel value
+
+    //         // Example scaling to fit into 8-bit texture (adjust logic as needed)
+    //         textureData[index] = static_cast<uint8_t>(value & 0xFF);
+    //     }
+    // }
 
     // Bind the texture
     glBindTexture(GL_TEXTURE_2D, textureID);
@@ -470,24 +507,32 @@ void renderSimpleTextureMB(GLuint textureID, const uint16_t (*image)[MEGS_IMAGE_
 
 std::string ByteArrayToHexString(const uint8_t* payloadBytes, size_t length)
 {
-    std::ostringstream oss;
-    oss << std::hex << std::setfill('0') << "Timestamp: ";
+    std::string result = "Timestamp: ";
+    result.reserve(50 + length * 5);  // Preallocate estimated size to reduce reallocations
 
-    for (size_t i = 0; i + 1 < length; i += 2)
-    {
+    // lamda function to append hex value to the result string
+    // this maps the 4-bit nibbles to their hex representation 0-f
+    auto appendHexValue = [&result](uint16_t value) {
+        constexpr char hex_chars[] = "0123456789abcdef";
+        result.push_back(hex_chars[(value >> 12) & 0xF]);
+        result.push_back(hex_chars[(value >> 8) & 0xF]);
+        result.push_back(hex_chars[(value >> 4) & 0xF]);
+        result.push_back(hex_chars[value & 0xF]);
+        result.push_back(' ');
+    };
+
+    for (size_t i = 0; i + 1 < length; i += 2) {
         if (i == 8) {
-            oss << " \nMode:";
-        }
-        if ( i == 10 )
-        {
-            oss << "\nData Samples: "; // add a newline after 10 values (timestamp and mode)
+            result += " \nMode: ";
+        } else if (i == 10) {
+            result += "\nData Samples: ";
         }
 
         uint16_t value = (static_cast<uint16_t>(payloadBytes[i]) << 8) | payloadBytes[i + 1];
-        oss << std::setw(4) << value << " ";
+        appendHexValue(value);
     }
 
-    return oss.str();
+    return result;
 }
 
 // Wrapper function for using ByteArrayToHexString with a std::vector<uint8_t>
@@ -541,7 +586,18 @@ void updateStatusWindow()
         renderInputTextWithColor("Unknown Packets", globalState.packetsReceived.Unknown.load(std::memory_order_relaxed), 12, true, 0.0, 0.9);
         ImGui::TreePop();
     }
-    if (ImGui::TreeNodeEx("Packet Gap Counters", ImGuiTreeNodeFlags_DefaultOpen)) {
+
+
+    LimitState state = Green;
+    if ((globalState.dataGapsMA.load() != 0) || (globalState.dataGapsMB.load() != 0) ||
+        (globalState.dataGapsESP.load() != 0) || (globalState.dataGapsMP.load() != 0) ||
+        (globalState.dataGapsSHK.load() != 0)) {
+        state = Red;
+    }
+
+    bool isTreeNodePacketGapCounterOpen = ImGui::TreeNodeEx("Packet Gap Counters");
+    addFilledCircleToTreeNode(state);
+    if (isTreeNodePacketGapCounterOpen ) {
         renderInputTextWithColor("MEGS-A Gap Count", globalState.dataGapsMA.load(std::memory_order_relaxed), 12, !globalState.isFirstMAImage.load(std::memory_order_relaxed), 0.0, 0.9);
         renderInputTextWithColor("MEGS-B Gap Count", globalState.dataGapsMB.load(std::memory_order_relaxed), 12, !globalState.isFirstMBImage.load(std::memory_order_relaxed), 0.0, 0.9);
         renderInputTextWithColor("MEGS-P Gap Count", globalState.dataGapsMP.load(std::memory_order_relaxed), 12, true, 0.0, 0.9);
@@ -550,15 +606,52 @@ void updateStatusWindow()
         ImGui::TreePop();
     }
 
-    if (ImGui::TreeNodeEx("Parity Error Counters", ImGuiTreeNodeFlags_DefaultOpen)) {
+    state = Green;
+    if ((globalState.parityErrorsMA.load() != 0) || (globalState.parityErrorsMB.load() !=0)) {
+        state = Red;
+    }
+    bool isTreeNodeParityErrorCountersOpen = ImGui::TreeNodeEx("Parity Error Counters");
+    addFilledCircleToTreeNode(state);
+    if (isTreeNodeParityErrorCountersOpen) {
         renderInputTextWithColor("MEGS-A Parity Errors", globalState.parityErrorsMA.load(std::memory_order_relaxed), 12, true, 0.0, 0.9);
         renderInputTextWithColor("MEGS-B Parity Errors", globalState.parityErrorsMB.load(std::memory_order_relaxed), 12, true, 0.0, 0.9);
         ImGui::TreePop();
     }
 
-    if (ImGui::TreeNodeEx("Saturated Pixels", ImGuiTreeNodeFlags_DefaultOpen)) {
+    state = Green;
+    if ((globalState.saturatedPixelsMABottom.load()) || (globalState.saturatedPixelsMATop.load() !=0) ||
+        (globalState.saturatedPixelsMBBottom.load()) || (globalState.saturatedPixelsMBTop.load() !=0)) {
+        state = Red;
+    }
+    bool isTreeNodeSaturatedPixelsOpen = ImGui::TreeNodeEx("Saturated Pixels");
+    addFilledCircleToTreeNode(state);
+    if (isTreeNodeSaturatedPixelsOpen) {
+        uint32_t saturatedPixelsTop, saturatedPixelsBottom;
+        bool testPattern;
+
+        testPattern = globalState.isMATestPattern.load();
+        mtx.lock();
+        countSaturatedPixels(globalState.megsa.image,
+            saturatedPixelsTop,
+            saturatedPixelsBottom,
+            testPattern);
+        mtx.unlock();
+        globalState.saturatedPixelsMABottom.store(saturatedPixelsBottom, std::memory_order_relaxed);
+        globalState.saturatedPixelsMATop.store(saturatedPixelsTop, std::memory_order_relaxed);
+
         renderInputTextWithColor("MEGS-A Top Saturated", globalState.saturatedPixelsMATop.load(std::memory_order_relaxed), 12, true, 0.0, 0.9);
         renderInputTextWithColor("MEGS-A Bottom Saturated", globalState.saturatedPixelsMABottom.load(std::memory_order_relaxed), 12, true, 0.0, 0.9);
+
+        testPattern = globalState.isMBTestPattern.load();
+        mtx.lock();
+        countSaturatedPixels(globalState.megsb.image,
+            saturatedPixelsTop,
+            saturatedPixelsBottom,
+            testPattern);
+        mtx.unlock();
+        globalState.saturatedPixelsMBBottom.store(saturatedPixelsBottom, std::memory_order_relaxed);
+        globalState.saturatedPixelsMBTop.store(saturatedPixelsTop, std::memory_order_relaxed);
+
         renderInputTextWithColor("MEGS-B Top Saturated", globalState.saturatedPixelsMBTop.load(std::memory_order_relaxed), 12, true, 0.0, 0.9);
         renderInputTextWithColor("MEGS-B Bottom Saturated", globalState.saturatedPixelsMBBottom.load(std::memory_order_relaxed), 12, true, 0.0, 0.9);
         ImGui::TreePop();
@@ -696,9 +789,8 @@ void displayFPGAStatus() {
 
     // Column 1
     ImGui::Columns(2,"FPGA ");
-    ImGui::SetColumnWidth(0, 130.0f);
+    //ImGui::SetColumnWidth(0, 180.0f);
 
-    //mtx.lock();
     uint16_t reg0 = globalState.FPGA_reg0.load();
     uint16_t reg1 = globalState.FPGA_reg1.load();
     uint16_t reg2 = globalState.FPGA_reg2.load();
@@ -707,9 +799,26 @@ void displayFPGAStatus() {
     uint32_t readsPerSecond = globalState.readsPerSecond.load();
     uint32_t packetsPerSecond = globalState.packetsPerSecond.load();
     uint32_t shortPacketCounter = globalState.shortPacketCounter.load();
-    //mtx.unlock();
 
-    if (ImGui::TreeNodeEx("FPGA Registers", ImGuiTreeNodeFlags_DefaultOpen)) {
+    LimitState state = Green;
+
+    if ( (shortPacketCounter > 0.5f) || (packetsPerSecond > 481.0f) || (readsPerSecond > 14.9f) ||
+        (packetsPerSecond < 3.9f) || (readsPerSecond < 12.9f) )
+    {
+        //set yellow color
+        state = Yellow;
+    }
+    if ( (shortPacketCounter > 0.9f) || (packetsPerSecond > 500.0f) || (readsPerSecond > 15.9f) ||
+        (packetsPerSecond < 2.9f) || (readsPerSecond < 11.9f) )
+    {
+        //set red hi color
+        state = Red;
+    }
+
+    bool isTreeNodeFPGARegistersOpen = ImGui::TreeNodeEx("FPGA Registers", ImGuiTreeNodeFlags_DefaultOpen);
+    addFilledCircleToTreeNode(state);
+
+    if (isTreeNodeFPGARegistersOpen) {
         renderInputTextWithColor("Reg 0", reg0, 6, false, 0.0, 0.9);
         renderInputTextWithColor("Reg 1", reg1, 6, false, 0.0, 0.9);
         renderInputTextWithColor("Reg 2", reg2, 6, false, 0.0, 0.9);
@@ -719,16 +828,32 @@ void displayFPGAStatus() {
         float mBps = (readsPerSecond >> 1); // * 65536.0f * 8.0f/ 1024.0f / 1024.0f is same as 2^16 * 2^3 / 2^10 / 2^10 = 2^-1
         renderInputTextWithColor("USB Mb/s", mBps, 6, true, 13.0, 16.0f, 6.9, 0.51, "%.1f");
         renderInputTextWithColor("pkt/s", packetsPerSecond, 6, true, 481.0, 500.0f, 3.9f, 2.9f);
-        renderInputTextWithColor("short pkts", shortPacketCounter, 6, true, 1.0, 2.0f);
+        renderInputTextWithColor("short pkts", shortPacketCounter, 6, true, 0.5f, 0.9f);
         ImGui::TreePop();
     }
 
+    int FIFOTxEmpty = (reg0 & 0x01);
+    int FIFORxEmpty = (reg0 >> 1) & 0x01;
+    int FIFORxError = (reg0 >> 2) & 0x01;
+    //reg3 is temperature
+    float temperature = (reg3 >> 4) * 503.975f / 4096.0f - 273.15f;
+    state = Green;
+    if (( temperature > 40.0f) || (temperature < 20.0f) || (FIFOTxEmpty) || (FIFORxEmpty) || (FIFORxError)){
+        state = Yellow;
+    }
+    if ((FIFORxEmpty) || (FIFORxError) || (temperature > 45.0f) || (temperature < 19.0f)){
+        state = Red;
+    }
+
     ImGui::NextColumn();
-    if (ImGui::TreeNodeEx("FPGA Interpreted Values", ImGuiTreeNodeFlags_DefaultOpen)) {
+    bool isTreeNodeFPGAConvertedOpen = ImGui::TreeNodeEx("FPGA Converted", ImGuiTreeNodeFlags_DefaultOpen);
+    addFilledCircleToTreeNode(state);
+
+    if (isTreeNodeFPGAConvertedOpen) {
         //reg0 is multiple status bits
-        renderInputTextWithColor("FIFO TxEmpty", (reg0) & 0x01, 12, false, 0.0, 0.9);
-        renderInputTextWithColor("FIFO RxEmpty", (reg0 >> 1) & 0x01, 12, true, 0.9, 1.9);
-        renderInputTextWithColor("FIFO RxErr", (reg0 >> 2) & 0x01, 12, true, 0.0, 0.9);
+        renderInputTextWithColor("FIFO TxEmpty", FIFOTxEmpty, 12, false, 0.0, 0.9);
+        renderInputTextWithColor("FIFO RxEmpty", FIFORxEmpty, 12, true, 0.9, 1.9);
+        renderInputTextWithColor("FIFO RxError", FIFORxError, 12, true, 0.0, 0.9);
         //reg1 is version
         renderInputTextWithColor("Firmware Ver", reg1, 12, false, 0.0, 0.9);
 
@@ -748,9 +873,7 @@ void displayFPGAStatus() {
         }
         //reg2 is overflow
         renderInputTextWithColor("FIFO Overflow", reg2, 12, true, 0, 0.9f);
-        //reg3 is temperature
-        float temperature = (reg3 >> 4) * 503.975f / 4096.0f - 273.15f;
-        renderInputTextWithColor("FPGA Temp (C)", temperature, 12, true, 40.0f, 45.0f, 20.0f, 10.0f, "%.1f");
+        renderInputTextWithColor("FPGA Temp (C)", temperature, 12, true, 40.0f, 45.0f, 20.0f, 19.0f, "%.1f");
         ImGui::TreePop();
     }
 
