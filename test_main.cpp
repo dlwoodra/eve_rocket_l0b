@@ -582,6 +582,31 @@ TEST_CASE("Source Sequence Counter Impact", "[assemble_image]") {
 }
 
 
+// TEST_CASE("Histogram Equalization on a simple known input image", "[histogramEqualization]") {
+//     uint16_t image[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH] = {};
+
+//     // Initialize a known pattern for testing
+//     for (int y = 0; y < MEGS_IMAGE_HEIGHT; ++y) {
+//         for (int x = 0; x < MEGS_IMAGE_WIDTH; ++x) {
+//             image[y][x] = (y + x) % 16384; // Simple pattern based on sum of indices
+//         }
+//     }
+
+//     std::vector<uint8_t> textureData(MEGS_TOTAL_PIXELS);
+
+//     // Call the function under test
+//     histogramEqualization(&image, textureData);
+
+//     // Check if the textureData is populated correctly (you can compare with expected values or apply custom logic)
+//     // For simplicity, assuming expected values based on your known pattern and histogram equalization process.
+
+//     // Example checks based on the assumed behavior after equalization:
+//     REQUIRE(textureData[0] == 0);    // Example check for first pixel
+//     REQUIRE(textureData[1] == 0);    // Example check for next pixel
+//     REQUIRE(textureData[10] == 5);   // Check a mid-range pixel value
+//     // Further checks for other positions depending on your expectations
+// }
+
 
 // CCSDSReader tests
 
