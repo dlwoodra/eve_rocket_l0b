@@ -2,13 +2,14 @@
 
 // Public method to start the compression in a separate thread
 void FileCompressor::compressFile(const std::string& inputFilename) {
-    // Create a compression thread
-    std::thread compressionThread(&FileCompressor::compressAndTime, this, inputFilename);
-    if ( !globalState.running.load() ) {
-        compressionThread.join(); // Wait for the thread to finish
-    } else {
-    compressionThread.detach(); // Detach the thread, don't block waiting for it
-    }
+    compressAndTime(inputFilename);
+    // // Create a compression thread
+    // std::thread compressionThread(&FileCompressor::compressAndTime, this, inputFilename);
+    // if ( !globalState.running.load() ) {
+    //     compressionThread.join(); // Wait for the thread to finish
+    // } else {
+    // compressionThread.detach(); // Detach the thread, don't block waiting for it
+    // }
 }
 
 // void FileCompressor::compressFile(const std::string& inputFilename) {
@@ -28,7 +29,7 @@ void FileCompressor::compressFile(const std::string& inputFilename) {
 
 // Method to call pigz to compress a file
 void FileCompressor::compressWithPigz(const std::string& inputFile) {
-    std::string command = "pigz --force " + inputFile; // Force overwrite, Adjust options for parallelism if necessary
+    std::string command = "pigz --force " + inputFile + " &"; // Force overwrite, Adjust options for parallelism if necessary
     int result = std::system(command.c_str());
 
     if (result != 0) {
