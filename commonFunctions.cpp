@@ -287,6 +287,7 @@ void processMegsAPacket(std::vector<uint8_t> payload,
             testPattern = true; // use vcdu[34]==0 vcdu[35]=2 vcdu[36]=0 vcdu[37]=1 to identify TP (first 2 pixesl are bad so skip 30-33)
             std::cout << "processMegsAPacket identified a test pattern" <<std::endl;
         }
+        globalState.isMATestPattern.store(testPattern);
 
         populateStructureTimes(oneMEGSStructure, payload);
 
@@ -323,19 +324,10 @@ void processMegsAPacket(std::vector<uint8_t> payload,
         globalState.isFirstMAImage.store(isFirstImage, std::memory_order_relaxed);
         // The globalState.megsa image is NOT initialized and just overwrites each packet location as it is received
         globalState.parityErrorsMA.fetch_add(assemble_image(vcdu, &globalState.megsa, sourceSequenceCounter, testPattern, xpos, ypos, &status), std::memory_order_relaxed);
+        globalState.isMATestPattern.store(testPattern);
         if ((processedPacketCounter % IMAGE_UPDATE_INTERVAL) == 0) {
             globalState.megsAUpdated.store(true, std::memory_order_relaxed);
             globalState.MAypos.store(ypos, std::memory_order_relaxed); // ypos is atomic
-            // count saturated pixels
-            uint32_t saturatedPixelsTop, saturatedPixelsBottom;
-            mtx.lock();
-            countSaturatedPixels(globalState.megsa.image,
-                    saturatedPixelsTop,
-                    saturatedPixelsBottom,
-                    testPattern);
-            mtx.unlock();
-            globalState.saturatedPixelsMABottom.store(saturatedPixelsBottom, std::memory_order_relaxed);
-            globalState.saturatedPixelsMATop.store(saturatedPixelsTop, std::memory_order_relaxed);
         }
     }
 
@@ -414,9 +406,11 @@ void processMegsBPacket(std::vector<uint8_t> payload, uint16_t sourceSequenceCou
         testPattern = false; // default is not a test pattern
         if ((vcdu[34] == 0x8f) && (vcdu[35] == 0xfc) && (vcdu[36] == 0x87) && (vcdu[37] == 0xfe)) { //changed for MEGS-B
             testPattern = true; // identify TP (first 2 pixels are bad so skip 30-33)
+
             // David sets the first pixels to ff ff aa aa - these 2 pixels fail parity
             std::cout << "processMegsBPacket identified a test pattern" <<std::endl;
         }
+        globalState.isMBTestPattern.store(testPattern);
 
         populateStructureTimes(oneMEGSStructure, payload);
 
@@ -460,15 +454,6 @@ void processMegsBPacket(std::vector<uint8_t> payload, uint16_t sourceSequenceCou
         if ((processedPacketCounter % IMAGE_UPDATE_INTERVAL) == 0) {
             globalState.megsBUpdated.store(true, std::memory_order_relaxed);
             globalState.MBypos.store(ypos, std::memory_order_relaxed);  // MBypos is atomic
-            uint32_t saturatedPixelsTop, saturatedPixelsBottom;
-            mtx.lock();
-            countSaturatedPixels(globalState.megsb.image,
-                    saturatedPixelsTop,
-                    saturatedPixelsBottom,
-                    testPattern);
-            mtx.unlock();
-            globalState.saturatedPixelsMBBottom.store(saturatedPixelsBottom, std::memory_order_relaxed);
-            globalState.saturatedPixelsMBTop.store(saturatedPixelsTop, std::memory_order_relaxed);
         }
     }
     if ( parityErrors > 0 ) {
