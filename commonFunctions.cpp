@@ -123,7 +123,7 @@ void processOnePacket(CCSDSReader& pktReader, const std::vector<uint8_t>& packet
                 sourceSequenceCounter, packetLength, timeStamp );
             processMegsPPacket(payload, sourceSequenceCounter, packetLength, timeStamp);
             break;
-        case HK_APID:
+        case SHK_APID:
             LogFileWriter::getInstance().logInfo("APID {} SSC {} pktLen {} time {}", apid,
                 sourceSequenceCounter, packetLength, timeStamp );
             processHKPacket(payload, sourceSequenceCounter, packetLength, timeStamp);
@@ -591,16 +591,18 @@ void processESPPacket(std::vector<uint8_t> payload,
     for (int i=0; i<ESP_INTEGRATIONS_PER_PACKET; ++i) {
         int incr = (i*bytesperintegration) + firstbyteoffset;
         int index = packetoffset + i;
+        // correct order is 
+        // quads are 3,4,5,6
         oneESPStructure.ESP_xfer_cnt[index] = (uint16_t (payload[incr]) << 8) | (uint16_t (payload[incr + 1]));
-        oneESPStructure.ESP_q0[index] = (uint16_t (payload[incr+2]) << 8) | (uint16_t (payload[incr+3]));
-        oneESPStructure.ESP_q1[index] = (uint16_t (payload[incr+4]) << 8) | (uint16_t (payload[incr+5]));
-        oneESPStructure.ESP_q2[index] = (uint16_t (payload[incr+6]) << 8) | (uint16_t (payload[incr+7]));
-        oneESPStructure.ESP_q3[index] = (uint16_t (payload[incr+8]) << 8) | (uint16_t (payload[incr+9]));
-        oneESPStructure.ESP_171[index] = (uint16_t (payload[incr+10]) << 8) | (uint16_t (payload[incr+11]));
-        oneESPStructure.ESP_257[index] = (uint16_t (payload[incr+12]) << 8) | (uint16_t (payload[incr+13]));
-        oneESPStructure.ESP_304[index] = (uint16_t (payload[incr+14]) << 8) | (uint16_t (payload[incr+15]));
-        oneESPStructure.ESP_366[index] = (uint16_t (payload[incr+16]) << 8) | (uint16_t (payload[incr+17]));
-        oneESPStructure.ESP_dark[index] = (uint16_t (payload[incr+18]) << 8) | (uint16_t (payload[incr+19]));
+        oneESPStructure.ESP_366[index] = (uint16_t (payload[incr+2]) << 8) | (uint16_t (payload[incr+3]));
+        oneESPStructure.ESP_257[index] = (uint16_t (payload[incr+4]) << 8) | (uint16_t (payload[incr+5]));
+        oneESPStructure.ESP_dark[index] = (uint16_t (payload[incr+6]) << 8) | (uint16_t (payload[incr+7]));
+        oneESPStructure.ESP_q2[index] = (uint16_t (payload[incr+8]) << 8) | (uint16_t (payload[incr+9]));
+        oneESPStructure.ESP_q0[index] = (uint16_t (payload[incr+10]) << 8) | (uint16_t (payload[incr+11]));
+        oneESPStructure.ESP_q1[index] = (uint16_t (payload[incr+12]) << 8) | (uint16_t (payload[incr+13]));
+        oneESPStructure.ESP_q3[index] = (uint16_t (payload[incr+14]) << 8) | (uint16_t (payload[incr+15]));
+        oneESPStructure.ESP_171[index] = (uint16_t (payload[incr+16]) << 8) | (uint16_t (payload[incr+17]));
+        oneESPStructure.ESP_304[index] = (uint16_t (payload[incr+18]) << 8) | (uint16_t (payload[incr+19]));
 
         mtx.lock();
         globalState.esp.ESP_xfer_cnt[index] = oneESPStructure.ESP_xfer_cnt[index];
@@ -664,11 +666,11 @@ void processESPPacket(std::vector<uint8_t> payload,
 void processHKPacket(std::vector<uint8_t> payload, 
     uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp) {
     
-    return; // Need to debug
-
     SHK_PACKET oneSHKStructure = {0};
     static uint16_t processedPacketCounter=0;
     static uint16_t lastSourceSequenceCounter = sourceSequenceCounter - 1;
+
+    std::cout<<"processHKPacket - received" << std::endl;
 
     if ( ((lastSourceSequenceCounter + 1) % 16384) != sourceSequenceCounter) {
         LogFileWriter::getInstance().logError("SHK packet out of sequence: {} {}", lastSourceSequenceCounter, sourceSequenceCounter);
@@ -821,7 +823,7 @@ void processHKPacket(std::vector<uint8_t> payload,
         // the c++14 way fitsFileWriter = std::make_unique<FITSWriter>();
 
         if (fitsFileWriter) {
-            std::cout << "procesESPPacket: tai_time_seconds = " << oneSHKStructure.tai_time_seconds << std::endl;
+            std::cout << "procesSHKPacket: tai_time_seconds = " << oneSHKStructure.tai_time_seconds << std::endl;
 
             if (!fitsFileWriter->writeSHKFITS( oneSHKStructure )) {
                 LogFileWriter::getInstance().logInfo("writeSHKFITS write error");
