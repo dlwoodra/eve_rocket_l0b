@@ -57,7 +57,7 @@ std::string FITSWriter::createFITSFilename(uint16_t apid, double tai_seconds) {
             channelstring = "esp/";
             filename_prefix = "ESP_L0B_0_";
             break;
-        case HK_APID:
+        case SHK_APID:
             channelstring = "shk/";
             filename_prefix = "SHK_L0B_0_";
             break;
@@ -850,11 +850,11 @@ int FITSWriter::writeSHKFITSBinaryTable(const std::string& filename, const SHK_P
 // SHK main writer
 bool FITSWriter::writeSHKFITS( const SHK_PACKET& SHKStructure) {
 
-    //std::cout << "writing SHK FITS file for APID: " << HK_APID << std::endl;
+    //std::cout << "writing SHK FITS file for APID: " << SHK_APID << std::endl;
     LogFileWriter::getInstance().logInfo("writing SHK FITS file");
 
     int32_t status = 0;
-    std::string filename = createFITSFilename(HK_APID, SHKStructure.tai_time_seconds);
+    std::string filename = createFITSFilename(SHK_APID, SHKStructure.tai_time_seconds);
 
     fitsfile* fptr = nullptr;
     if (!initializeFITSFile(filename, fptr)) {
