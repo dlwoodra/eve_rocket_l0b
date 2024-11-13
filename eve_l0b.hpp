@@ -30,7 +30,7 @@
 constexpr uint32_t SYNC_MARKER = 0x1ACFFC1D; // sync marker
 constexpr uint32_t BSWAP_SYNC_MARKER = 0x1DFCCF1A;
 constexpr size_t PACKET_HEADER_SIZE = 6;     // CCSDS packet primary header size in bytes
-constexpr uint16_t STANDARD_MEGSAB_PACKET_LENGTH = 1761; // value from packet (one less than size)
+constexpr uint16_t STANDARD_MEGSAB_PACKET_LENGTH = 1761; // value from CCSDS packet (one less than size)
 constexpr uint16_t STANDARD_MEGSP_PACKET_LENGTH = 1761; //25; // apid 604
 constexpr uint16_t STANDARD_ESP_PACKET_LENGTH = 1761; //89; // apid 605
 constexpr uint16_t STANDARD_HK_PACKET_LENGTH = 1761; //265; // apid 606
