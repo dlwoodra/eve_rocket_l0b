@@ -40,7 +40,7 @@ constexpr uint16_t MEGSA_APID = 601; // same as SDO EVE
 constexpr uint16_t MEGSB_APID = 602; // same as SDO EVE
 constexpr uint16_t MEGSP_APID = 604; // was SHK in SDO EVE
 constexpr uint16_t ESP_APID = 605; // not used in SDO EVE, MEGS-P and ESP were both in 603
-constexpr uint16_t HK_APID = 606; // rocket housekeeping only
+constexpr uint16_t SHK_APID = 606; // rocket housekeeping only
 
 constexpr int32_t MEGSP_INTEGRATIONS_PER_PACKET = 4;
 constexpr int32_t SECONDS_PER_MEGSP_FILE = 10;
