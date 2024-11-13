@@ -831,11 +831,11 @@ void displayFPGAStatus() {
         renderInputTextWithColor("Reg 1", reg1, 6, false, 0.0, 0.9);
         renderInputTextWithColor("Reg 2", reg2, 6, false, 0.0, 0.9);
         renderInputTextWithColor("Reg 3", reg3, 6, false, 0.0, 0.9);
-        renderInputTextWithColor("64k Reads/s", readsPerSecond, 6, true, 14.9f, 15.9f, 12.9f, 11.9f);
+        renderInputTextWithColor("64k Reads/s", readsPerSecond, 6, true, 30.0f, 31.0f, 12.9f, 11.9f);
         // to convert reads per second to Mb/s div by 2 (read/s * 65536Bytes/read * 8bits/Byte * 1Mb/(1024*1024bits)=Mb/s )
         float mBps = (readsPerSecond >> 1); // * 65536.0f * 8.0f/ 1024.0f / 1024.0f is same as 2^16 * 2^3 / 2^10 / 2^10 = 2^-1
-        renderInputTextWithColor("USB Mb/s", mBps, 6, true, 13.0, 16.0f, 6.9, 0.51, "%.1f");
-        renderInputTextWithColor("pkt/s", packetsPerSecond, 6, true, 481.0, 500.0f, 3.9f, 2.9f);
+        renderInputTextWithColor("USB Mb/s", mBps, 6, true, 18.0, 21.0f, 6.9, 0.51, "%.1f");
+        renderInputTextWithColor("pkt/s", packetsPerSecond, 6, true, 600.0, 650.0f, 3.9f, 2.9f);
         renderInputTextWithColor("short pkts", shortPacketCounter, 6, true, 0.5f, 0.9f);
         ImGui::TreePop();
     }
@@ -846,10 +846,10 @@ void displayFPGAStatus() {
     //reg3 is temperature
     float temperature = (reg3 >> 4) * 503.975f / 4096.0f - 273.15f;
     state = Green;
-    if (( temperature > 40.0f) || (temperature < 20.0f) || (FIFOTxEmpty) || (FIFORxEmpty) || (FIFORxError)){
+    if (( temperature > 49.0f) || (temperature < 20.0f) || (FIFOTxEmpty) || (FIFORxEmpty) || (FIFORxError)){
         state = Yellow;
     }
-    if ((FIFORxEmpty) || (FIFORxError) || (temperature > 45.0f) || (temperature < 19.0f)){
+    if ((FIFORxEmpty) || (FIFORxError) || (temperature > 50.0f) || (temperature < 19.0f)){
         state = Red;
     }
 
