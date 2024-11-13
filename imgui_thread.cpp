@@ -881,7 +881,7 @@ void displayFPGAStatus() {
         }
         //reg2 is overflow
         renderInputTextWithColor("FIFO Overflow", reg2, 12, true, 0, 0.9f);
-        renderInputTextWithColor("FPGA Temp (C)", temperature, 12, true, 40.0f, 45.0f, 20.0f, 19.0f, "%.1f");
+        renderInputTextWithColor("FPGA Temp (C)", temperature, 12, true, 49.0f, 50.0f, 20.0f, 19.0f, "%.1f");
         ImGui::TreePop();
     }
 
