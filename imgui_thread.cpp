@@ -810,13 +810,13 @@ void displayFPGAStatus() {
 
     LimitState state = Green;
 
-    if ( (shortPacketCounter > 0.5f) || (packetsPerSecond > 481.0f) || (readsPerSecond > 14.9f) ||
+    if ( (shortPacketCounter > 0.5f) || (packetsPerSecond > 600.0f) || (readsPerSecond > 30.0f) ||
         (packetsPerSecond < 3.9f) || (readsPerSecond < 12.9f) )
     {
         //set yellow color
         state = Yellow;
     }
-    if ( (shortPacketCounter > 0.9f) || (packetsPerSecond > 500.0f) || (readsPerSecond > 15.9f) ||
+    if ( (shortPacketCounter > 0.9f) || (packetsPerSecond > 650.0f) || (readsPerSecond > 31.0f) ||
         (packetsPerSecond < 2.9f) || (readsPerSecond < 11.9f) )
     {
         //set red hi color
