@@ -344,6 +344,14 @@ void displayMAImageWithControls(GLuint megsATextureID)
     float value = 1.0f; // changing this will crop the image
     ImGui::Image((void*)(intptr_t)megsATextureID, ImVec2(MEGS_IMAGE_WIDTH*mazoom,MEGS_IMAGE_HEIGHT*mazoom), ImVec2(0.0f,0.0f), ImVec2(value,value));
 
+    ImGui::SameLine();
+    // Add a color bar
+    //ImPlotColormap colmap = ImPlot::AddColormap("ImPlotColormap_Jet"); //, globalState.megsa.image, 256);
+    //const char* colormapName = "ImPlotColormap_Jet";
+    //ImPlot::PushColormap(colormapName);
+    ImPlot::ColormapScale("MA Colorbar", 0, 1, ImVec2(100, MEGS_IMAGE_HEIGHT*mazoom)); // Adjust size as needed
+    //ImPlot::PopColormap();
+
     // dislpay the value of one pixel from each half
     uint16_t hiRowValues[MEGS_IMAGE_WIDTH];
     uint16_t lowRowValues[MEGS_IMAGE_WIDTH];
