@@ -677,6 +677,7 @@ void processHKPacket(std::vector<uint8_t> payload,
         std::cout << "SHK packet out of sequence: " << lastSourceSequenceCounter << " " << sourceSequenceCounter << std::endl;
         globalState.dataGapsSHK.fetch_add(1, std::memory_order_relaxed);
     }
+    lastSourceSequenceCounter = sourceSequenceCounter;
 
     populateStructureTimes(oneSHKStructure, payload);
 
