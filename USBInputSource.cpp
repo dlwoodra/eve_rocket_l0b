@@ -33,6 +33,8 @@ struct DeviceInfo {
 extern ProgramState globalState;
 extern void handleSigint(int signal);
 
+void extern processOnePacket(CCSDSReader& pktReader, const std::vector<uint8_t>& packet);
+
 // Function to log device information using spdlog
 void logDeviceInfo(const okTDeviceInfo& devInfo) {
     // Initialize the logger (log to file with basic file sink)
@@ -112,8 +114,6 @@ constexpr int FindAPIDIndex(uint16_t APID) {
 void Sleep(int32_t milliSeconds) {
     std::this_thread::sleep_for(std::chrono::milliseconds(milliSeconds));
 }
-
-void extern processOnePacket(CCSDSReader& pktReader, const std::vector<uint8_t>& packet);
 
 // Generate a filename based on the current date and time
 std::string generateUSBRecordFilename() {
