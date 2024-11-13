@@ -634,12 +634,15 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
     //static uint32_t PktBuff[4096]; // size to largest packet in 32-bit words
     // this is overkill, largest packet is 1772 bytes with the sync, so 443 words is enough
     // total packet is 6+1761+1 bytes = 1768 bytes = 442 32-bit words
-    static uint32_t PktBuff[442]; // size to largest packet in 32-bit words
+    static uint32_t PktBuff[443]; // size to largest packet in 32-bit words
+
+    //std::cout << "calling isReceiveFIFOEmpty" << std::endl;
 
     while (isReceiveFIFOEmpty()) {
         handleReceiveFIFOError();
         std::cout<<"Waiting for data..."<<std::endl;
     }
+    //std::cout << "continuiing after isReceiveFIFOEmpty" << std::endl;
 
     // for these params we should call this every ~65-75 milliseconds
     // for now just read the buffer iloop times as fast as possible
@@ -648,11 +651,15 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
     while (true) {
 
         // check for overflow, reset linkif needed
+        //std::cout << "calling checkLinkStatus" << std::endl;
         checkLinkStatus();
+        //std::cout << "calling readDataFromUSB" << std::endl;
 
         int32_t blockPipeOutStatus = readDataFromUSB();
+        //std::cout << "returned from readDataFromUSB, blockPipeOutStatus:" << blockPipeOutStatus << std::endl;
 
         globalState.totalReadCounter.fetch_add(1, std::memory_order_relaxed);
+        //std::cout << "totalReadCounter:" << globalState.totalReadCounter.load() << std::endl;
         
         // This is only used for testing. It generates a large file quickly.
         //writeBinaryToFile("./tmp.bin", RxBuff, sizeof(RxBuff) / sizeof(RxBuff[0]));
@@ -698,6 +705,8 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
     				// get APID index (MSB = 0, LSB = 1)
     				APID = (pBlk[blkIdx] << 8) & 0x0700; //APID is 11 bits;
     				APID |= ((pBlk[blkIdx] >> 8) & 0xFF);
+                    
+                    //std::cout << "CGProxRx Case 1d apid:" << APID << std::endl;
 
     				// find APID index
                     i = FindAPIDIndex(APID);
@@ -707,15 +716,18 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
     				{
                         //std::cout << "CGProxRx Case 1d recognized apid" << std::endl;
     					APIDidx = i;
+                        //std::cout << "CGProxRx Case 1da APIDidx:" << APIDidx << std::endl;
+                        //std::cout << "CGProxRx Case 1db LUT_PktLen[APIDidx]:" << LUT_PktLen[APIDidx] << std::endl; //1761
 
     					nPktLeft = BYTES_TO_WORDS(LUT_PktLen[APIDidx]) + 3; // 11 bytes (fits into 3 32-bit words) for primary header and sync
+                        //std::cout << "CGProxRx Case 1dc nPktLeft:" << nPktLeft<< " nBlkLeft:"<< nBlkLeft << std::endl; //443
 
     					// check to see if packet is completed in block
     					if (nPktLeft <= nBlkLeft)
     					{
     						// remaining packet is less then data remaining in block
     						nPktLeft &= 0xFF; // not sure what this does
-                            //std::cout << "CGProxRx Case 1dd -copying - state "<<state << std::endl;
+                            //std::cout << "CGProxRx Case 1dd -copying - nPktLeft "<<nPktLeft << std::endl;
     						memcpy(PktBuff, &pBlk[blkIdx], WORDS_TO_BYTES(nPktLeft));
                             bytesCopiedToPktBuff += WORDS_TO_BYTES(nPktLeft); // count bytes copied to PktBuff
                             // bytesCopiedToPktBuff should match the total packet length (no sync)
@@ -837,10 +849,9 @@ void USBInputSource::checkLinkStatus(void)
     // r0 bit 2, 3rd bit, is FIFO error bit - the same as register 2 bit 1
 	while (r2 == 1)
 	{
-		std::cout << StatusStr << "checkLinkStatus: FIFO Overflow ************** "<< " " << r2 << std::endl;
+		std::cout << StatusStr << "checkLinkStatus: FIFO Overflow ************** " << r2 << std::endl;
         // reset the interface to clear the buffer
-        resetInterface(1);  
-    	//r0 = readGSERegister(0);
+        resetInterface(1);
         r2 = readGSERegister(2);
         LogFileWriter::getInstance().logError("checkLinkStatus: FIFO Overflow - not keeping up");
 	}
