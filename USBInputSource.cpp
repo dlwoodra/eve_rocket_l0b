@@ -90,7 +90,7 @@ void logDeviceInfo(const okTDeviceInfo& devInfo) {
 
 // APIDs MUST be sorted in increasing numerical order
 const uint16_t USBInputSource::LUT_APID[USBInputSource::nAPID] = { 
-  MEGSA_APID, MEGSB_APID, ESP_APID, MEGSP_APID, HK_APID 
+  MEGSA_APID, MEGSB_APID, ESP_APID, MEGSP_APID, SHK_APID 
   };
 const uint16_t USBInputSource::LUT_PktLen[USBInputSource::nAPID] = { 
     STANDARD_MEGSAB_PACKET_LENGTH, // MA
@@ -707,7 +707,7 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
     				{
                         //std::cout << "CGProxRx Case 1d recognized apid" << std::endl;
     					APIDidx = i;
-    					//nPktLeft = (LUT_PktLen[APIDidx] >> 2) + 3; // 11 bytes (fits into 3 32-bit words) for primary header and sync
+
     					nPktLeft = BYTES_TO_WORDS(LUT_PktLen[APIDidx]) + 3; // 11 bytes (fits into 3 32-bit words) for primary header and sync
 
     					// check to see if packet is completed in block
@@ -781,8 +781,8 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
                         //std::cout << "Case 1eee -call GSEProcessPacket - state " <<state<< std::endl;
                         uint32_t expectedNumBytes = LUT_PktLen[APIDidx] + 1 + PACKET_HEADER_SIZE;
                         if (bytesCopiedToPktBuff != (expectedNumBytes)) {
-                            std::cerr << "***ERROR: CGProxRx case 2 bytesCopiedToPktBuff "<< bytesCopiedToPktBuff<<" does not match expectedNumBytes "<< expectedNumBytes << std::endl;
-                        //    LogFileWriter::getInstance().logError("CGProxRx bytesCopiedToPktBuff %s does not match LUT_PktLen",bytesCopiedToPktBuff);
+                        //    std::cerr << "***ERROR: CGProxRx case 2 bytesCopiedToPktBuff "<< bytesCopiedToPktBuff<<" does not match expectedNumBytes "<< expectedNumBytes << std::endl;
+                            LogFileWriter::getInstance().logError("CGProxRx case 2 bytesCopiedToPktBuff {} does not match LUT_PktLen",bytesCopiedToPktBuff);
                         }
     					GSEProcessPacket(PktBuff, APID, usbReader);
                         bytesCopiedToPktBuff = 0; // reset the count
@@ -792,7 +792,7 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
     					// packet data is longer than data remaining in block
     					nBlkLeft &= 0xFF;
                         //std::cout << "Case 1f - memcpy - state " <<state<< std::endl;
-    					memcpy(&PktBuff[pktIdx], &pBlk[blkIdx], WORDS_TO_BYTES(nBlkLeft)); //nBlkLeft << 2);
+    					memcpy(&PktBuff[pktIdx], &pBlk[blkIdx], WORDS_TO_BYTES(nBlkLeft));
                         bytesCopiedToPktBuff += WORDS_TO_BYTES(nBlkLeft); // count bytes copied to PktBuff
     					pktIdx += nBlkLeft;
     					nPktLeft -= nBlkLeft;
