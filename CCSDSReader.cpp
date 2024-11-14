@@ -55,10 +55,10 @@ bool CCSDSReader::readNextPacket(std::vector<uint8_t>& packet) {
   globalState.totalReadCounter.fetch_add(1, std::memory_order_relaxed);
 
   // slow down for debugging
-  //if ( guiEnabled ) {
-  //  //During file processing we should pause
-  //  std::this_thread::sleep_for(std::chrono::milliseconds(2)); // DELAY, SLOW DOWN FOR TESTING
-  //}
+  if ( globalState.args.slowReplay.load() ) {
+    //During file processing we should pause
+    std::this_thread::sleep_for(std::chrono::milliseconds(2)); // DELAY, SLOW DOWN FOR TESTING
+  }
 
   if (!findSyncMarker()) {
     std::cout << "ERROR: CCSDSREADER::readNextPacket did not find sync marker " << std::endl;
