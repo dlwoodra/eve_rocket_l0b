@@ -7,6 +7,14 @@
 
 // There is only one programState structure, and it is defined in main.cpp as a global to pass info to the imgui instance.
 struct ProgramState {
+	struct Args {
+		std::atomic<bool> fileSpecified{false};
+		std::string filename;
+		std::atomic<bool> skipESP{false};
+		std::atomic<bool> skipMP{false};
+		std::atomic<bool> skipRecord{false};
+		std::atomic<bool> slowReplay{false};
+	} args;
 	bool guiEnabled = false;
 	std::atomic<uint16_t> FPGA_reg0{0};
 	std::atomic<uint16_t> FPGA_reg1{0};
