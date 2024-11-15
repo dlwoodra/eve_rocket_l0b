@@ -683,9 +683,17 @@ void plotESPTarget(int lastIdx) {
     //float xangleDeg = xanglearcsec / 3600.0;
     //float yangleDeg = yanglearcsec / 3600.0;
 
+
+    // Get the available space
+    ImVec2 availableSize = ImGui::GetContentRegionAvail();
+    // Calculate the side length based on the smaller dimension (for a square plot)
+    //float sideLength = std::min(availableSize.x, availableSize.y);
+    float sideLength = availableSize.x;
+    // Create a square plot size based on the smallest dimension
+    ImVec2 plotSize(sideLength, sideLength);
+
     // Create a plot with ImPlot
-    //if (ImPlot::BeginPlot("##ESP Target Plot", ImVec2(-1, 0), ImPlotFlags_Equal)) {
-    if (ImPlot::BeginPlot("##ESP Target Plot", ImVec2(200, 200), ImPlotFlags_Equal)) {
+    if (ImPlot::BeginPlot("##ESP Target Plot", plotSize, ImPlotFlags_Equal)) {
         // Set the axis ranges to be from -1 to +1
         float maxScale = (maxAbsNorm > 1.0) ? maxAbsNorm * 1.5 : 1.0;
         ImPlot::SetupAxisLimits(ImAxis_X1, -maxScale, maxScale);
@@ -729,75 +737,87 @@ void plotESPTarget(int lastIdx) {
 
 void updateESPWindow()
 {
-    // need to find the last populated index
+ 
     int index = ESP_INTEGRATIONS_PER_FILE - 1;
-    while ((index > 1) && (globalState.esp.ESP_xfer_cnt[index] == 0)) 
-    {
-        index--;
+
+    if (ImGui::Begin("ESP MEGS-P Diodes")) {
+        mtx.lock();
+
+        // need to find the last populated index
+        while ((index > 1) && (globalState.esp.ESP_xfer_cnt[index] == 0)) 
+        {
+            index--;
+        }
+
+        ImGui::SetNextItemWidth(ImGui::GetFontSize() * 10);
+
+        std::string iso8601 = tai_to_iso8601(globalState.esp.tai_time_seconds);
+        std::string newiso8601 = tai_to_iso8601sss( iso8601, globalState.esp.tai_time_subseconds);
+        const char* tmpiISO8601sss = newiso8601.c_str(); 
+        ImGui::Text("pkt:%s", tmpiISO8601sss);
+
+        renderInputTextWithColor("ESP xfer cnt", globalState.esp.ESP_xfer_cnt[index], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("ESP q0", globalState.esp.ESP_q0[index], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("ESP q1", globalState.esp.ESP_q1[index], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("ESP q2", globalState.esp.ESP_q2[index], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("ESP q3", globalState.esp.ESP_q3[index], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("ESP 171", globalState.esp.ESP_171[index], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("ESP 257", globalState.esp.ESP_257[index], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("ESP 304", globalState.esp.ESP_304[index], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("ESP 366", globalState.esp.ESP_366[index], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("ESP dark", globalState.esp.ESP_dark[index], 12, false, 0.0, 0.9);
+
+        renderInputTextWithColor("MP Ly-a", globalState.megsp.MP_lya[index], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MP dark", globalState.megsp.MP_dark[index], 12, false, 0.0, 0.9);
+        mtx.unlock();
+        ImGui::End();
     }
 
-    // Column 1
-    ImGui::Columns(3,"ESP Data");
-    //ImGui::SetColumnWidth(0, 210.0f);
-    //ImGui::Text("ESP Status Column");
-    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 10);
-
-    std::string iso8601 = tai_to_iso8601(globalState.esp.tai_time_seconds);
-    //const char* tmpiISO8601 = iso8601.c_str();
-    //ImGui::Text("pkt:%s", tmpiISO8601);
-    std::string newiso8601 = tai_to_iso8601sss( iso8601, globalState.esp.tai_time_subseconds);
-    const char* tmpiISO8601sss = newiso8601.c_str(); 
-    ImGui::Text("pkt:%s", tmpiISO8601sss);
-
-    renderInputTextWithColor("ESP xfer cnt", globalState.esp.ESP_xfer_cnt[index], 12, false, 0.0, 0.9);
-    renderInputTextWithColor("ESP q0", globalState.esp.ESP_q0[index], 12, false, 0.0, 0.9);
-    renderInputTextWithColor("ESP q1", globalState.esp.ESP_q1[index], 12, false, 0.0, 0.9);
-    renderInputTextWithColor("ESP q2", globalState.esp.ESP_q2[index], 12, false, 0.0, 0.9);
-    renderInputTextWithColor("ESP q3", globalState.esp.ESP_q3[index], 12, false, 0.0, 0.9);
-    renderInputTextWithColor("ESP 171", globalState.esp.ESP_171[index], 12, false, 0.0, 0.9);
-    renderInputTextWithColor("ESP 257", globalState.esp.ESP_257[index], 12, false, 0.0, 0.9);
-    renderInputTextWithColor("ESP 304", globalState.esp.ESP_304[index], 12, false, 0.0, 0.9);
-    renderInputTextWithColor("ESP 366", globalState.esp.ESP_366[index], 12, false, 0.0, 0.9);
-    renderInputTextWithColor("ESP dark", globalState.esp.ESP_dark[index], 12, false, 0.0, 0.9);
-
-    renderInputTextWithColor("MP Ly-a", globalState.megsp.MP_lya[index], 12, false, 0.0, 0.9);
-    renderInputTextWithColor("MP dark", globalState.megsp.MP_dark[index], 12, false, 0.0, 0.9);
-
-    // Column 2
-    ImGui::NextColumn();
-    //ImGui::Text("ESP Plots Column");
-
     // Plot the ESP data
+    ImGui::Begin("ESP Target");
+    mtx.lock();
     plotESPTarget(index);
+    mtx.unlock();
+    ImGui::End();
 
-    // Column 3
-    ImGui::NextColumn();
+
+    ImGui::Begin("ESP Timeseries");
+    mtx.lock();
     ImPlot::SetNextAxesToFit();
-    ImPlot::BeginPlot("##Quads", ImVec2(300, 180));
-    ImPlot::PlotLine("ESP q0", globalState.esp.ESP_q0, ESP_INTEGRATIONS_PER_FILE);
-    ImPlot::PlotLine("ESP q1", globalState.esp.ESP_q1, ESP_INTEGRATIONS_PER_FILE);
-    ImPlot::PlotLine("ESP q2", globalState.esp.ESP_q2, ESP_INTEGRATIONS_PER_FILE);
-    ImPlot::PlotLine("ESP q3", globalState.esp.ESP_q3, ESP_INTEGRATIONS_PER_FILE);
-    ImPlot::EndPlot();
+    ImVec2 availableSize = ImGui::GetContentRegionAvail(); // Get the available space for the plot
+    float halfHeight = availableSize.y / 2;
+    ImVec2 plotSize(availableSize.x, halfHeight);
+
+    if (ImPlot::BeginPlot("##Quads", plotSize)) { 
+        ImPlot::PlotLine("ESP q0", globalState.esp.ESP_q0, ESP_INTEGRATIONS_PER_FILE);
+        ImPlot::PlotLine("ESP q1", globalState.esp.ESP_q1, ESP_INTEGRATIONS_PER_FILE);
+        ImPlot::PlotLine("ESP q2", globalState.esp.ESP_q2, ESP_INTEGRATIONS_PER_FILE);
+        ImPlot::PlotLine("ESP q3", globalState.esp.ESP_q3, ESP_INTEGRATIONS_PER_FILE);
+        ImPlot::EndPlot();
+    }
+
+    ImGui::Spacing();
+
     ImPlot::SetNextAxesToFit();
-    ImPlot::BeginPlot("##Others", ImVec2(300, 180));
-    ImPlot::PlotLine("ESP 17", globalState.esp.ESP_171, ESP_INTEGRATIONS_PER_FILE);
-    ImPlot::PlotLine("ESP 25", globalState.esp.ESP_257, ESP_INTEGRATIONS_PER_FILE);
-    ImPlot::PlotLine("ESP 30", globalState.esp.ESP_304, ESP_INTEGRATIONS_PER_FILE);
-    ImPlot::PlotLine("ESP 36", globalState.esp.ESP_366, ESP_INTEGRATIONS_PER_FILE);
-    ImPlot::PlotLine("ESP dark", globalState.esp.ESP_dark, ESP_INTEGRATIONS_PER_FILE);
-    ImPlot::EndPlot();
+    if (ImPlot::BeginPlot("##Others", plotSize)) {
+        ImPlot::PlotLine("ESP 17", globalState.esp.ESP_171, ESP_INTEGRATIONS_PER_FILE);
+        ImPlot::PlotLine("ESP 25", globalState.esp.ESP_257, ESP_INTEGRATIONS_PER_FILE);
+        ImPlot::PlotLine("ESP 30", globalState.esp.ESP_304, ESP_INTEGRATIONS_PER_FILE);
+        ImPlot::PlotLine("ESP 36", globalState.esp.ESP_366, ESP_INTEGRATIONS_PER_FILE);
+        ImPlot::PlotLine("ESP dark", globalState.esp.ESP_dark, ESP_INTEGRATIONS_PER_FILE);
+        ImPlot::EndPlot();
+    }
 
     // reset to single column layout
-    ImGui::Columns(1);
+    //ImGui::Columns(1);
 
+    mtx.unlock();
+    ImGui::End();
+ 
 }
 
 void displayFPGAStatus() {
 
-    // Column 1
-    ImGui::Columns(2,"FPGA ");
-    //ImGui::SetColumnWidth(0, 180.0f);
 
     uint16_t reg0 = globalState.FPGA_reg0.load();
     uint16_t reg1 = globalState.FPGA_reg1.load();
@@ -853,7 +873,6 @@ void displayFPGAStatus() {
         state = Red;
     }
 
-    ImGui::NextColumn();
     bool isTreeNodeFPGAConvertedOpen = ImGui::TreeNodeEx("FPGA Converted", ImGuiTreeNodeFlags_DefaultOpen);
     addFilledCircleToTreeNode(state);
 
@@ -1051,11 +1070,7 @@ int imgui_thread() {
             }
 
             {
-                ImGui::Begin("ESP Window");
-                mtx.lock();
                 updateESPWindow();
-                mtx.unlock();
-                ImGui::End();
             }
 
             // debugging image display
