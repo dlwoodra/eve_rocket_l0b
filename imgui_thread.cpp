@@ -205,10 +205,10 @@ void scaleImageToTexture(uint16_t (*megsImage)[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WID
 
 void renderInputTextWithColor(const char* label, long value, size_t bufferSize, bool limitCheck,
                               float yHiLimit, float rHiLimit, float yLoLimit = -100.0f, float rLoLimit = -200.0f,
-                              const char* format = nullptr) { // `format` is optional
+                              const char* format = nullptr, const int itemWidthMultiplier = 4) { // `format` is optional
     LimitState state = NoCheck;
     
-    float_t itemWidthValue = ImGui::GetFontSize() * 4;
+    float_t itemWidthValue = ImGui::GetFontSize() * itemWidthMultiplier;
     ImGui::PushItemWidth(itemWidthValue);
 
     char strval[bufferSize];
@@ -586,8 +586,8 @@ void updateStatusWindow()
     mtx.unlock();
     
     if ( ImGui::TreeNodeEx("Packet Counters", ImGuiTreeNodeFlags_DefaultOpen)) {
-        renderInputTextWithColor("601 a59 MEGS-A Pkts", globalState.packetsReceived.MA.load(std::memory_order_relaxed), 12, false, 0.0, 0.9);
-        renderInputTextWithColor("602 a5a MEGS-B Pkts", globalState.packetsReceived.MB.load(std::memory_order_relaxed), 12, false, 0.0, 0.9);
+        renderInputTextWithColor("601 a59 MEGS-A Pkts", globalState.packetsReceived.MA.load(std::memory_order_relaxed), 12, false, 0.0, 0.9,-100,-200,nullptr,5);
+        renderInputTextWithColor("602 a5a MEGS-B Pkts", globalState.packetsReceived.MB.load(std::memory_order_relaxed), 12, false, 0.0, 0.9,-100,-200,nullptr,5);
         renderInputTextWithColor("604 a5c ESP Pkts", globalState.packetsReceived.ESP.load(std::memory_order_relaxed), 12, false, 0.0, 0.9);
         renderInputTextWithColor("605 a5d MEGS-P Pkts", globalState.packetsReceived.MP.load(std::memory_order_relaxed), 12, false, 0.0, 0.9);
         renderInputTextWithColor("606 a5e SHK Pkts",globalState.packetsReceived.SHK.load(std::memory_order_relaxed), 12, false, 0.0, 0.9);
