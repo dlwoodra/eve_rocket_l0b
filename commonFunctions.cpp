@@ -670,7 +670,7 @@ void processHKPacket(std::vector<uint8_t> payload,
     static uint16_t processedPacketCounter=0;
     static uint16_t lastSourceSequenceCounter = sourceSequenceCounter - 1;
 
-    std::cout<<"processHKPacket - received" << std::endl;
+    //std::cout<<"processHKPacket - received" << std::endl;
 
     if ( ((lastSourceSequenceCounter + 1) % 16384) != sourceSequenceCounter) {
         LogFileWriter::getInstance().logError("SHK packet out of sequence: {} {}", lastSourceSequenceCounter, sourceSequenceCounter);
@@ -684,14 +684,16 @@ void processHKPacket(std::vector<uint8_t> payload,
     int firstbyteoffset = 10; // offset into payload after 4 bytes TAI sec, 4 bytes TAIsubsec, 2 bytes modeword
 
     int packetoffset = processedPacketCounter * SHK_INTEGRATIONS_PER_PACKET;
-    //std::cout<<"processESPPacket packetoffset "<< packetoffset << std::endl;
     // integrations are sequentially adjacent in the packet
     // pri hdr, sec hdr, mode, integration 1, integrtion 2, etc
-    // each SHK "integration" starts with a 2 byte counter, then 9 2 byte diode measurements
+    // each SHK "integration" starts with a 2 byte mode word, then 9 2 byte diode measurements
+    // payload[0-3] is TAI seconds, payload[4-7] is TAI subseconds, payload[8-9] is mode
+    // payload[10-13] is FPGA board temperature, etc
     constexpr int bytesperintegration = (4 * 65) + 2; // 65 32-bit values, some are unused
     for (int i=0; i<SHK_INTEGRATIONS_PER_PACKET; ++i) {
         int incr = (i*bytesperintegration) + firstbyteoffset;
         int index = packetoffset + i;
+        oneSHKStructure.mode[index] = payload[9]; // value is 0-10 and fits in one byte
         oneSHKStructure.FPGA_Board_Temperature[index] = payloadBytesToUint32(payload, incr+4);
         oneSHKStructure.FPGA_Board_p5_0_Voltage[index] = payloadBytesToUint32(payload, incr+8);
         oneSHKStructure.FPGA_Board_p3_3_Voltage[index] = payloadBytesToUint32(payload, incr+12);
