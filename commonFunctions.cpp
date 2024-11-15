@@ -567,12 +567,13 @@ void processESPPacket(std::vector<uint8_t> payload,
     ESP_PACKET oneESPStructure = {0};
     static uint16_t processedPacketCounter = 0;
     static uint16_t lastSourceSequenceCounter = sourceSequenceCounter - 1;
-    static long dataGapsESP = 0;
+    //static long dataGapsESP = 0;
 
     if ( ((lastSourceSequenceCounter + 1) % 16384) != sourceSequenceCounter) {
         LogFileWriter::getInstance().logError("ESP packet out of sequence: {} {}", lastSourceSequenceCounter, sourceSequenceCounter);
         std::cout << "ESP packet out of sequence: " << lastSourceSequenceCounter << " " << sourceSequenceCounter << std::endl;
-        dataGapsESP++;
+        globalState.dataGapsESP.fetch_add(1, std::memory_order_relaxed);
+        //dataGapsESP++;
         }
     lastSourceSequenceCounter = sourceSequenceCounter;
 
@@ -626,14 +627,14 @@ void processESPPacket(std::vector<uint8_t> payload,
     {
         globalState.packetsReceived.ESP.fetch_add(1, std::memory_order_relaxed);
 
-        globalState.dataGapsESP.fetch_add(dataGapsESP, std::memory_order_relaxed);
+        //globalState.dataGapsESP.fetch_add(dataGapsESP, std::memory_order_relaxed);
 
         mtx.lock();
         globalState.esp.rec_tai_seconds = oneESPStructure.tai_time_seconds;
         globalState.esp.rec_tai_subseconds = oneESPStructure.tai_time_subseconds;
         std::memcpy(globalState.espPayloadBytes, payload.data(), payload.size());
         mtx.unlock();
-        dataGapsESP = 0; // reset to zero
+        //dataGapsESP = 0; // reset to zero
     }
 
 
@@ -683,16 +684,16 @@ void processHKPacket(std::vector<uint8_t> payload,
 
     int firstbyteoffset = 10; // offset into payload after 4 bytes TAI sec, 4 bytes TAIsubsec, 2 bytes modeword
 
-    int packetoffset = processedPacketCounter * SHK_INTEGRATIONS_PER_PACKET;
-    // integrations are sequentially adjacent in the packet
+    int packetoffset = processedPacketCounter; // there is only one sample per packet
+    // there is only one sample for each value in each SHK packet
     // pri hdr, sec hdr, mode, integration 1, integrtion 2, etc
     // each SHK "integration" starts with a 2 byte mode word, then 9 2 byte diode measurements
     // payload[0-3] is TAI seconds, payload[4-7] is TAI subseconds, payload[8-9] is mode
     // payload[10-13] is FPGA board temperature, etc
-    constexpr int bytesperintegration = (4 * 65) + 2; // 65 32-bit values, some are unused
-    for (int i=0; i<SHK_INTEGRATIONS_PER_PACKET; ++i) {
-        int incr = (i*bytesperintegration) + firstbyteoffset;
-        int index = packetoffset + i;
+    //constexpr int bytesperintegration = (4 * 65) + 2; // 65 32-bit values, some are unused
+    {
+        int incr = firstbyteoffset;
+        int index = packetoffset;
         oneSHKStructure.mode[index] = payload[9]; // value is 0-10 and fits in one byte
         oneSHKStructure.FPGA_Board_Temperature[index] = payloadBytesToUint32(payload, incr+4);
         oneSHKStructure.FPGA_Board_p5_0_Voltage[index] = payloadBytesToUint32(payload, incr+8);
@@ -812,7 +813,7 @@ void processHKPacket(std::vector<uint8_t> payload,
     processedPacketCounter++;
 
     {
-        globalState.packetsReceived.SHK.fetch_add(1);
+        globalState.packetsReceived.SHK.fetch_add(1, std::memory_order_relaxed);
         mtx.lock();        
         std::memcpy(globalState.shkPayloadBytes, payload.data(), payload.size());
         mtx.unlock();
@@ -826,7 +827,7 @@ void processHKPacket(std::vector<uint8_t> payload,
         // the c++14 way fitsFileWriter = std::make_unique<FITSWriter>();
 
         if (fitsFileWriter) {
-            std::cout << "procesSHKPacket: tai_time_seconds = " << oneSHKStructure.tai_time_seconds << std::endl;
+            //std::cout << "procesSHKPacket: tai_time_seconds = " << oneSHKStructure.tai_time_seconds << std::endl;
 
             if (!fitsFileWriter->writeSHKFITS( oneSHKStructure )) {
                 LogFileWriter::getInstance().logInfo("writeSHKFITS write error");
