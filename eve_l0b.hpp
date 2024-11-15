@@ -221,6 +221,7 @@ struct SHK_PACKET
 	uint32_t rec_tai_seconds;
  	uint32_t rec_tai_subseconds;
 // 10/22/2024 mode will be used for integration rate in seconds 1=1sec, 10 will be max seconds
+	uint32_t mode[SHK_INTEGRATIONS_PER_FILE]; // only 16 bits but use 32 for alignment
 
 	//uint32_t spare0; 						// 0
 	uint32_t FPGA_Board_Temperature[SHK_INTEGRATIONS_PER_FILE];
