@@ -229,6 +229,18 @@ int FITSWriter::writeBinaryTable(const std::string& filename,
         if (types[i] == 'B') {
             colType = TBYTE;        // unsigned byte
             colTypeSize = 1;
+        } else if (types[i] == 'U') {
+            colType = TUSHORT; // uint16
+            colTypeSize = 2;
+        } else if (types[i] == 'V') {
+            colType = TUINT;  // uint32 (TULONG if 64-bit)
+            colTypeSize = 4;
+        } else if (types[i] == 'E') {
+            colType = TFLOAT;  // 32-bit float
+            colTypeSize = 4;
+        } else if (types[i] == 'D') {
+            colType = TDOUBLE; // 64-bit double
+            colTypeSize = 8;
         } else if (types[i] == 'S') {
             colType = TSBYTE;  // signed byte
             colTypeSize = 1;
@@ -250,18 +262,6 @@ int FITSWriter::writeBinaryTable(const std::string& filename,
         } else if (types[i] == 'K') {
             colType = TLONG;   // int64
             colTypeSize = 8;
-        } else if (types[i] == 'E') {
-            colType = TFLOAT;  // 32-bit float
-            colTypeSize = 4;
-        } else if (types[i] == 'D') {
-            colType = TDOUBLE; // 64-bit double
-            colTypeSize = 8;
-        } else if (types[i] == 'U') {
-            colType = TUSHORT; // uint16
-            colTypeSize = 2;
-        } else if (types[i] == 'V') {
-            colType = TUINT;  // uint32 (TULONG if 64-bit)
-            colTypeSize = 4;
         } else {
             std::cerr << "Unknown type code: " << types[i] << std::endl;
             return -1;
@@ -562,7 +562,7 @@ int FITSWriter::writeESPFITSBinaryTable(const std::string& filename, const ESP_P
         alignas(1) uint16_t ESP_304[ESP_INTEGRATIONS_PER_FILE];
         alignas(1) uint16_t ESP_366[ESP_INTEGRATIONS_PER_FILE];
         alignas(1) uint16_t ESP_dark[ESP_INTEGRATIONS_PER_FILE];
-    }; // alignas(1) replaces __attribute__((packed));
+    } __attribute__((packed));
 
     // populate the scalars
     DataRow row = {
@@ -586,6 +586,31 @@ int FITSWriter::writeESPFITSBinaryTable(const std::string& filename, const ESP_P
 
     std::vector<uint8_t> data(sizeof(DataRow));
     memcpy(data.data(), &row, sizeof(DataRow));
+
+    // // SLOWER alternative to memcpy is serialization
+    // std::vector<uint8_t> data;
+    // data.reserve(sizeof(DataRow));
+    // auto append = [&](auto value) {
+    //     uint8_t* ptr = reinterpret_cast<uint8_t*>(&value);
+    //     data.insert(data.end(), ptr, ptr + sizeof(value));
+    // };
+
+    // append(row.yyyydoy);
+    // append(row.sod);
+    // append(row.tai_time_seconds);
+    // append(row.tai_time_subseconds);
+    // append(row.rec_tai_seconds);
+    // append(row.rec_tai_subseconds);
+    // data.insert(data.end(), reinterpret_cast<uint8_t*>(row.ESP_xfer_cnt), reinterpret_cast<uint8_t*>(row.ESP_xfer_cnt) + ESP_INTEGRATIONS_PER_FILE * sizeof(uint16_t));
+    // data.insert(data.end(), reinterpret_cast<uint8_t*>(row.ESP_q0), reinterpret_cast<uint8_t*>(row.ESP_q0) + ESP_INTEGRATIONS_PER_FILE * sizeof(uint16_t));
+    // data.insert(data.end(), reinterpret_cast<uint8_t*>(row.ESP_q1), reinterpret_cast<uint8_t*>(row.ESP_q1) + ESP_INTEGRATIONS_PER_FILE * sizeof(uint16_t));
+    // data.insert(data.end(), reinterpret_cast<uint8_t*>(row.ESP_q2), reinterpret_cast<uint8_t*>(row.ESP_q2) + ESP_INTEGRATIONS_PER_FILE * sizeof(uint16_t));
+    // data.insert(data.end(), reinterpret_cast<uint8_t*>(row.ESP_q3), reinterpret_cast<uint8_t*>(row.ESP_q3) + ESP_INTEGRATIONS_PER_FILE * sizeof(uint16_t));
+    // data.insert(data.end(), reinterpret_cast<uint8_t*>(row.ESP_171), reinterpret_cast<uint8_t*>(row.ESP_171) + ESP_INTEGRATIONS_PER_FILE * sizeof(uint16_t));
+    // data.insert(data.end(), reinterpret_cast<uint8_t*>(row.ESP_257), reinterpret_cast<uint8_t*>(row.ESP_257) + ESP_INTEGRATIONS_PER_FILE * sizeof(uint16_t));
+    // data.insert(data.end(), reinterpret_cast<uint8_t*>(row.ESP_304), reinterpret_cast<uint8_t*>(row.ESP_304) + ESP_INTEGRATIONS_PER_FILE * sizeof(uint16_t));
+    // data.insert(data.end(), reinterpret_cast<uint8_t*>(row.ESP_366), reinterpret_cast<uint8_t*>(row.ESP_366) + ESP_INTEGRATIONS_PER_FILE * sizeof(uint16_t));
+    // data.insert(data.end(), reinterpret_cast<uint8_t*>(row.ESP_dark), reinterpret_cast<uint8_t*>(row.ESP_dark) + ESP_INTEGRATIONS_PER_FILE * sizeof(uint16_t));
 
     return writeBinaryTable(
         filename, data.data(), columnNames.size(), columnNames,
