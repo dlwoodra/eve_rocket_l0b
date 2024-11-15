@@ -25,7 +25,7 @@
 // prototypes
 void print_help();
 void globalStateInit();
-void parseCommandLineArgs(int argc, char* argv[], std::string& filename, bool& skipESP, bool& skipMP, bool& skipRecord);
+void parseCommandLineArgs(int argc, char* argv[]);
 void extern processPackets(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& recordWriter, bool skipRecord);
 void extern processOnePacket(CCSDSReader& pktReader, const std::vector<uint8_t>& packet);
 void extern processMegsAPacket(std::vector<uint8_t> payload, 
@@ -70,10 +70,6 @@ void handleSigint(int signal) {
 }
 
 int main(int argc, char* argv[]) {
-    std::string filename;
-    bool skipESP = false;
-    bool skipMP = false;
-    bool skipRecord = false;
 
     // initialize the programState structure contents
     globalStateInit();
@@ -99,20 +95,28 @@ int main(int argc, char* argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    parseCommandLineArgs(argc, argv, filename, skipESP, skipMP, skipRecord);
+    parseCommandLineArgs(argc, argv);
 
     std::unique_ptr<RecordFileWriter> recordWriter;
-    if (!skipRecord) {
+    if (!globalState.args.skipRecord.load()) {
         recordWriter = std::unique_ptr<RecordFileWriter>(new RecordFileWriter());
         // the c++14 way recordWriter = std::make_unique<RecordFileWriter>();
     }
 
+    std::string filename; // input filename specified on command line
+    if ( globalState.args.fileSpecified.load()) {
+        mtx.lock();
+        filename = globalState.args.filename;
+        mtx.unlock();
+    }
+   
     if (isValidFilename(filename)) {
         // read packets from the file provided in the argument list
         FileInputSource fileSource(filename);
         CCSDSReader fileReader(&fileSource);
 
         if (fileReader.open()) {
+            bool skipRecord = globalState.args.skipRecord.load();
             processPackets(fileReader, recordWriter, skipRecord);
         } else {
             std::cerr << "Failed to open file argument "<< filename << std::endl;
@@ -148,22 +152,26 @@ int main(int argc, char* argv[]) {
     return EXIT_SUCCESS;
 }
 
-void parseCommandLineArgs(int argc, char* argv[], std::string& filename, bool& skipESP, bool& skipMP, bool& skipRecord) {
+void parseCommandLineArgs(int argc, char* argv[]) {
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         if (isValidFilename(arg) && arg[0] != '-') {
-            filename = arg;
+            globalState.args.fileSpecified.store(true);
+            globalState.args.filename = arg;
             LogFileWriter::getInstance().logInfo("Received filename arg: {}", arg);
         } else if (arg == "--skipESP" || arg == "-skipESP") {
-            skipESP = true;
+            globalState.args.skipESP.store(true);
             LogFileWriter::getInstance().logInfo("Received : {}", arg);
         } else if (arg == "--skipMP" || arg == "-skipMP") {
-            skipMP = true;
+            globalState.args.skipMP.store(true);
+            LogFileWriter::getInstance().logInfo("Received : {}", arg);
+        } else if (arg == "--slowReplay" || arg == "-slowReplay") {
+            globalState.args.slowReplay.store(true);
             LogFileWriter::getInstance().logInfo("Received : {}", arg);
         } else if (arg == "--help" || arg == "-help") {
             print_help();
         } else if (arg == "--skipRecord" || arg == "-skipRecord") {
-            skipRecord = true;
+            globalState.args.skipRecord.store(true);
             LogFileWriter::getInstance().logInfo("Received : {}", arg);
         } else {
             LogFileWriter::getInstance().logError("Unknown command line option: " + arg);
