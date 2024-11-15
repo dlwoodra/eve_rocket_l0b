@@ -546,23 +546,23 @@ int FITSWriter::writeESPFITSBinaryTable(const std::string& filename, const ESP_P
 
     //copy data
     struct DataRow {
-        uint32_t yyyydoy;
-        uint32_t sod;
-        uint32_t tai_time_seconds;
-        uint32_t tai_time_subseconds;
-        uint32_t rec_tai_seconds;
-        uint32_t rec_tai_subseconds;
-        uint16_t ESP_xfer_cnt[ESP_INTEGRATIONS_PER_FILE];
-        uint16_t ESP_q0[ESP_INTEGRATIONS_PER_FILE];
-        uint16_t ESP_q1[ESP_INTEGRATIONS_PER_FILE];
-        uint16_t ESP_q2[ESP_INTEGRATIONS_PER_FILE];
-        uint16_t ESP_q3[ESP_INTEGRATIONS_PER_FILE];
-        uint16_t ESP_171[ESP_INTEGRATIONS_PER_FILE];
-        uint16_t ESP_257[ESP_INTEGRATIONS_PER_FILE];
-        uint16_t ESP_304[ESP_INTEGRATIONS_PER_FILE];
-        uint16_t ESP_366[ESP_INTEGRATIONS_PER_FILE];
-        uint16_t ESP_dark[ESP_INTEGRATIONS_PER_FILE];
-    } __attribute__((packed));
+        alignas(1) uint32_t yyyydoy;
+        alignas(1) uint32_t sod;
+        alignas(1) uint32_t tai_time_seconds;
+        alignas(1) uint32_t tai_time_subseconds;
+        alignas(1) uint32_t rec_tai_seconds;
+        alignas(1) uint32_t rec_tai_subseconds;
+        alignas(1) uint16_t ESP_xfer_cnt[ESP_INTEGRATIONS_PER_FILE];
+        alignas(1) uint16_t ESP_q0[ESP_INTEGRATIONS_PER_FILE];
+        alignas(1) uint16_t ESP_q1[ESP_INTEGRATIONS_PER_FILE];
+        alignas(1) uint16_t ESP_q2[ESP_INTEGRATIONS_PER_FILE];
+        alignas(1) uint16_t ESP_q3[ESP_INTEGRATIONS_PER_FILE];
+        alignas(1) uint16_t ESP_171[ESP_INTEGRATIONS_PER_FILE];
+        alignas(1) uint16_t ESP_257[ESP_INTEGRATIONS_PER_FILE];
+        alignas(1) uint16_t ESP_304[ESP_INTEGRATIONS_PER_FILE];
+        alignas(1) uint16_t ESP_366[ESP_INTEGRATIONS_PER_FILE];
+        alignas(1) uint16_t ESP_dark[ESP_INTEGRATIONS_PER_FILE];
+    }; // alignas(1) replaces __attribute__((packed));
 
     // populate the scalars
     DataRow row = {
@@ -634,7 +634,7 @@ int FITSWriter::writeSHKFITSBinaryTable(const std::string& filename, const SHK_P
     const std::string extname = "SHK_DATA";
     std::vector<std::string> columnNames = {
         "YYYYDOY", "SOD", "TAI_TIME_SECONDS", "TAI_TIME_SUBSECONDS",
-        "REC_TAI_SECONDS", "REC_TAI_SUBSECONDS", 
+        "REC_TAI_SECONDS", "REC_TAI_SUBSECONDS", "mode", 
         "FPGA_Board_Temperature", "FPGA_Board_p5_0_Voltage", 
         "FPGA_Board_p3_3_Voltage", "FPGA_Board_p1_2_Voltage",
         "MEGSA_CEB_Temperature", "MEGSA_CPR_Temperature",
@@ -663,6 +663,7 @@ int FITSWriter::writeSHKFITSBinaryTable(const std::string& filename, const SHK_P
 
     std::vector<std::string> columnTypes = {"V", "V", "V", "V", 
         "V", "V", //6 from common time stuff
+        "V", // mode
         "V","V","V","V", "V","V","V","V", "V","V","V","V", "V","V","V","V", //16
         "V","V","V","V", "V","V","V","V", "V","V","V","V", "V","V","V","V", //32
         "V","V","V","V", "V","V","V","V", "V","V","V","V", "V","V","V","V", //48
@@ -672,19 +673,21 @@ int FITSWriter::writeSHKFITSBinaryTable(const std::string& filename, const SHK_P
     for (const auto& type : columnTypes) {
         combinedColumnTypes += type;  // Concatenate each string in columnTypes
     }
-    std::vector<std::string> columnUnits = {"DATE", "s", "s", "s", "s", "s", "", 
+    std::vector<std::string> columnUnits = {"DATE", "s", "s", "s", "s", "s", "", "s", 
     "DN","DN","DN","DN", "DN","DN","DN","DN", "DN","DN","DN","DN", "DN","DN","DN","DN",
     "DN","DN","DN","DN", "DN","DN","DN","DN", "DN","DN","DN","DN", "DN","DN","DN","DN",
     "DN","DN","DN","DN", "DN","DN","DN","DN", "DN","DN","DN","DN", "DN","DN","DN","DN",
     "DN","DN","DN","DN"};
 
+    
     int32_t n = SHK_INTEGRATIONS_PER_FILE;
-    std::vector<int> columnLengths = {1,1,1,1,1,1,
+    std::vector<int> columnLengths = {1,1,1,1,1,1, n,
         n,n,n,n, n,n,n,n, n,n,n,n, n,n,n,n,
         n,n,n,n, n,n,n,n, n,n,n,n, n,n,n,n,
         n,n,n,n, n,n,n,n, n,n,n,n, n,n,n,n,
         n,n,n,n
     };
+    
 
     //copy data
     struct DataRow {
@@ -694,6 +697,7 @@ int FITSWriter::writeSHKFITSBinaryTable(const std::string& filename, const SHK_P
         uint32_t tai_time_subseconds;
         uint32_t rec_tai_seconds;
         uint32_t rec_tai_subseconds;
+        uint32_t mode[SHK_INTEGRATIONS_PER_FILE];
 	    //uint32_t spare0; 						// 0
     	uint32_t FPGA_Board_Temperature[SHK_INTEGRATIONS_PER_FILE];
     	uint32_t FPGA_Board_p5_0_Voltage[SHK_INTEGRATIONS_PER_FILE];
@@ -768,6 +772,7 @@ int FITSWriter::writeSHKFITSBinaryTable(const std::string& filename, const SHK_P
     };
     // populate the arrays
     for (size_t i = 0; i < SHK_INTEGRATIONS_PER_FILE; ++i) {
+        row.mode[i] = SHKStructure.mode[i];
         row.FPGA_Board_Temperature[i] = SHKStructure.FPGA_Board_Temperature[i];
         row.FPGA_Board_p5_0_Voltage[i] = SHKStructure.FPGA_Board_p5_0_Voltage[i];
         row.FPGA_Board_p3_3_Voltage[i] = SHKStructure.FPGA_Board_p3_3_Voltage[i];
