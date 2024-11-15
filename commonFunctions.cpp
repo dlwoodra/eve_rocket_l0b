@@ -306,7 +306,7 @@ void processMegsAPacket(std::vector<uint8_t> payload,
     if ((!isFirstImage) && (((previousSrcSeqCount + 1) % N_PKT_PER_IMAGE) != sourceSequenceCounter)) {
         // there is a gap in the data
         LogFileWriter::getInstance().logError("MA packet out of sequence SSC: {} previous SSC: {}", sourceSequenceCounter, previousSrcSeqCount);
-        std::cout << "processMegsAPacket - data gap SSC: " << sourceSequenceCounter << " previous SSC: " << previousSrcSeqCount << std::endl;
+        std::cout << "MEGS-A packet out of sequence: " << previousSrcSeqCount << " " << sourceSequenceCounter << std::endl;
 
         globalState.dataGapsMA.fetch_add(1, std::memory_order_relaxed);
 
@@ -494,7 +494,7 @@ void processMegsBPacket(std::vector<uint8_t> payload, uint16_t sourceSequenceCou
 void processMegsPPacket(std::vector<uint8_t> payload, 
     uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp) {
     
-    MEGSP_PACKET oneMEGSPStructure = {0};
+    static MEGSP_PACKET oneMEGSPStructure = {0};
     static uint16_t processedPacketCounter = 0;
     static uint16_t lastSourceSequenceCounter = sourceSequenceCounter - 1;
 
@@ -564,8 +564,8 @@ void processMegsPPacket(std::vector<uint8_t> payload,
 void processESPPacket(std::vector<uint8_t> payload, 
     uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp) {
 
-    ESP_PACKET oneESPStructure = {0};
-    static uint16_t processedPacketCounter = 0;
+    static ESP_PACKET oneESPStructure = {0};
+    static uint16_t processedESPPacketCounter = 0;
     static uint16_t lastSourceSequenceCounter = sourceSequenceCounter - 1;
     //static long dataGapsESP = 0;
 
@@ -578,12 +578,13 @@ void processESPPacket(std::vector<uint8_t> payload,
     lastSourceSequenceCounter = sourceSequenceCounter;
 
     //printBytes(&payload[0], 40);
+    //std::cout<<"processESPPacket processedESPPacketCounter:"<<processedESPPacketCounter << std::endl;
 
     populateStructureTimes(oneESPStructure, payload);
     
-    int firstbyteoffset = 10;
+    constexpr int firstbyteoffset = 10;
 
-    int packetoffset = processedPacketCounter * ESP_INTEGRATIONS_PER_PACKET;
+    int packetoffset = processedESPPacketCounter * ESP_INTEGRATIONS_PER_PACKET;
     //std::cout<<"processESPPacket packetoffset "<< packetoffset << std::endl;
     // integrations are sequentially adjacent in the packet
     // pri hdr, sec hdr, mode, integration 1, integrtion 2, etc
@@ -592,6 +593,10 @@ void processESPPacket(std::vector<uint8_t> payload,
     for (int i=0; i<ESP_INTEGRATIONS_PER_PACKET; ++i) {
         int incr = (i*bytesperintegration) + firstbyteoffset;
         int index = packetoffset + i;
+
+        //if (index > 39) {
+        //    std::cout << "processESPPacket index out of range: " << index << std::endl;
+        //}
         // correct order is 
         // quads are 3,4,5,6
         oneESPStructure.ESP_xfer_cnt[index] = (uint16_t (payload[incr]) << 8) | (uint16_t (payload[incr + 1]));
@@ -622,7 +627,7 @@ void processESPPacket(std::vector<uint8_t> payload,
     }
 
 
-    processedPacketCounter++;
+    processedESPPacketCounter++;
 
     {
         globalState.packetsReceived.ESP.fetch_add(1, std::memory_order_relaxed);
@@ -639,7 +644,8 @@ void processESPPacket(std::vector<uint8_t> payload,
 
 
     // ONLY WRITE WHEN STRUCTURE IS FULL
-    if ( processedPacketCounter == ESP_PACKETS_PER_FILE ) {
+    //std::cout<<"processESPPacket 2 - processedESPPacketCounter:"<<processedESPPacketCounter << std::endl;
+    if ( processedESPPacketCounter == ESP_PACKETS_PER_FILE ) {
 
         // Write packet data to a FITS file if applicable
         std::unique_ptr<FITSWriter> fitsFileWriter;
@@ -656,7 +662,7 @@ void processESPPacket(std::vector<uint8_t> payload,
             //std::cout<<"processESPPacket - ESP diode 0 values" << std::endl;
             //printBytes(oneESPStructure.ESP_q0,19);
 
-            processedPacketCounter = 0;
+            processedESPPacketCounter = 0;
             // reset the structure immediately after writing
             oneESPStructure = ESP_PACKET{0}; // c++11 
         }
@@ -667,7 +673,7 @@ void processESPPacket(std::vector<uint8_t> payload,
 void processHKPacket(std::vector<uint8_t> payload, 
     uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp) {
     
-    SHK_PACKET oneSHKStructure = {0};
+    static SHK_PACKET oneSHKStructure = {0};
     static uint16_t processedPacketCounter=0;
     static uint16_t lastSourceSequenceCounter = sourceSequenceCounter - 1;
 
