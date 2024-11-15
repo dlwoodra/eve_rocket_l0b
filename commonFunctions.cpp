@@ -585,7 +585,6 @@ void processESPPacket(std::vector<uint8_t> payload,
     constexpr int firstbyteoffset = 10;
 
     int packetoffset = processedESPPacketCounter * ESP_INTEGRATIONS_PER_PACKET;
-    //std::cout<<"processESPPacket packetoffset "<< packetoffset << std::endl;
     // integrations are sequentially adjacent in the packet
     // pri hdr, sec hdr, mode, integration 1, integrtion 2, etc
     // each ESP integration starts with a 2 byte counter, then 9 2 byte diode measurements
@@ -623,7 +622,6 @@ void processESPPacket(std::vector<uint8_t> payload,
         globalState.esp.ESP_dark[index] = oneESPStructure.ESP_dark[index];
         mtx.unlock();
 
-        //std::cout<<"ESP q0: "<< oneESPStructure.ESP_q0[index] << std::endl;
     }
 
 
@@ -632,14 +630,11 @@ void processESPPacket(std::vector<uint8_t> payload,
     {
         globalState.packetsReceived.ESP.fetch_add(1, std::memory_order_relaxed);
 
-        //globalState.dataGapsESP.fetch_add(dataGapsESP, std::memory_order_relaxed);
-
         mtx.lock();
         globalState.esp.rec_tai_seconds = oneESPStructure.tai_time_seconds;
         globalState.esp.rec_tai_subseconds = oneESPStructure.tai_time_subseconds;
         std::memcpy(globalState.espPayloadBytes, payload.data(), payload.size());
         mtx.unlock();
-        //dataGapsESP = 0; // reset to zero
     }
 
 
