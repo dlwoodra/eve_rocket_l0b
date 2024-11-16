@@ -28,6 +28,10 @@ int Image_Display_Scale_MA = 0;
 int Image_Display_Scale_MB = 0;
 const char* Image_Display_Scale_Items[] = { "Mod 256", "Full Scale", "HistEqual" };
 
+ImPlotColormap selectedMAColormap = ImPlotColormap_Jet;
+ImPlotColormap selectedMBColormap = ImPlotColormap_Jet;
+
+
 enum LimitState {
     NoCheck,
     Green,
@@ -101,6 +105,87 @@ void populatePattern(uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT]) {
         }
     }
 }
+
+std::vector<ImVec4> InterpolateColormap(ImPlotColormap colormap) {
+    int newSize = 256;
+    const int colormapSize = ImPlot::GetColormapSize(colormap);
+    std::vector<ImVec4> interpolatedColormap(newSize);
+
+    for (int i = 0; i < newSize; ++i) {
+        float t = static_cast<float>(i) / (newSize - 1); // Normalize to [0, 1]
+        float colormapIndex = t * (colormapSize - 1);    // Scale to colormap range
+        interpolatedColormap[i] = ImPlot::SampleColormap(colormapIndex / (colormapSize - 1), colormap);
+    }
+
+    return interpolatedColormap;
+}
+
+const char* GetColormapNameByIndex(uint16_t index) {
+    const std::vector<const char*> colormapNames = {
+        "ImPlotColormap_Jet", // index 0
+        "ImPlotColormap_Cool",    // index 1
+        "ImPlotColormap_Hot",    // index 2
+        "ImPlotColormap_Spectral",   // index 3
+        "ImPlotColormap_Plasma",
+        "ImPlotColormap_Viridis",
+        "ImPlotColormap_Paired",
+        "ImPlotColormap_Greys",
+        "ImPlotColormap_RdBu"
+    };
+    if (index >= 0 && index < colormapNames.size()) {
+        return colormapNames[index];
+    }
+    return "Unknown"; // Return a default value if index is out of range
+}
+
+ImPlotColormap GetColormapObjectByIndex(uint16_t index) {
+    const std::vector<ImPlotColormap> colormaps = {
+        ImPlotColormap_Jet,
+        ImPlotColormap_Cool,
+        ImPlotColormap_Hot,
+        ImPlotColormap_Spectral,
+        ImPlotColormap_Plasma,
+        ImPlotColormap_Viridis,
+        ImPlotColormap_Paired,
+        ImPlotColormap_Greys,
+        ImPlotColormap_RdBu
+    };
+    if (index >= 0 && index < colormaps.size()) {
+        return colormaps[index];
+    }
+    return ImPlotColormap_Jet; // Return a default value if index is out of range
+}
+
+// Modify colormap to replace the highest value with white, lowest value with black
+void SetRainbowCustomColormap(bool isMA) {
+    static int customColorMapId = -1;
+    if (customColorMapId == -1) {
+        ImPlotColormap selectedColorMap;
+        if (isMA) {
+            selectedColorMap = GetColormapObjectByIndex(selectedMAColormap);
+        } else {
+            selectedColorMap = GetColormapObjectByIndex(selectedMBColormap);
+        }
+
+        // use a pulldown menu to select the colormap
+
+        // Get the default colormap size
+        std::vector<ImVec4> custom256 = InterpolateColormap(selectedColorMap);
+
+        custom256[0] = ImVec4(0.0f, 0.0f, 0.0f, 1.0f); // Black
+        custom256[255] = ImVec4(1.0f, 1.0f, 1.0f, 1.0f); // White
+
+        // Register the modified colormap
+        if (isMA) {
+            customColorMapId = ImPlot::AddColormap("RainbowCustomMA", custom256.data(), custom256.size(), true);
+        } else {    
+            customColorMapId = ImPlot::AddColormap("RainbowCustomMB", custom256.data(), custom256.size(), true);
+        }
+    }
+    ImPlot::PushColormap(customColorMapId);
+
+    // after using it,need to use ImPlot::PopColormap();
+}   
 
 void histogramEqualization(uint16_t (*image)[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH], std::vector<uint8_t>& textureData) {
     constexpr uint32_t halfHeight = MEGS_IMAGE_HEIGHT / 2;
@@ -244,17 +329,135 @@ void renderInputTextWithColor(const char* label, long value, size_t bufferSize, 
     ImGui::PopStyleColor();
 }
 
+void ShowColormapComboBox(const char* label, int& selectedColormapIndex, ImVec2 previewSize) {
+    // List of available ImPlot colormaps
+    const char* colormapNames[] = {
+        "Jet",
+        "Cool",
+        "Hot",
+        "Spectral",
+        "Plasma",
+        "Viridis",
+        "Paired",
+        "Greys",
+        "RdBu"
+    };
+
+    // Create the Combo box to select the colormap
+    if (ImGui::BeginCombo(label, colormapNames[selectedColormapIndex])) {
+        for (int i = 0; i < IM_ARRAYSIZE(colormapNames); i++) {
+            bool isSelected = (selectedColormapIndex == i);
+            if (ImGui::Selectable(colormapNames[i], isSelected)) {
+                selectedColormapIndex = i;
+            }
+
+            // Highlight the selected item
+            if (isSelected) {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
+    }
+
+    // Colormap preview (small color bar)
+    //ImGui::SameLine();
+    //ImVec2 pos = ImGui::GetCursorScreenPos();
+    //ImDrawList* draw_list = ImGui::GetWindowDrawList();
+    
+    // Get the selected colormap
+    // ImPlotColormap selectedColormap; // = ImPlotColormap_Jet;
+    // switch (selectedColormapIndex) {
+    //     case 0: selectedColormap = ImPlotColormap_Jet; break;
+    //     case 1: selectedColormap = ImPlotColormap_Cool; break;
+    //     case 2: selectedColormap = ImPlotColormap_Hot; break;
+    //     case 3: selectedColormap = ImPlotColormap_Spectral; break;
+    //     case 4: selectedColormap = ImPlotColormap_Plasma; break;
+    //     case 5: selectedColormap = ImPlotColormap_Viridis; break;
+    //     case 6: selectedColormap = ImPlotColormap_Paired; break;
+    //     case 7: selectedColormap = ImPlotColormap_Greys ; break;
+    //     case 8: selectedColormap = ImPlotColormap_RdBu; break;
+    // }
+
+    // // Draw the preview color bar
+    // const int previewWidth = (int)previewSize.x;
+    // const int previewHeight = (int)previewSize.y;
+    // for (int i = 0; i < previewWidth; ++i) {
+
+    //     // Normalize the position to [0, 1] range for interpolation
+    //     float normalizedValue = (float)i / (float)(previewWidth - 1);
+
+    //     // Get the color at the normalized position in the colormap
+    //     ImVec4 col = ImPlot::GetColormapColor(normalizedValue, selectedColormap);
+    //     ImU32 col32 = ImColor(col);
+
+    //     // Draw a vertical line for each color in the colormap
+    //     draw_list->AddRectFilled(ImVec2(pos.x + i, pos.y), ImVec2(pos.x + i + 1, pos.y + previewHeight), ImColor(col32));
+    // }
+}
+
+void ShowColormapSelector(bool isMA) {
+    static int selectedColormapIndex = 0;  // Keep track of the selected colormap
+
+    // Call the ShowColormapComboBox function to display the combo and preview
+    ShowColormapComboBox("Select Colormap", selectedColormapIndex, ImVec2(90, 20));
+
+    // Example plot with the selected colormap
+    ImPlotColormap selectedColormap = ImPlotColormap_Jet;
+    switch (selectedColormapIndex) {
+        case 0: selectedColormap = ImPlotColormap_Jet; break;
+        case 1: selectedColormap = ImPlotColormap_Cool; break;
+        case 2: selectedColormap = ImPlotColormap_Hot; break;
+        case 3: selectedColormap = ImPlotColormap_Spectral; break;
+        case 4: selectedColormap = ImPlotColormap_Plasma; break;
+        case 5: selectedColormap = ImPlotColormap_Viridis; break;
+        case 6: selectedColormap = ImPlotColormap_Paired; break;
+        case 7: selectedColormap = ImPlotColormap_Greys; break;
+        case 8: selectedColormap = ImPlotColormap_RdBu; break;
+    }
+
+    ImPlot::PushColormap(selectedColormap);
+
+    if ( isMA ) {
+        selectedMAColormap = selectedColormap;
+    } else {
+        selectedMBColormap = selectedColormap;
+    }
+}
 
 static void glfw_error_callback(int error, const char* description)
 {
     fprintf(stderr, "GLFW Error %d: %s\n", error, description);
 }
 
+void GenerateColorizedTexture(const std::vector<unsigned char>& intensityData, 
+                              int width, 
+                              int height, 
+                              std::vector<unsigned char>& colorizedData,
+                              ImPlotColormap colormap) {
+    // Ensure the output vector is sized correctly (RGB = 3 channels)
+    colorizedData.resize(width * height * 3);
+
+    // Map intensity values (0-255) to colormap
+    for (int i = 0; i < width * height; ++i) {
+        float normalizedValue = intensityData[i] / 255.0f; // Normalize to [0, 1]
+        ImVec4 color = ImPlot::SampleColormap(normalizedValue, colormap);
+
+        // Convert ImVec4 to RGB (assumes no alpha channel for the texture)
+        colorizedData[i * 3 + 0] = static_cast<unsigned char>(color.x * 255.0f); // Red
+        colorizedData[i * 3 + 1] = static_cast<unsigned char>(color.y * 255.0f); // Green
+        colorizedData[i * 3 + 2] = static_cast<unsigned char>(color.z * 255.0f); // Blue
+    }
+}
+
 // initialize a texture for a MEGS image
-GLuint createProperTextureFromMEGSImage(uint16_t (*data)[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH], int Image_Display_Scale) {
+GLuint createProperTextureFromMEGSImage(uint16_t (*data)[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH], int Image_Display_Scale, bool isMA) {
     std::vector<uint8_t> textureData(MEGS_TOTAL_PIXELS); // 8-bit data for display
 
     scaleImageToTexture(data, textureData, Image_Display_Scale);
+    SetRainbowCustomColormap(isMA);
+    //ImPlotColormap RainbowCustom = ImPlot::GetColormapIndex("RainbowCustom");
+    GenerateColorizedTexture(textureData, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, textureData, selectedMAColormap);
+    ImPlot::PopColormap();
 
     // Generate and bind a new texture
     GLuint textureID;
@@ -286,10 +489,19 @@ void renderUpdatedTextureFromMEGSAImage(GLuint textureID)
     std::vector<uint8_t> textureData(width * height);
 
     scaleImageToTexture(&globalState.megsa.image, textureData, Image_Display_Scale_MA);
+    SetRainbowCustomColormap(true);
+    //ImPlotColormap ColormapSelectedCustom = ImPlot::GetColormapIndex("RainbowCustom");
+    //const char* colormapName = GetColormapNameByIndex(selectedMAColormap);
+    //ImPlotColormap ColormapSelectedCustom = ImPlot::GetColormapIndex(colormapName);
+    std::vector<uint8_t> colorTextureData( width * height * 3); //r,g,b
+    GenerateColorizedTexture(textureData, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, colorTextureData, selectedMAColormap); //ColormapSelectedCustom);
 
     glBindTexture(GL_TEXTURE_2D, textureID);
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, textureData.data());
+
+    //glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, textureData.data());
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, colorTextureData.data());
     glBindTexture(GL_TEXTURE_2D, textureID);
+    ImPlot::PopColormap();
 }
 
 void renderUpdatedTextureFromMEGSBImage(GLuint megsBTextureID)
@@ -316,6 +528,12 @@ void displayMAImageWithControls(GLuint megsATextureID)
     ImGui::SameLine();
     ImGui::SetNextItemWidth(100);
     ImGui::Combo("Scaletype", &Image_Display_Scale_MA, Image_Display_Scale_Items, IM_ARRAYSIZE(Image_Display_Scale_Items));
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(70);
+    ShowColormapSelector(true); // false for MEGS-B
+    ImGui::NewLine();
+
+    ImPlot::PopColormap();
 
     mtx.lock();
     std::string iso8601 = tai_to_iso8601(globalState.megsa.tai_time_seconds);
@@ -346,11 +564,10 @@ void displayMAImageWithControls(GLuint megsATextureID)
 
     ImGui::SameLine();
     // Add a color bar
-    //ImPlotColormap colmap = ImPlot::AddColormap("ImPlotColormap_Jet"); //, globalState.megsa.image, 256);
-    //const char* colormapName = "ImPlotColormap_Jet";
-    //ImPlot::PushColormap(colormapName);
-    ImPlot::ColormapScale("MA Colorbar", 0, 1, ImVec2(100, MEGS_IMAGE_HEIGHT*mazoom)); // Adjust size as needed
-    //ImPlot::PopColormap();
+
+    SetRainbowCustomColormap(true);
+    ImPlot::ColormapScale("MA Colorbar", 0, 1, ImVec2(100, MEGS_IMAGE_HEIGHT*mazoom), "%g", 0, selectedMAColormap); // Adjust size as needed
+    ImPlot::PopColormap();
 
     // dislpay the value of one pixel from each half
     uint16_t hiRowValues[MEGS_IMAGE_WIDTH];
@@ -994,8 +1211,8 @@ int imgui_thread() {
     
     //std::lock_guard<std::mutex> lock(mtx); // lock the mutex
     mtx.lock();
-    GLuint megsATextureID = createProperTextureFromMEGSImage(&globalState.megsa.image, Image_Display_Scale_MA);
-    GLuint megsBTextureID = createProperTextureFromMEGSImage(&globalState.megsb.image, Image_Display_Scale_MB);
+    GLuint megsATextureID = createProperTextureFromMEGSImage(&globalState.megsa.image, Image_Display_Scale_MA, true);
+    GLuint megsBTextureID = createProperTextureFromMEGSImage(&globalState.megsb.image, Image_Display_Scale_MB, false);
     mtx.unlock(); // unlock the mutex
 
     // Test image for verify orientation
