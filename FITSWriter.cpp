@@ -220,57 +220,60 @@ int FITSWriter::writeBinaryTable(const std::string& filename,
     // Write data to the table
     long firstrow = 1;
     long firstelem = 1;
-    const char* pdata = static_cast<const char*>(data);
+    //const char* pdata = static_cast<const char*>(data);
+    char* pdata = (char*)(data);
 
     for (int i = 0; i < columns; ++i) {
 
         int colType = 0;
-        int colTypeSize = 1; //bytes
+        //int colTypeSize = 1; //bytes
+        size_t colTypeSize = sizeof(uint8_t); //bytes
         if (types[i] == 'B') {
             colType = TBYTE;        // unsigned byte
-            colTypeSize = 1;
+            //colTypeSize = 1;
         } else if (types[i] == 'U') {
             colType = TUSHORT; // uint16
-            colTypeSize = 2;
+            colTypeSize = sizeof(uint16_t); //2;
         } else if (types[i] == 'V') {
             colType = TUINT;  // uint32 (TULONG if 64-bit)
-            colTypeSize = 4;
+            colTypeSize = sizeof(uint32_t); //4;
         } else if (types[i] == 'E') {
             colType = TFLOAT;  // 32-bit float
-            colTypeSize = 4;
+            colTypeSize = sizeof(float); //4;
         } else if (types[i] == 'D') {
             colType = TDOUBLE; // 64-bit double
-            colTypeSize = 8;
+            colTypeSize = sizeof(double); //8;
         } else if (types[i] == 'S') {
             colType = TSBYTE;  // signed byte
-            colTypeSize = 1;
+            //colTypeSize = 1;
         } else if (types[i] == 'X') {
             colType = TBIT;
-            colTypeSize = 1;
+            //colTypeSize = 1;
         } else if (types[i] == 'L') {
             colType = TLOGICAL;
-            colTypeSize = 1;
+            //colTypeSize = 1;
         } else if (types[i] == 'A') {
             colType = TSTRING; // chars
-            colTypeSize = 16;
+            colTypeSize = sizeof("0123456789ABCDEFG"); //16;
         } else if (types[i] == 'I') {
             colType = TSHORT;  // int16
-            colTypeSize = 2;
+            colTypeSize = sizeof(uint16_t); //2;
         } else if (types[i] == 'J') {
             colType = TINT;    // int32
-            colTypeSize = 4;
+            colTypeSize = sizeof(uint32_t); //4;
         } else if (types[i] == 'K') {
             colType = TLONG;   // int64
-            colTypeSize = 8;
+            colTypeSize = sizeof(long); //8;
         } else {
             std::cerr << "Unknown type code: " << types[i] << std::endl;
             return -1;
         }
-
+// TODO: look into whether we need to use tformarray to get number of elements for colTypeSize
         fits_write_col(fptr, colType, i + 1, firstrow, firstelem, columnLengths[i], (void*)pdata, &status);
         checkFitsStatus(status);
 
-        pdata += colTypeSize; // Adjusts based on the type of data
+        //pdata += colTypeSize; // Adjusts based on the type of data
+        pdata += (colTypeSize * columnLengths[i]); // Adjusts based on the type of data
     }
 
     // Close the FITS file
@@ -585,7 +588,7 @@ int FITSWriter::writeESPFITSBinaryTable(const std::string& filename, const ESP_P
     }
 
     std::vector<uint8_t> data(sizeof(DataRow));
-    memcpy(data.data(), &row, sizeof(DataRow));
+    memcpy(data.data(), &row, sizeof(DataRow)); // this does not seem to work
 
     // // SLOWER alternative to memcpy is serialization
     // std::vector<uint8_t> data;
