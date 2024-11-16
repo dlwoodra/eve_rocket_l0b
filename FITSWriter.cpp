@@ -220,13 +220,12 @@ int FITSWriter::writeBinaryTable(const std::string& filename,
     // Write data to the table
     long firstrow = 1;
     long firstelem = 1;
-    //const char* pdata = static_cast<const char*>(data);
-    char* pdata = (char*)(data);
+    const char* pdata = static_cast<const char*>(data);
+    //char* pdata = (char*)(data);
 
     for (int i = 0; i < columns; ++i) {
 
         int colType = 0;
-        //int colTypeSize = 1; //bytes
         size_t colTypeSize = sizeof(uint8_t); //bytes
         if (types[i] == 'B') {
             colType = TBYTE;        // unsigned byte
@@ -268,11 +267,10 @@ int FITSWriter::writeBinaryTable(const std::string& filename,
             std::cerr << "Unknown type code: " << types[i] << std::endl;
             return -1;
         }
-// TODO: look into whether we need to use tformarray to get number of elements for colTypeSize
+
         fits_write_col(fptr, colType, i + 1, firstrow, firstelem, columnLengths[i], (void*)pdata, &status);
         checkFitsStatus(status);
 
-        //pdata += colTypeSize; // Adjusts based on the type of data
         pdata += (colTypeSize * columnLengths[i]); // Adjusts based on the type of data
     }
 
