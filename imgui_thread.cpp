@@ -30,7 +30,7 @@ const char* Image_Display_Scale_Items[] = { "Mod 256", "Full Scale", "HistEqual"
 
 ImPlotColormap selectedMAColormap = ImPlotColormap_Jet;
 ImPlotColormap selectedMBColormap = ImPlotColormap_Jet;
-
+constexpr uint16_t numColormaps = 16;
 
 enum LimitState {
     NoCheck,
@@ -120,6 +120,28 @@ std::vector<ImVec4> InterpolateColormap(ImPlotColormap colormap) {
     return interpolatedColormap;
 }
 
+const char* GetColormapShortNameByIndex(uint16_t index) {
+    const char* colormapNames[numColormaps] = {
+        "Jet",
+        "Cool",
+        "Hot",
+        "Spectral",
+        "Plasma",
+        "Viridis",
+        "Paired",
+        "Greys",
+        "RdBu",
+        "BrBG",
+        "PiYG",
+        "Deep",
+        "Dark",
+        "Pastel",
+        "Pink",
+        "Twilight"
+    };
+    return colormapNames[index];
+}
+
 const char* GetColormapNameByIndex(uint16_t index) {
     const std::vector<const char*> colormapNames = {
         "ImPlotColormap_Jet", // index 0
@@ -130,7 +152,14 @@ const char* GetColormapNameByIndex(uint16_t index) {
         "ImPlotColormap_Viridis",
         "ImPlotColormap_Paired",
         "ImPlotColormap_Greys",
-        "ImPlotColormap_RdBu"
+        "ImPlotColormap_RdBu",
+        "ImPlotColormap_BrBG",
+        "ImPlotColormap_PiYG",
+        "ImPlotColormap_Deep",
+        "ImPlotColormap_Dark",
+        "ImPlotColormap_Pastel",
+        "ImPlotColormap_Pink",
+        "ImPlotColormap_Twilight"
     };
     if (index >= 0 && index < colormapNames.size()) {
         return colormapNames[index];
@@ -148,7 +177,14 @@ ImPlotColormap GetColormapObjectByIndex(uint16_t index) {
         ImPlotColormap_Viridis,
         ImPlotColormap_Paired,
         ImPlotColormap_Greys,
-        ImPlotColormap_RdBu
+        ImPlotColormap_RdBu,
+        ImPlotColormap_BrBG,
+        ImPlotColormap_PiYG,
+        ImPlotColormap_Deep,
+        ImPlotColormap_Dark,
+        ImPlotColormap_Pastel,
+        ImPlotColormap_Pink,
+        ImPlotColormap_Twilight
     };
     if (index >= 0 && index < colormaps.size()) {
         return colormaps[index];
@@ -330,24 +366,18 @@ void renderInputTextWithColor(const char* label, long value, size_t bufferSize, 
 }
 
 void ShowColormapComboBox(const char* label, int& selectedColormapIndex, ImVec2 previewSize) {
-    // List of available ImPlot colormaps
-    const char* colormapNames[] = {
-        "Jet",
-        "Cool",
-        "Hot",
-        "Spectral",
-        "Plasma",
-        "Viridis",
-        "Paired",
-        "Greys",
-        "RdBu"
-    };
+    // refer to the enum ImPlotColormap_ for the list of available colormaps
+    // https://github.com/epezent/implot/discussions/168
+    //ImPlot::ColormapButton("##ColormapButton", previewSize, GetColormapObjectByIndex(selectedColormapIndex));
+    //ImGui::SameLine();
 
     // Create the Combo box to select the colormap
-    if (ImGui::BeginCombo(label, colormapNames[selectedColormapIndex])) {
-        for (int i = 0; i < IM_ARRAYSIZE(colormapNames); i++) {
+    if (ImGui::BeginCombo(label, GetColormapShortNameByIndex(selectedColormapIndex))) {
+        for (int i = 0; i < numColormaps; i++) {
             bool isSelected = (selectedColormapIndex == i);
-            if (ImGui::Selectable(colormapNames[i], isSelected)) {
+            ImPlot::ColormapButton("##ColormapButton", ImVec2(30,10), GetColormapObjectByIndex(i));
+            ImGui::SameLine();
+            if (ImGui::Selectable(GetColormapShortNameByIndex(i), isSelected)) {
                 selectedColormapIndex = i;
             }
 
@@ -358,48 +388,13 @@ void ShowColormapComboBox(const char* label, int& selectedColormapIndex, ImVec2 
         }
         ImGui::EndCombo();
     }
-
-    // Colormap preview (small color bar)
-    //ImGui::SameLine();
-    //ImVec2 pos = ImGui::GetCursorScreenPos();
-    //ImDrawList* draw_list = ImGui::GetWindowDrawList();
-    
-    // Get the selected colormap
-    // ImPlotColormap selectedColormap; // = ImPlotColormap_Jet;
-    // switch (selectedColormapIndex) {
-    //     case 0: selectedColormap = ImPlotColormap_Jet; break;
-    //     case 1: selectedColormap = ImPlotColormap_Cool; break;
-    //     case 2: selectedColormap = ImPlotColormap_Hot; break;
-    //     case 3: selectedColormap = ImPlotColormap_Spectral; break;
-    //     case 4: selectedColormap = ImPlotColormap_Plasma; break;
-    //     case 5: selectedColormap = ImPlotColormap_Viridis; break;
-    //     case 6: selectedColormap = ImPlotColormap_Paired; break;
-    //     case 7: selectedColormap = ImPlotColormap_Greys ; break;
-    //     case 8: selectedColormap = ImPlotColormap_RdBu; break;
-    // }
-
-    // // Draw the preview color bar
-    // const int previewWidth = (int)previewSize.x;
-    // const int previewHeight = (int)previewSize.y;
-    // for (int i = 0; i < previewWidth; ++i) {
-
-    //     // Normalize the position to [0, 1] range for interpolation
-    //     float normalizedValue = (float)i / (float)(previewWidth - 1);
-
-    //     // Get the color at the normalized position in the colormap
-    //     ImVec4 col = ImPlot::GetColormapColor(normalizedValue, selectedColormap);
-    //     ImU32 col32 = ImColor(col);
-
-    //     // Draw a vertical line for each color in the colormap
-    //     draw_list->AddRectFilled(ImVec2(pos.x + i, pos.y), ImVec2(pos.x + i + 1, pos.y + previewHeight), ImColor(col32));
-    // }
 }
 
 void ShowColormapSelector(bool isMA) {
     static int selectedColormapIndex = 0;  // Keep track of the selected colormap
 
     // Call the ShowColormapComboBox function to display the combo and preview
-    ShowColormapComboBox("Select Colormap", selectedColormapIndex, ImVec2(90, 20));
+    ShowColormapComboBox("Colormap", selectedColormapIndex, ImVec2(50, 20));
 
     // Example plot with the selected colormap
     ImPlotColormap selectedColormap = ImPlotColormap_Jet;
