@@ -148,11 +148,44 @@ void USBInputSource::handleReceiveFIFOError() {
     Sleep(10);
 }
 
-int32_t USBInputSource::readDataFromUSB() {
-    int16_t blockSize = 1024; // bytes
-    int32_t transferLength = blockSize * 64; // bytes to read
-    size_t bytesRead = dev->ReadFromBlockPipeOut(0xA3, blockSize, transferLength, (unsigned char*)RxBuff);
-    return bytesRead; // if negative, there was an error
+bool readFromCapturedFile(const std::string& filename, uint32_t* buffer, size_t bufferSize) {
+    static std::ifstream inputFile(filename, std::ios::binary);
+    
+    if (!inputFile.is_open()) {
+        std::cerr << "Error: Unable to open file " << filename << std::endl;
+        return false;
+    }
+
+    // Read 64 KB (bufferSize bytes) into the provided buffer
+    inputFile.read(reinterpret_cast<char*>(buffer), bufferSize);
+
+    if (inputFile.gcount() == 0) {
+        std::cerr << "End of file reached or file is empty." << std::endl;
+        return false; // No data read
+    }
+
+    // Fill remaining space in the buffer with zeros if the read is incomplete
+    if (static_cast<size_t>(inputFile.gcount()) < bufferSize) {
+        std::memset(reinterpret_cast<char*>(buffer) + inputFile.gcount(), 0, bufferSize - inputFile.gcount());
+    }
+
+    return true;
+}
+
+// if a capturedFilename is provided, read from the captured file, otherwise read from the USB device
+int32_t USBInputSource::readDataFromUSB(const char * capturedFilename) {
+    constexpr int16_t blockSize = 1024; // bytes
+    constexpr int32_t transferLength = blockSize * 64; // bytes to read
+    if (capturedFilename) {
+        if (!readFromCapturedFile(capturedFilename, reinterpret_cast<uint32_t*>(RxBuff), transferLength)) {
+            std::cerr << "ERROR: Failed to read from captured file: " << capturedFilename << std::endl;
+            return -1;
+        }
+        return transferLength;
+    } else {
+        size_t bytesRead = dev->ReadFromBlockPipeOut(0xA3, blockSize, transferLength, (unsigned char*)RxBuff);
+        return bytesRead; // if negative, there was an error
+    }
 }
 
 extern void processPackets(CCSDSReader& pktReader, \
@@ -610,6 +643,7 @@ void USBInputSource::replaceCGProxRx(CCSDSReader& usbReader)
 
 
 
+
 // *********************************************************************/
 // Function: CGProcRx()
 // Description: Process receive data
@@ -631,12 +665,10 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
 
     static uint16_t bytesCopiedToPktBuff = 0;
 
-    //static uint32_t PktBuff[4096]; // size to largest packet in 32-bit words
-    // this is overkill, largest packet is 1772 bytes with the sync, so 443 words is enough
-    // total packet is 6+1761+1 bytes = 1768 bytes = 442 32-bit words
-    static uint32_t PktBuff[443]; // size to largest packet in 32-bit words
-
-    //std::cout << "calling isReceiveFIFOEmpty" << std::endl;
+    // largest packet is 1772 bytes with the sync, so 443 words is enough
+    // total packet is 6+(pkt_len=1761+1) bytes = 1768 bytes = 442 32-bit words
+    //static uint32_t PktBuff[443]; // size to largest packet in 32-bit words
+    static uint32_t PktBuff[512]; // size to provide ample additional room beyond the largest packet size in 32-bit words
 
     while (isReceiveFIFOEmpty()) {
         handleReceiveFIFOError();
@@ -644,25 +676,25 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
     }
     //std::cout << "continuiing after isReceiveFIFOEmpty" << std::endl;
 
-    // for these params we should call this every ~65-75 milliseconds
+    // for these params we should read the hardware every ~65-75 milliseconds
     // for now just read the buffer iloop times as fast as possible
-    // note 8/30/24 blockPipeOutStatus is 65536
+    // note blockPipeOutStatus is 65536
 
     while (true) {
 
-        // check for overflow, reset linkif needed
-        //std::cout << "calling checkLinkStatus" << std::endl;
+        // check for overflow, reset link if needed
         checkLinkStatus();
-        //std::cout << "calling readDataFromUSB" << std::endl;
 
-        int32_t blockPipeOutStatus = readDataFromUSB();
-        //std::cout << "returned from readDataFromUSB, blockPipeOutStatus:" << blockPipeOutStatus << std::endl;
 
+        //int32_t blockPipeOutStatus = readDataFromUSB();
+        int32_t blockPipeOutStatus = readDataFromUSB("./tmp.bin");
+    
         globalState.totalReadCounter.fetch_add(1, std::memory_order_relaxed);
-        //std::cout << "totalReadCounter:" << globalState.totalReadCounter.load() << std::endl;
         
-        // This is only used for testing. It generates a large file quickly.
-        //writeBinaryToFile("./tmp.bin", RxBuff, sizeof(RxBuff) / sizeof(RxBuff[0]));
+        // This is only used for testing. It generates a large file very quickly.
+        if (globalState.args.writeBinaryRxBuff.load()) {
+            writeBinaryToFile("./tmp.bin", RxBuff, sizeof(RxBuff) / sizeof(RxBuff[0]));
+        }
 
         // returns number of bytes or <0 for errors
 	    if ( blockPipeOutStatus < 0)
@@ -675,7 +707,6 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
             std::cout << "ERROR: CGProxRx blockPipeOutStatus expected 65536 bytes read got "<<blockPipeOutStatus << std::endl;
             LogFileWriter::getInstance().logError("CGProxRx blockPipeOutStatus expected 65536 bytes read got {}", blockPipeOutStatus);
         }
-
 
 	    // cycle through 64 blocks
 	    for (blk = 0; blk <= 63; ++blk)
@@ -695,7 +726,6 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
 			    	{
 			    		pktIdx = 0;
 			    		state = 1;
-			    		//++ctrRxPkts;
 			    	}
 			    	++blkIdx; //move to the next 32-bit word
 			    	--nBlkLeft; //decrement the number of 32-bit words left in the block
@@ -703,39 +733,30 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
 
     			case 1:
     				// get APID index (MSB = 0, LSB = 1)
-    				APID = (pBlk[blkIdx] << 8) & 0x0700; //APID is 11 bits;
-    				APID |= ((pBlk[blkIdx] >> 8) & 0xFF);
+    				APID = ((pBlk[blkIdx] << 8) & 0x0700) | ((pBlk[blkIdx] >> 8) & 0xFF); // 11 bits
                     
-                    //std::cout << "CGProxRx Case 1d apid:" << APID << std::endl;
-
     				// find APID index
                     i = FindAPIDIndex(APID);
 
     				// APID is recognized
     				if (i < nAPID)
     				{
-                        //std::cout << "CGProxRx Case 1d recognized apid" << std::endl;
     					APIDidx = i;
-                        //std::cout << "CGProxRx Case 1da APIDidx:" << APIDidx << std::endl;
-                        //std::cout << "CGProxRx Case 1db LUT_PktLen[APIDidx]:" << LUT_PktLen[APIDidx] << std::endl; //1761
-
     					nPktLeft = BYTES_TO_WORDS(LUT_PktLen[APIDidx]) + 3; // 11 bytes (fits into 3 32-bit words) for primary header and sync
-                        //std::cout << "CGProxRx Case 1dc nPktLeft:" << nPktLeft<< " nBlkLeft:"<< nBlkLeft << std::endl; //443
 
     					// check to see if packet is completed in block
     					if (nPktLeft <= nBlkLeft)
     					{
     						// remaining packet is less then data remaining in block
     						nPktLeft &= 0xFF; // not sure what this does
-                            //std::cout << "CGProxRx Case 1dd -copying - nPktLeft "<<nPktLeft << std::endl;
     						memcpy(PktBuff, &pBlk[blkIdx], WORDS_TO_BYTES(nPktLeft));
                             bytesCopiedToPktBuff += WORDS_TO_BYTES(nPktLeft); // count bytes copied to PktBuff
                             // bytesCopiedToPktBuff should match the total packet length (no sync)
                             LogFileWriter::getInstance().logInfo("CGProxRx: ProcessPacket case 1 blk:{} nPktLeft:{} nBlkLeft:{} ",blk,nPktLeft,nBlkLeft);
     						nBlkLeft -= (nPktLeft);
-    						blkIdx += (nPktLeft); // test
+    						blkIdx += (nPktLeft);
 
-	    					state = 0; // this should make it start looking for the sync marker again
+	    					state = 0; // start looking for the sync marker again
 
                             LogFileWriter::getInstance().logInfo("CGProxRx: case 1 complete Blockdata dump, APID:{} blkIdx:{} nPktLeft:{}",APID,blkIdx-(nPktLeft-2),nPktLeft);
 
@@ -750,7 +771,6 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
 		    			{
 		    				// packet data is longer than data remaining in block
 		    				nBlkLeft &= 0xFF;
-                            //std::cout << "CGProxRx Case 1ddd -copying - state "<<state << std::endl;
                             LogFileWriter::getInstance().logInfo("CGProxRx: case 1, partial packet at end of 64k buffer, Blockdata dump, APID:{} blkIdx:{} nPktLeft:{} pktIdx:{} nBlkLeft:{}",APID,blkIdx,nPktLeft,pktIdx,nBlkLeft);
 		    				memcpy(PktBuff, &pBlk[blkIdx], WORDS_TO_BYTES(nBlkLeft)); //nBlkL
                             bytesCopiedToPktBuff += WORDS_TO_BYTES(nBlkLeft); // count bytes copied to PktBuff
@@ -769,14 +789,12 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
 	    			break;
 
 	    		case 2:
-                    //std::cout << "CGProxRx Case 1e -contination - state "<<state << std::endl;
     				// continuation of packet into new block
 		    		pktIdx &= 0x7FF;
 		    		if (nPktLeft <= nBlkLeft)
 		    		{
 		    			// remaining packet data is less than data left in block
 		    			nPktLeft &= 0xFF;
-                        //std::cout << "Case 1ee -contination copy - state "<<state << std::endl;
 		    			memcpy(&PktBuff[pktIdx], &pBlk[blkIdx], WORDS_TO_BYTES(nPktLeft));
                         bytesCopiedToPktBuff += WORDS_TO_BYTES(nPktLeft); // count bytes copied to PktBuff
                         LogFileWriter::getInstance().logInfo("CGProxRx: ProcessPacket case 2 nPktLeft:{} nBlkLeft:{} blkIdx:{}",nPktLeft,nBlkLeft,blkIdx);
@@ -787,10 +805,6 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
 
                         LogFileWriter::getInstance().logInfo("CGProxRx: case 2 Blockdata dump, APID:{} blkIdx:{} nPktLeft:{}",APID,blkIdx-(nPktLeft-2),nPktLeft);
 
-                        //logBufferContents(pBlk);
-                        // logging the block data
-
-                        //std::cout << "Case 1eee -call GSEProcessPacket - state " <<state<< std::endl;
                         uint32_t expectedNumBytes = LUT_PktLen[APIDidx] + 1 + PACKET_HEADER_SIZE;
                         if (bytesCopiedToPktBuff != (expectedNumBytes)) {
                         //    std::cerr << "***ERROR: CGProxRx case 2 bytesCopiedToPktBuff "<< bytesCopiedToPktBuff<<" does not match expectedNumBytes "<< expectedNumBytes << std::endl;
@@ -803,7 +817,6 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
     				{
     					// packet data is longer than data remaining in block
     					nBlkLeft &= 0xFF;
-                        //std::cout << "Case 1f - memcpy - state " <<state<< std::endl;
     					memcpy(&PktBuff[pktIdx], &pBlk[blkIdx], WORDS_TO_BYTES(nBlkLeft));
                         bytesCopiedToPktBuff += WORDS_TO_BYTES(nBlkLeft); // count bytes copied to PktBuff
     					pktIdx += nBlkLeft;
