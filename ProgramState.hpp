@@ -14,6 +14,7 @@ struct ProgramState {
 		std::atomic<bool> skipMP{false};
 		std::atomic<bool> skipRecord{false};
 		std::atomic<bool> slowReplay{false};
+		std::atomic<bool> writeBinaryRxBuff{false};
 	} args;
 	bool guiEnabled = false;
 	std::atomic<uint16_t> FPGA_reg0{0};
