@@ -686,8 +686,8 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
         checkLinkStatus();
 
 
-        //int32_t blockPipeOutStatus = readDataFromUSB();
-        int32_t blockPipeOutStatus = readDataFromUSB("./tmp.bin");
+        int32_t blockPipeOutStatus = readDataFromUSB();
+        //int32_t blockPipeOutStatus = readDataFromUSB("./tmp.bin");
     
         globalState.totalReadCounter.fetch_add(1, std::memory_order_relaxed);
         
