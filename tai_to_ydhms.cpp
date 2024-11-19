@@ -98,37 +98,38 @@ std::string tai_to_iso8601(uint32_t tai) {
     return iso8601;
 }
 
-// TODO: check if this leaks memory ***
 // append subseconds to the ISO 8601 string and return cstring
-std::string tai_to_iso8601sss(const std::string& isoTimestamp, uint32_t subseconds) {
+//std::string tai_to_iso8601sss(const std::string& isoTimestamp, uint32_t subseconds) {
+//
+//    //std::cout << "isoTimestamp: " << isoTimestamp << " subseconds: " << subseconds << std::endl;
+//    int milliseconds = ((subseconds>>16) * 1000 ) / 65536;
+//    std::ostringstream oss;
+//    oss << isoTimestamp << '.' << std::setw(3) <<std::setprecision(3)<< std::setfill('0') << milliseconds;
+//    
+//    return oss.str().c_str();    
+//}
 
-    int milliseconds = subseconds / 65.536f;
+std::string tai_to_iso8601_with_milliseconds(uint32_t tai_time_seconds, uint32_t tai_time_subseconds) {
+    // Convert TAI seconds to time structure
+    std::time_t time = static_cast<std::time_t>(tai_time_seconds);
+    std::tm* utcTime = std::gmtime(&time);
+
+    // Prepare the base ISO8601 string
     std::ostringstream oss;
-    oss << isoTimestamp << '.' << std::setw(3) << std::setfill('0') << milliseconds;
-    
-    return oss.str();    
+    oss << std::put_time(utcTime, "%Y-%m-%dT%H:%M:%S");
+
+    // Calculate milliseconds from subseconds
+    int milliseconds = ((tai_time_subseconds>>16) * 1000 + 32768) / 65536; // Proper rounding
+
+    // Append milliseconds to the timestamp
+    oss << '.' << std::setw(3) << std::setfill('0') << milliseconds;
+
+    return oss.str();
 }
-
-// convert a std::string to a C-style string
-// int convertToCString(const std::string& str, char** cstr, size_t& size) {
-//     // Fail if the string is empty
-//     if (str.empty()) {
-//         *cstr = nullptr;
-//         size = 0;
-//         return -1; // Indicate failure
-//     }
-
-//     // If cstr already points to allocated memory, free it
-//     if (*cstr != nullptr) {
-//         delete[] *cstr; // Clean up previously allocated memory
-//     }
-
-//     // Allocate new memory and copy the C-string
-//     *cstr = new char[str.size() + 1];  // Allocate memory for new C-style string
-//     std::strcpy(*cstr, str.c_str());   // Copy the contents
-//     size = str.size() + 1;             // Set to size+1 for the null terminator
-//     return 0;                          // Indicate success
-// }
+//    std::string iso8601 = tai_to_iso8601(tai_time_seconds);
+//    std::string newiso8601 = tai_to_iso8601sss(iso8601, tai_time_subseconds);
+//    return newiso8601; // Equivalent to tmpiISO8601sss
+//}
 
 // /*************************************************************
 // * FILENAME: tai_to_ydhms.c
