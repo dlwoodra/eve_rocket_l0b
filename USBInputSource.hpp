@@ -69,7 +69,7 @@ private:
     std::ofstream initializeOutputFile();
     bool isReceiveFIFOEmpty();
     void handleReceiveFIFOError();
-    int32_t readDataFromUSB();
+    int32_t readDataFromUSB(const char* capturedFilename = nullptr);
     int32_t copyToPackedBuffer(uint32_t startIndex, uint32_t* strippedRxBuff);
 
     void discardFirstFourBytes();
