@@ -881,11 +881,30 @@ void updateStatusWindow()
 void plotESPTarget(int lastIdx) {
     constexpr float twoPi = 2.0f * 3.1415926535f;
 
+    float d0 = 32.0f;
+    float d1 = 47.0f;
+    float d2 = 41.0f;
+    float d3 = 39.0f; // dark offsets for the quad diodes, may need to tune these for temperature
+
+    // reset dark if needed automatically
+    d0 = std::min(d0, static_cast<float>(globalState.esp.ESP_q0[lastIdx]));
+    d1 = std::min(d1, static_cast<float>(globalState.esp.ESP_q1[lastIdx]));
+    d2 = std::min(d2, static_cast<float>(globalState.esp.ESP_q2[lastIdx]));
+    d3 = std::min(d3, static_cast<float>(globalState.esp.ESP_q3[lastIdx]));
+
     // Calculate the angles from the quad diodes, this is almost a direct reuse of the code from the flight L0B code
-    float qsum = globalState.esp.ESP_q0[lastIdx] + globalState.esp.ESP_q1[lastIdx] + globalState.esp.ESP_q2[lastIdx] + globalState.esp.ESP_q3[lastIdx];
-	float inv_qsum = 1.f / (qsum + (1.e-10));
-	float qX = ((globalState.esp.ESP_q1[lastIdx] + globalState.esp.ESP_q3[lastIdx]) - (globalState.esp.ESP_q0[lastIdx] + globalState.esp.ESP_q2[lastIdx])) * inv_qsum ;
-	float qY = ((globalState.esp.ESP_q0[lastIdx] + globalState.esp.ESP_q1[lastIdx]) - (globalState.esp.ESP_q2[lastIdx] + globalState.esp.ESP_q3[lastIdx])) * inv_qsum;
+    float qsum = globalState.esp.ESP_q0[lastIdx] + globalState.esp.ESP_q1[lastIdx] + 
+                 globalState.esp.ESP_q2[lastIdx] + globalState.esp.ESP_q3[lastIdx] - (d0 + d1 + d2 + d3);
+    qsum = std::max(qsum, 1.e-6f); // avoid divide by zero
+	float inv_qsum = 1.f / qsum;
+    float dq0 = std::max(globalState.esp.ESP_q0[lastIdx] - d0, 0.0f);
+    float dq1 = std::max(globalState.esp.ESP_q1[lastIdx] - d1, 0.0f);
+    float dq2 = std::max(globalState.esp.ESP_q2[lastIdx] - d2, 0.0f);
+    float dq3 = std::max(globalState.esp.ESP_q3[lastIdx] - d3, 0.0f);
+
+	float qX = ((dq1 + dq3) - (dq0 + dq2)) * inv_qsum;
+	float qY = ((dq0 + dq1) - (dq2 + dq3)) * inv_qsum;
+    
     float maxAbsNorm = (abs(qX) > abs(qY)) ? abs(qX) : abs(qY);
 
     int arcsecX = ((int) ((qX - 2.0) * 1000)) + 1000;
@@ -940,7 +959,7 @@ void plotESPTarget(int lastIdx) {
         // Display the angles below the plot
         ImGui::Text("X Angle: %.2f arcsec", xanglearcsec);
         ImGui::Text("Y Angle: %.2f arcsec", yanglearcsec);
-        renderInputTextWithColor("Qsum:", qsum, 12, true, 100000.f, 200000.f, 100.f, 50.f);
+        renderInputTextWithColor("Qsum-dark:", qsum, 12, true, 100000.f, 200000.f, 500.f, 180.f);
  
         // End the plot
         ImPlot::EndPlot();
@@ -963,10 +982,11 @@ void updateESPWindow()
 
         ImGui::SetNextItemWidth(ImGui::GetFontSize() * 10);
 
-        std::string iso8601 = tai_to_iso8601(globalState.esp.tai_time_seconds);
-        std::string newiso8601 = tai_to_iso8601sss( iso8601, globalState.esp.tai_time_subseconds);
-        const char* tmpiISO8601sss = newiso8601.c_str(); 
-        ImGui::Text("pkt:%s", tmpiISO8601sss);
+        //std::string iso8601 = tai_to_iso8601(globalState.esp.tai_time_seconds);
+        //std::string newiso8601 = tai_to_iso8601sss( iso8601, globalState.esp.tai_time_subseconds);
+        //const char* tmpiISO8601sss = newiso8601.c_str(); 
+        std::string tmpiISO8601sss = tai_to_iso8601_with_milliseconds(globalState.esp.tai_time_seconds, globalState.esp.tai_time_subseconds); 
+        ImGui::Text("pkt:%s", tmpiISO8601sss.c_str());
 
         renderInputTextWithColor("ESP xfer cnt", globalState.esp.ESP_xfer_cnt[index], 12, false, 0.0, 0.9);
         renderInputTextWithColor("ESP q0", globalState.esp.ESP_q0[index], 12, false, 0.0, 0.9);
