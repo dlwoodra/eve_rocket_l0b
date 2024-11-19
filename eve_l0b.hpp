@@ -435,7 +435,7 @@ extern int tai_to_ydhms(uint32_t tai_in, uint16_t *year, uint16_t *doy,
       uint32_t *sod, uint16_t *hh, uint16_t *mm, uint16_t *ss, std::string& iso8601);
 
 extern std::string tai_to_iso8601(uint32_t tai);
-extern std::string tai_to_iso8601sss(const std::string& iso8601, uint32_t tai_subseconds);
+extern std::string tai_to_iso8601_with_milliseconds(uint32_t tai_seconds, uint32_t tai_subseconds);
 
 extern int convertToCString(const std::string& str, const char** cstr, size_t& size);
 
