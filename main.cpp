@@ -165,6 +165,9 @@ void parseCommandLineArgs(int argc, char* argv[]) {
         } else if (arg == "--skipMP" || arg == "-skipMP") {
             globalState.args.skipMP.store(true);
             LogFileWriter::getInstance().logInfo("Received : {}", arg);
+        } else if (arg == "--writeBinaryRxBuff" || arg == "-writeBinaryRxBuff") {
+            globalState.args.writeBinaryRxBuff.store(true);
+            LogFileWriter::getInstance().logInfo("Received : {}", arg);
         } else if (arg == "--slowReplay" || arg == "-slowReplay") {
             globalState.args.slowReplay.store(true);
             LogFileWriter::getInstance().logInfo("Received : {}", arg);
@@ -195,6 +198,8 @@ void print_help() {
   std::cout << " -skipESP will ignore ESP packets (apid 605)" << std::endl;
   std::cout << " -skipMP will ignore MEGS-P packets (apid 604)" << std::endl;
   std::cout << " -skipRecord disable recording of telemetry to a file" << std::endl;
+  std::cout << " -slowReplay adds a sleep to slow down the processing" << std::endl;
+  std::cout << " -writeBinaryRxBuff writes the large binary file of each 64k FIFO read" << std::endl;
   std::cout << " " << std::endl;
   std::cout << "When provided, tlmfilename is a binary file of sync_marker,packet pairs. " << std::endl;
   std::cout << "Recorded files can be played back this way. " << std::endl;
