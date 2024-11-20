@@ -33,7 +33,7 @@ constexpr size_t PACKET_HEADER_SIZE = 6;     // CCSDS packet primary header size
 constexpr uint16_t STANDARD_MEGSAB_PACKET_LENGTH = 1761; // value from CCSDS packet (one less than size)
 constexpr uint16_t STANDARD_MEGSP_PACKET_LENGTH = 1761; //25; // apid 604
 constexpr uint16_t STANDARD_ESP_PACKET_LENGTH = 1761; //89; // apid 605
-constexpr uint16_t STANDARD_HK_PACKET_LENGTH = 1761; //265; // apid 606
+constexpr uint16_t STANDARD_SHK_PACKET_LENGTH = 1759; //265; // apid 606
 
 // David's definitions of APIDs
 constexpr uint16_t MEGSA_APID = 601; // same as SDO EVE
