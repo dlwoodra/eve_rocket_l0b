@@ -99,7 +99,7 @@ const uint16_t USBInputSource::LUT_PktLen[USBInputSource::nAPID] = {
     STANDARD_MEGSAB_PACKET_LENGTH, // MB
     STANDARD_MEGSAB_PACKET_LENGTH, // ESP
     STANDARD_MEGSAB_PACKET_LENGTH, // MP
-    STANDARD_MEGSAB_PACKET_LENGTH }; // SHK
+    STANDARD_SHK_PACKET_LENGTH }; // SHK
 
 constexpr int FindAPIDIndex(uint16_t APID) {
     if (APID == 601) return 0;
@@ -204,25 +204,27 @@ USBInputSource::USBInputSource(const std::string& serialNumber )
         ctrRxBytes(0), 
         commandBytesLeft(0), 
         dev(nullptr),
-        recordFileWriter(std::unique_ptr<RecordFileWriter>(new RecordFileWriter())) {
-        // c++14 allows this recordFileWriter(std::make_unique<RecordFileWriter>())
-
-        open();
-        if (isOpen()) {
-            std::cout << "USBInputSource constructor: recordFileWriter is open" << std::endl;
-        }  
-
-        std::cout << "USBInputSource constructor initialized." << std::endl;
-
-        //powerOnLED();
-      }
+        recordFileWriter(std::unique_ptr<RecordFileWriter>(new RecordFileWriter())) 
+        {
+            // c++14 allows this recordFileWriter(std::make_unique<RecordFileWriter>())
+            open();
+            if (isOpen()) {
+                std::cout << "USBInputSource constructor: recordFileWriter is open" << std::endl;
+            }  
+            std::cout << "USBInputSource constructor initialized." << std::endl;
+            //powerOnLED();
+        }
 
 
 USBInputSource::~USBInputSource() {
     close();
-    //setGSERegister(1, 0); //turn off LED
-    powerOffLED();
-    recordFileWriter->close();
+    if (!globalState.args.readBinAsUSB.load()) {
+        //powerOffLED();
+        //setGSERegister(1, 0); //turn off LED
+        powerOffLED();
+        recordFileWriter->close();
+    }
+
 }
 
 bool USBInputSource::open() {
@@ -670,23 +672,30 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
     //static uint32_t PktBuff[443]; // size to largest packet in 32-bit words
     static uint32_t PktBuff[512]; // size to provide ample additional room beyond the largest packet size in 32-bit words
 
-    while (isReceiveFIFOEmpty()) {
-        handleReceiveFIFOError();
-        std::cout<<"Waiting for data..."<<std::endl;
+    if (!globalState.args.readBinAsUSB.load()) {
+        while (isReceiveFIFOEmpty()) {
+            handleReceiveFIFOError();
+            std::cout<<"Waiting for data..."<<std::endl;
+        }
     }
-    //std::cout << "continuiing after isReceiveFIFOEmpty" << std::endl;
 
     // for these params we should read the hardware every ~65-75 milliseconds
     // for now just read the buffer iloop times as fast as possible
     // note blockPipeOutStatus is 65536
 
+    int32_t blockPipeOutStatus = 0;
     while (true) {
 
-        // check for overflow, reset link if needed
-        checkLinkStatus();
-
-
-        int32_t blockPipeOutStatus = readDataFromUSB();
+        if (!globalState.args.readBinAsUSB.load()) {
+            // check for overflow, reset link if needed
+            checkLinkStatus();
+            // read the data from the USB  - 64k bytes
+            blockPipeOutStatus = readDataFromUSB();
+        } else {
+            // read the data from the captured file
+            blockPipeOutStatus = readDataFromUSB("./tmp.bin");
+        }
+        //int32_t blockPipeOutStatus = readDataFromUSB();
         //int32_t blockPipeOutStatus = readDataFromUSB("./tmp.bin");
     
         globalState.totalReadCounter.fetch_add(1, std::memory_order_relaxed);
@@ -815,7 +824,7 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
     				}
     				else
     				{
-    					// packet data is longer than data remaining in block
+    					// packet data is longer than data remaining in block, stay in state 2
     					nBlkLeft &= 0xFF;
     					memcpy(&PktBuff[pktIdx], &pBlk[blkIdx], WORDS_TO_BYTES(nBlkLeft));
                         bytesCopiedToPktBuff += WORDS_TO_BYTES(nBlkLeft); // count bytes copied to PktBuff
@@ -927,6 +936,11 @@ void USBInputSource::GSEProcessPacket(uint32_t *PktBuff, uint16_t APID, CCSDSRea
         totalPacketCounter = 0;
     }
 
+    if (globalState.args.slowReplay.load()) {
+        // sleep for 1 second
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+
     // extract the pktlength in the byte reversed 32-bit array
     // for MEGS-A, PktBuff[1] is e106, which should be 06e1
     uint16_t packetLength = ((PktBuff[1] >> 8) & 0xFF) | ((PktBuff[1] << 8) & 0xFF00);
@@ -949,10 +963,12 @@ void USBInputSource::GSEProcessPacket(uint32_t *PktBuff, uint16_t APID, CCSDSRea
     // Copy the data from the uint32_t array to the uint8_t vector
     std::memcpy(packetVector.data(), reinterpret_cast<uint8_t*>(PktBuff), packetTotalBytes);
 
-    // write the packet to the record file
-    if (!recordFileWriter->writeSyncAndPacketToRecordFile(packetVector)) {
-        std::cerr << "ERROR: processPackets failed to write packet to record file." << std::endl;
-        return;
+    if (!globalState.args.skipRecord.load()) {
+        // write the packet to the record file
+        if (!recordFileWriter->writeSyncAndPacketToRecordFile(packetVector)) {
+            std::cerr << "ERROR: GSEProcessPacket failed to write packet to record file." << std::endl;
+            return;
+        }
     }
 
     // send packetVector for packet processing
