@@ -954,7 +954,7 @@ void plotESPTarget(int lastIdx) {
         // Plot the data point (as an asterisk)
         ImPlot::SetNextMarkerStyle(ImPlotMarker_Asterisk, 8.0f, ImVec4(1, 0, 0, 1), 1.5f);
         
-        ImPlot::PlotScatter("Measurement", &qX, &qY, 1);
+        ImPlot::PlotScatter("#QuadTarget", &qX, &qY, 1);
  
         // Display the angles below the plot
         ImGui::Text("X Angle: %.2f arcsec", xanglearcsec);
@@ -969,17 +969,10 @@ void plotESPTarget(int lastIdx) {
 void updateESPWindow()
 {
  
-    //int index = ESP_INTEGRATIONS_PER_FILE - 1;
     uint16_t index = globalState.espIndex.load();
 
     if (ImGui::Begin("ESP MEGS-P Diodes")) {
         mtx.lock();
-
-        // need to find the last populated index
-        //while ((index > 1) && (globalState.esp.ESP_xfer_cnt[index] == 0)) 
-        //{
-        //    index--;
-        //}
 
         ImGui::SetNextItemWidth(ImGui::GetFontSize() * 10);
 
