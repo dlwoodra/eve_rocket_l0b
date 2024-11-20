@@ -56,6 +56,7 @@ struct ProgramState {
 	std::atomic<uint32_t> saturatedPixelsMBTop{0};
 	std::atomic<uint32_t> saturatedPixelsMBBottom{0};
 	ESP_PACKET esp;
+	std::atomic<uint16_t> espIndex{0};
 	uint8_t espPayloadBytes[STANDARD_ESP_PACKET_LENGTH+1];
 	MEGSP_PACKET megsp;
 	uint8_t megsPPayloadBytes[STANDARD_MEGSP_PACKET_LENGTH+1];
