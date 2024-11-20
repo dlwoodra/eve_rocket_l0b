@@ -15,6 +15,7 @@ struct ProgramState {
 		std::atomic<bool> skipRecord{false};
 		std::atomic<bool> slowReplay{false};
 		std::atomic<bool> writeBinaryRxBuff{false};
+		std::atomic<bool> readBinAsUSB{false};
 	} args;
 	bool guiEnabled = false;
 	std::atomic<uint16_t> FPGA_reg0{0};
@@ -59,7 +60,7 @@ struct ProgramState {
 	MEGSP_PACKET megsp;
 	uint8_t megsPPayloadBytes[STANDARD_MEGSP_PACKET_LENGTH+1];
 	SHK_PACKET shk;
-	uint8_t shkPayloadBytes[STANDARD_HK_PACKET_LENGTH+1];
+	uint8_t shkPayloadBytes[STANDARD_SHK_PACKET_LENGTH+1];
 };
 
 // Extern declaration
