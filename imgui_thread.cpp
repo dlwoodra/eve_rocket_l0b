@@ -1087,7 +1087,7 @@ void displayFPGAStatus() {
         // to convert reads per second to Mb/s div by 2 (read/s * 65536Bytes/read * 8bits/Byte * 1Mb/(1024*1024bits)=Mb/s )
         float mBps = (readsPerSecond >> 1); // * 65536.0f * 8.0f/ 1024.0f / 1024.0f is same as 2^16 * 2^3 / 2^10 / 2^10 = 2^-1
         renderInputTextWithColor("USB Mb/s", mBps, 6, true, 18.0, 21.0f, 6.9, 0.51, "%.1f");
-        renderInputTextWithColor("pkt/s", packetsPerSecond, 6, true, 600.0, 650.0f, 1.9f, 1.8f);
+        renderInputTextWithColor("pkt/s", packetsPerSecond, 6, true, 850.0, 900.0f, 1.9f, 1.8f);
         renderInputTextWithColor("short pkts", shortPacketCounter, 6, true, 0.5f, 0.9f);
         ImGui::TreePop();
     }
