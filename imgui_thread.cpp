@@ -1022,6 +1022,8 @@ void updateESPWindow()
     ImVec2 plotSize(availableSize.x, halfHeight);
 
     if (ImPlot::BeginPlot("##Quads", plotSize)) { 
+        static ImPlotLegendFlags quadLegendFlags = ImPlotLegendFlags_Horizontal | ImPlotLegendFlags_Outside;
+        ImPlot::SetupLegend(ImPlotLocation_North, quadLegendFlags);
         ImPlot::PlotLine("ESP q0", globalState.esp.ESP_q0, ESP_INTEGRATIONS_PER_FILE);
         ImPlot::PlotLine("ESP q1", globalState.esp.ESP_q1, ESP_INTEGRATIONS_PER_FILE);
         ImPlot::PlotLine("ESP q2", globalState.esp.ESP_q2, ESP_INTEGRATIONS_PER_FILE);
@@ -1033,6 +1035,8 @@ void updateESPWindow()
 
     ImPlot::SetNextAxesToFit();
     if (ImPlot::BeginPlot("##Others", plotSize)) {
+        static ImPlotLegendFlags espOtherLegendFlags = ImPlotLegendFlags_Horizontal | ImPlotLegendFlags_Outside;
+        ImPlot::SetupLegend(ImPlotLocation_North, espOtherLegendFlags);
         ImPlot::PlotLine("ESP 17", globalState.esp.ESP_171, ESP_INTEGRATIONS_PER_FILE);
         ImPlot::PlotLine("ESP 25", globalState.esp.ESP_257, ESP_INTEGRATIONS_PER_FILE);
         ImPlot::PlotLine("ESP 30", globalState.esp.ESP_304, ESP_INTEGRATIONS_PER_FILE);
