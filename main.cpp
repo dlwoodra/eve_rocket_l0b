@@ -97,8 +97,10 @@ int main(int argc, char* argv[]) {
 
     parseCommandLineArgs(argc, argv);
 
+    bool skipRecord = globalState.args.skipRecord.load();
+
     std::unique_ptr<RecordFileWriter> recordWriter;
-    if (!globalState.args.skipRecord.load()) {
+    if (!skipRecord) {
         recordWriter = std::unique_ptr<RecordFileWriter>(new RecordFileWriter());
         // the c++14 way recordWriter = std::make_unique<RecordFileWriter>();
     }
@@ -116,7 +118,6 @@ int main(int argc, char* argv[]) {
         CCSDSReader fileReader(&fileSource);
 
         if (fileReader.open()) {
-            bool skipRecord = globalState.args.skipRecord.load();
             processPackets(fileReader, recordWriter, skipRecord);
         } else {
             std::cerr << "Failed to open file argument "<< filename << std::endl;
@@ -167,6 +168,11 @@ void parseCommandLineArgs(int argc, char* argv[]) {
             LogFileWriter::getInstance().logInfo("Received : {}", arg);
         } else if (arg == "--writeBinaryRxBuff" || arg == "-writeBinaryRxBuff") {
             globalState.args.writeBinaryRxBuff.store(true);
+            LogFileWriter::getInstance().logInfo("Received : {}", arg);
+        } else if (arg == "--readBinAsUSB" || arg == "-readBinAsUSB") {
+            globalState.args.readBinAsUSB.store(true);
+            globalState.args.skipRecord.store(true);
+            globalState.args.slowReplay.store(true);
             LogFileWriter::getInstance().logInfo("Received : {}", arg);
         } else if (arg == "--slowReplay" || arg == "-slowReplay") {
             globalState.args.slowReplay.store(true);
