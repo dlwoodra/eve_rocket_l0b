@@ -1101,7 +1101,7 @@ void displayFPGAStatus() {
     if (( temperature > 49.0f) || (temperature < 20.0f) || (FIFORxEmpty) || (FIFORxError)){
         state = Yellow;
     }
-    if ((FIFORxEmpty) || (FIFORxError) || (temperature > 50.0f) || (temperature < 19.0f)){
+    if ((FIFORxError) || (temperature > 50.0f) || (temperature < 19.0f)){
         state = Red;
     }
 
