@@ -969,16 +969,17 @@ void plotESPTarget(int lastIdx) {
 void updateESPWindow()
 {
  
-    int index = ESP_INTEGRATIONS_PER_FILE - 1;
+    //int index = ESP_INTEGRATIONS_PER_FILE - 1;
+    uint16_t index = globalState.espIndex.load();
 
     if (ImGui::Begin("ESP MEGS-P Diodes")) {
         mtx.lock();
 
         // need to find the last populated index
-        while ((index > 1) && (globalState.esp.ESP_xfer_cnt[index] == 0)) 
-        {
-            index--;
-        }
+        //while ((index > 1) && (globalState.esp.ESP_xfer_cnt[index] == 0)) 
+        //{
+        //    index--;
+        //}
 
         ImGui::SetNextItemWidth(ImGui::GetFontSize() * 10);
 
