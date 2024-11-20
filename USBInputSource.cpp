@@ -751,7 +751,8 @@ void USBInputSource::CGProcRx(CCSDSReader& usbReader)
     				if (i < nAPID)
     				{
     					APIDidx = i;
-    					nPktLeft = BYTES_TO_WORDS(LUT_PktLen[APIDidx]) + 3; // 11 bytes (fits into 3 32-bit words) for primary header and sync
+    					//nPktLeft = BYTES_TO_WORDS(LUT_PktLen[APIDidx]) + 3; // 11 bytes (fits into 3 32-bit words) for primary header and sync
+    					nPktLeft = BYTES_TO_WORDS(LUT_PktLen[APIDidx]) + 2; // 11 bytes (fits into 3 32-bit words) for primary header - NOT including sync
 
     					// check to see if packet is completed in block
     					if (nPktLeft <= nBlkLeft)
