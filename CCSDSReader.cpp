@@ -57,7 +57,7 @@ bool CCSDSReader::readNextPacket(std::vector<uint8_t>& packet) {
   // slow down for debugging
   if ( globalState.args.slowReplay.load() ) {
     //During file processing we should pause
-    std::this_thread::sleep_for(std::chrono::milliseconds(2)); // DELAY, SLOW DOWN FOR TESTING
+    std::this_thread::sleep_for(std::chrono::milliseconds(10)); // DELAY, SLOW DOWN FOR TESTING
   }
 
   if (!findSyncMarker()) {
@@ -75,7 +75,7 @@ bool CCSDSReader::readNextPacket(std::vector<uint8_t>& packet) {
   uint16_t packetLength = getPacketLength(header);
   if ((packetLength != STANDARD_MEGSAB_PACKET_LENGTH) && \
   (packetLength != STANDARD_ESP_PACKET_LENGTH) && \
-  (packetLength != STANDARD_HK_PACKET_LENGTH) && \
+  (packetLength != STANDARD_SHK_PACKET_LENGTH) && \
   (packetLength != STANDARD_MEGSP_PACKET_LENGTH)) {
     std::cout << "ERROR: CCSDSREADER::readNextPacket has unexpected packetLength " << packetLength << std::endl;
     std::cout << " CCSDSREADER::readNextPacket APID with unexpected packetLength " << getAPID(header) << std::endl;
