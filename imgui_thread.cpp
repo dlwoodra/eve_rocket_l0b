@@ -594,13 +594,13 @@ void displayMAImageWithControls(GLuint megsATextureID)
         ImPlot::SetNextAxesToFit();
         ImPlot::BeginPlot("Pixel Values", ImVec2(450, 180));
         std::string label; 
-        label = "Row "+std::to_string(yPosHi+1);
-        ImPlot::PlotLine(label.c_str(), hiRowValues, MEGS_IMAGE_WIDTH);
+        //label = "Row "+std::to_string(yPosHi+1);
+        //ImPlot::PlotLine(label.c_str(), hiRowValues, MEGS_IMAGE_WIDTH);
         label = "Row "+std::to_string(255);
         ImPlot::SetNextLineStyle(ImVec4(235.0f / 255.0f, 137.0f / 255.0f, 52.0f / 255.0f, 1.0f));
         ImPlot::PlotLine(label.c_str(), row255, MEGS_IMAGE_WIDTH);
-        label = "Row "+std::to_string(yPosLo-1);
-        ImPlot::PlotLine(label.c_str(), lowRowValues, MEGS_IMAGE_WIDTH);
+        //label = "Row "+std::to_string(yPosLo-1);
+        //ImPlot::PlotLine(label.c_str(), lowRowValues, MEGS_IMAGE_WIDTH);
         label = "Row "+std::to_string(767);
         ImPlot::PlotLine(label.c_str(), row767, MEGS_IMAGE_WIDTH);
         ImPlot::EndPlot();
@@ -969,7 +969,7 @@ void plotESPTarget(int lastIdx) {
 void updateESPWindow()
 {
  
-    uint16_t index = globalState.espIndex.load();
+    uint16_t espIndex = globalState.espIndex.load();
 
     if (ImGui::Begin("ESP MEGS-P Diodes")) {
         mtx.lock();
@@ -982,19 +982,19 @@ void updateESPWindow()
         std::string tmpiISO8601sss = tai_to_iso8601_with_milliseconds(globalState.esp.tai_time_seconds, globalState.esp.tai_time_subseconds); 
         ImGui::Text("pkt:%s", tmpiISO8601sss.c_str());
 
-        renderInputTextWithColor("ESP xfer cnt", globalState.esp.ESP_xfer_cnt[index], 12, false, 0.0, 0.9);
-        renderInputTextWithColor("ESP q0", globalState.esp.ESP_q0[index], 12, false, 0.0, 0.9);
-        renderInputTextWithColor("ESP q1", globalState.esp.ESP_q1[index], 12, false, 0.0, 0.9);
-        renderInputTextWithColor("ESP q2", globalState.esp.ESP_q2[index], 12, false, 0.0, 0.9);
-        renderInputTextWithColor("ESP q3", globalState.esp.ESP_q3[index], 12, false, 0.0, 0.9);
-        renderInputTextWithColor("ESP 171", globalState.esp.ESP_171[index], 12, false, 0.0, 0.9);
-        renderInputTextWithColor("ESP 257", globalState.esp.ESP_257[index], 12, false, 0.0, 0.9);
-        renderInputTextWithColor("ESP 304", globalState.esp.ESP_304[index], 12, false, 0.0, 0.9);
-        renderInputTextWithColor("ESP 366", globalState.esp.ESP_366[index], 12, false, 0.0, 0.9);
-        renderInputTextWithColor("ESP dark", globalState.esp.ESP_dark[index], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("ESP xfer cnt", globalState.esp.ESP_xfer_cnt[espIndex], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("ESP q0", globalState.esp.ESP_q0[espIndex], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("ESP q1", globalState.esp.ESP_q1[espIndex], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("ESP q2", globalState.esp.ESP_q2[espIndex], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("ESP q3", globalState.esp.ESP_q3[espIndex], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("ESP 171", globalState.esp.ESP_171[espIndex], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("ESP 257", globalState.esp.ESP_257[espIndex], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("ESP 304", globalState.esp.ESP_304[espIndex], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("ESP 366", globalState.esp.ESP_366[espIndex], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("ESP dark", globalState.esp.ESP_dark[espIndex], 12, false, 0.0, 0.9);
 
-        renderInputTextWithColor("MP Ly-a", globalState.megsp.MP_lya[index], 12, false, 0.0, 0.9);
-        renderInputTextWithColor("MP dark", globalState.megsp.MP_dark[index], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MP Ly-a", globalState.megsp.MP_lya[espIndex], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MP dark", globalState.megsp.MP_dark[espIndex], 12, false, 0.0, 0.9);
         mtx.unlock();
         ImGui::End();
     }
@@ -1002,7 +1002,7 @@ void updateESPWindow()
     // Plot the ESP data
     ImGui::Begin("ESP Target");
     mtx.lock();
-    plotESPTarget(index);
+    plotESPTarget(espIndex);
     mtx.unlock();
     ImGui::End();
 
