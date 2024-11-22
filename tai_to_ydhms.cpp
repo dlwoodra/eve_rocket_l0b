@@ -111,12 +111,20 @@ std::string tai_to_iso8601(uint32_t tai) {
 
 std::string tai_to_iso8601_with_milliseconds(uint32_t tai_time_seconds, uint32_t tai_time_subseconds) {
     // Convert TAI seconds to time structure
-    std::time_t time = static_cast<std::time_t>(tai_time_seconds);
-    std::tm* utcTime = std::gmtime(&time);
+    //std::time_t time = static_cast<std::time_t>(tai_time_seconds);
+    //std::tm* utcTime = std::gmtime(&time);
+    
+    // Convert TAI seconds to std::time_t
+    // the time_t is based on the Unix time epoch (1970-01-01 00:00:00 UTC)
+    std::time_t time = static_cast<std::time_t>(tai_time_seconds - (TAI_LEAP_SECONDS) - TAI_EPOCH_OFFSET_TO_UNIX);
+    std::tm utcTime;
+
+    // Use gmtime_r for thread safety (POSIX-compliant)
+    gmtime_r(&time, &utcTime);
 
     // Prepare the base ISO8601 string
     std::ostringstream oss;
-    oss << std::put_time(utcTime, "%Y-%m-%dT%H:%M:%S");
+    oss << std::put_time(&utcTime, "%Y-%m-%dT%H:%M:%S");
 
     // Calculate milliseconds from subseconds
     int milliseconds = ((tai_time_subseconds>>16) * 1000 + 32768) / 65536; // Proper rounding
