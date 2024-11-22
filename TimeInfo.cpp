@@ -11,17 +11,23 @@ void TimeInfo::updateNow() {
 }
 
 void TimeInfo::updateTimeComponents() {
-    std::time_t now_c = std::chrono::system_clock::to_time_t(now);
 
-    std::tm now_tm;
-    gmtime_r(&now_c, &now_tm);
+    // Get the current time point
+    std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
 
-    auto durationSinceEpoch = now.time_since_epoch();
+    // Extract time since epoch
+    std::chrono::system_clock::duration durationSinceEpoch = now.time_since_epoch();
+
+    // Calculate seconds and microseconds since epoch
+    std::chrono::seconds secondsSinceEpoch = std::chrono::duration_cast<std::chrono::seconds>(durationSinceEpoch);
     microsecondsSinceEpoch = std::chrono::duration_cast<std::chrono::microseconds>(durationSinceEpoch).count();
+    utcSubseconds = (microsecondsSinceEpoch % 1'000'000) / 1'000'000.0;
 
-    auto secondsSinceEpoch = std::chrono::duration_cast<std::chrono::seconds>(durationSinceEpoch).count();
-    utcSubseconds = (microsecondsSinceEpoch - (secondsSinceEpoch * MICROSECONDS_PER_SECOND)) / MICROSECONDS_PER_SECOND;
+    // Convert seconds to std::tm
+    std::time_t now_c = secondsSinceEpoch.count();
+    std::tm now_tm = *std::gmtime(&now_c);
 
+    // Extract components
     year = now_tm.tm_year + 1900;
     dayOfYear = now_tm.tm_yday + 1;
     month = now_tm.tm_mon + 1;
@@ -29,6 +35,25 @@ void TimeInfo::updateTimeComponents() {
     hour = now_tm.tm_hour;
     minute = now_tm.tm_min;
     second = now_tm.tm_sec;
+
+    // std::time_t now_c = std::chrono::system_clock::to_time_t(now);
+
+    // std::tm now_tm;
+    // gmtime_r(&now_c, &now_tm);
+
+    // auto durationSinceEpoch = now.time_since_epoch();
+    // microsecondsSinceEpoch = std::chrono::duration_cast<std::chrono::microseconds>(durationSinceEpoch).count();
+
+    // auto secondsSinceEpoch = std::chrono::duration_cast<std::chrono::seconds>(durationSinceEpoch).count();
+    // utcSubseconds = (microsecondsSinceEpoch - (secondsSinceEpoch * MICROSECONDS_PER_SECOND)) / MICROSECONDS_PER_SECOND;
+
+    // year = now_tm.tm_year + 1900;
+    // dayOfYear = now_tm.tm_yday + 1;
+    // month = now_tm.tm_mon + 1;
+    // dayOfMonth = now_tm.tm_mday;
+    // hour = now_tm.tm_hour;
+    // minute = now_tm.tm_min;
+    // second = now_tm.tm_sec;
 }
 
 int TimeInfo::getYear() { return year; }
@@ -42,6 +67,10 @@ int TimeInfo::getSecond() { return second; }
 double TimeInfo::getMicrosecondsSinceEpoch() { return microsecondsSinceEpoch; }
 double TimeInfo::getUTCSubseconds() { return utcSubseconds; }
 
+// between 0 and 2^32 - 1
+uint32_t TimeInfo::getSubSecondTicks() { return (static_cast<uint32_t>(std::round(utcSubseconds * CLOCK_TICKS_PER_SECOND))); }
+
+// between 0.0 and 1.0
 double TimeInfo::getTAISeconds() {
     double tai = (microsecondsSinceEpoch / MICROSECONDS_PER_SECOND) + TAI_LEAP_SECONDS + TAI_EPOCH_OFFSET_TO_UNIX;
     return tai;
