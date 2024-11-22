@@ -3,7 +3,7 @@
 
 constexpr uint32_t startdoy = 1;
 constexpr uint32_t j2000_tai = 1325376000;
-constexpr uint32_t relative_tai = j2000_tai + (86400 * (365 * 5 + 2));
+constexpr uint32_t relative_tai = j2000_tai + (86400 * (365 * 5 + 2)); // for 2005 there are 2 leap days between Jan 1, 2000 and Jan 1,2005
 
 // Function to convert the given time components to an ISO 8601 string
 std::string toISO8601(int year, int dayOfYear, int hour, int minute, int second) {
