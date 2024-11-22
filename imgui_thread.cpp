@@ -531,10 +531,11 @@ void displayMAImageWithControls(GLuint megsATextureID)
     ImPlot::PopColormap();
 
     mtx.lock();
-    std::string iso8601 = tai_to_iso8601(globalState.megsa.tai_time_seconds);
+    //std::string iso8601 = tai_to_iso8601(globalState.megsa.tai_time_seconds);
+    std::string tmpiISO8601sss = tai_to_iso8601_with_milliseconds(globalState.megsa.tai_time_seconds, globalState.megsa.tai_time_subseconds); 
     mtx.unlock();
 
-    ImGui::Text("%s",iso8601.c_str());
+    ImGui::Text("%s",tmpiISO8601sss.c_str());
 
     int32_t yPosHi = globalState.MAypos.load(std::memory_order_relaxed);
 
@@ -622,10 +623,11 @@ void displayMBImageWithControls(GLuint megsBTextureID)
     ImGui::Combo("Scaletype", &Image_Display_Scale_MB, Image_Display_Scale_Items, IM_ARRAYSIZE(Image_Display_Scale_Items));
 
     mtx.lock();
-    std::string iso8601 = tai_to_iso8601(globalState.megsb.tai_time_seconds);
+    //std::string iso8601 = tai_to_iso8601(globalState.megsb.tai_time_seconds);
+    std::string tmpiISO8601sss = tai_to_iso8601_with_milliseconds(globalState.megsb.tai_time_seconds, globalState.megsb.tai_time_subseconds); 
     mtx.unlock();
 
-    ImGui::Text("%s",iso8601.c_str());
+    ImGui::Text("%s",tmpiISO8601sss.c_str());
 
     int32_t yPosHi = globalState.MBypos.load(std::memory_order_relaxed);
 
@@ -772,27 +774,27 @@ void updateStatusWindow()
     mtx.lock();
     if ( ImGui::TreeNode("ESP Raw Packet"))
     {
-        ImGui::Text("ESP Payload: \n%s", ByteArrayToHexString(globalState.espPayloadBytes, sizeof(globalState.espPayloadBytes)).c_str());
+        ImGui::TextWrapped("ESP Payload: \n%s", ByteArrayToHexString(globalState.espPayloadBytes, sizeof(globalState.espPayloadBytes)).c_str());
         ImGui::TreePop();
     }
     if (ImGui::TreeNode("MEGS-P Raw Packet"))
     {
-        ImGui::Text("MP_ Payload: \n%s", ByteArrayToHexString(globalState.megsPPayloadBytes, sizeof(globalState.megsPPayloadBytes)).c_str());
+        ImGui::TextWrapped("MP_ Payload: \n%s", ByteArrayToHexString(globalState.megsPPayloadBytes, sizeof(globalState.megsPPayloadBytes)).c_str());
         ImGui::TreePop();
     }
     if (ImGui::TreeNode("SHK Raw Packet"))
     {
-        ImGui::Text("SHK Payload: \n%s", ByteArrayToHexString(globalState.shkPayloadBytes, sizeof(globalState.shkPayloadBytes)).c_str());
+        ImGui::TextWrapped("SHK Payload: \n%s", ByteArrayToHexString(globalState.shkPayloadBytes, sizeof(globalState.shkPayloadBytes)).c_str());
         ImGui::TreePop();
     }
     if (ImGui::TreeNode("MEGS-A Raw Packet"))
     {
-        ImGui::Text("MA_ Payload: \n%s", ByteArrayToHexString(globalState.megsAPayloadBytes, sizeof(globalState.megsAPayloadBytes)).c_str());
+        ImGui::TextWrapped("MA_ Payload: \n%s", ByteArrayToHexString(globalState.megsAPayloadBytes, sizeof(globalState.megsAPayloadBytes)).c_str());
         ImGui::TreePop();
     }
     if (ImGui::TreeNode("MEGS-B Raw Packet"))
     {
-        ImGui::Text("MB_ Payload: \n%s", ByteArrayToHexString(globalState.megsBPayloadBytes, sizeof(globalState.megsBPayloadBytes)).c_str());
+        ImGui::TextWrapped("MB_ Payload: \n%s", ByteArrayToHexString(globalState.megsBPayloadBytes, sizeof(globalState.megsBPayloadBytes)).c_str());
         ImGui::TreePop();
     }
     mtx.unlock();
