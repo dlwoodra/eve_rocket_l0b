@@ -5,6 +5,7 @@
 #include <ctime>
 #include <iomanip>
 #include <iostream>
+#include <cmath> // for std::round
 #include <sstream>
 
 std::string toISO8601(int year, int dayOfYear, int hour, int minute, int second);
@@ -14,6 +15,7 @@ std::string tai_to_iso8601(uint32_t tai);
 std::string tai_to_iso8601sss(const std::string& isoTimestamp, uint32_t subseconds);
 
 constexpr double TAI_LEAP_SECONDS = 37.0; //update as needed
+constexpr double UNIX_EPOCH_LEAP_SECONDS = 10.0; // TAI leap seconds at the Unix epoch
 
 // static offset is Jan 1 1958 to Jan 1 1970
 constexpr double TAI_EPOCH_OFFSET_TO_UNIX = 378691200.0; // no leap seconds
@@ -23,9 +25,11 @@ constexpr double TAI_EPOCH_OFFSET_TO_UNIX = 378691200.0; // no leap seconds
 
 // GPS has an epoch of Jan 6, 1980 at 0 UTC
 // it is just an offset to TAI
-constexpr double GPS_LEAP_SECONDS = TAI_LEAP_SECONDS - 18.0;
+constexpr double GPS_LEAP_SECONDS = TAI_LEAP_SECONDS - 19.0; //leap sec was 19 at the GPS epoch
 constexpr double GPS_EPOCH_OFFSET_TO_TAI = 694224000.0; // no leap seconds
 constexpr double GPS_EPOCH_OFFSET_TO_UNIX = GPS_EPOCH_OFFSET_TO_TAI - TAI_EPOCH_OFFSET_TO_UNIX;
+
+constexpr uint64_t CLOCK_TICKS_PER_SECOND = 4294967296; // 2^32
 
 constexpr double MICROSECONDS_PER_SECOND = 1000000.0;
 
@@ -48,13 +52,15 @@ public:
     double getUTCSubseconds();
     double getTAISeconds();
     double getTAISubseconds() const;
+    uint32_t getSubSecondTicks();
 
     long calculateTimeDifferenceInMilliseconds(const TimeInfo& other) const;
 
 private:
     std::chrono::system_clock::time_point now;
     int year, dayOfYear, month, dayOfMonth, hour, minute, second;
-    double microsecondsSinceEpoch, utcSubseconds;
+    uint64_t microsecondsSinceEpoch;
+    double utcSubseconds;
 
     static const int64_t taiEpochOffset;
 
