@@ -201,7 +201,7 @@ void populateStructureTimes(T& oneStructure, const std::vector<uint8_t>& payload
     TimeInfo currentTime;
     currentTime.updateNow();
     oneStructure.rec_tai_seconds = currentTime.getTAISeconds();
-    oneStructure.rec_tai_subseconds = currentTime.getTAISubseconds();
+    oneStructure.rec_tai_subseconds = currentTime.getSubSecondTicks();
 
     uint16_t year, doy, hh, mm, ss;
     uint32_t sod;
@@ -539,6 +539,7 @@ void processMegsPPacket(std::vector<uint8_t> payload,
 
     // ONLY WRITE WHEN STRUCTURE IS FULL
     if ( processedPacketCounter == MEGSP_PACKETS_PER_FILE ) {
+
         // Write packet data to a FITS file if applicable
         std::unique_ptr<FITSWriter> fitsFileWriter;
         fitsFileWriter = std::unique_ptr<FITSWriter>(new FITSWriter());
