@@ -763,6 +763,50 @@ std::string ByteArrayToHexString(const std::vector<uint8_t>& payloadBytes)
     return ByteArrayToHexString(payloadBytes.data(), payloadBytes.size());
 }
 
+void updateRawPacketWindow()
+{
+
+    mtx.lock();
+    //if ( ImGui::TreeNodeEx("Raw Packet Payloads", ImGuiTreeNodeFlags_DefaultOpen) )
+    if ( ImGui::TreeNodeEx("Raw Packet Payloads") )
+    {
+
+        if (ImGui::TreeNode("ESP Raw Packet"))
+        {
+            ImGui::TextWrapped("%s", ByteArrayToHexString(globalState.espPayloadBytes, sizeof(globalState.espPayloadBytes)).c_str());
+            ImGui::TreePop();
+        }
+
+        if (ImGui::TreeNode("MEGS-P Raw Packet"))
+        {
+            ImGui::TextWrapped("%s", ByteArrayToHexString(globalState.megsPPayloadBytes, sizeof(globalState.megsPPayloadBytes)).c_str());
+            ImGui::TreePop();
+        }
+
+        if (ImGui::TreeNode("SHK Raw Packet"))
+        {
+            ImGui::TextWrapped("%s", ByteArrayToHexString(globalState.shkPayloadBytes, sizeof(globalState.shkPayloadBytes)).c_str());
+            ImGui::TreePop();
+        }
+
+        if (ImGui::TreeNode("MEGS-A Raw Packet"))
+        {
+            ImGui::TextWrapped("%s", ByteArrayToHexString(globalState.megsAPayloadBytes, sizeof(globalState.megsAPayloadBytes)).c_str());
+            ImGui::TreePop();
+        }
+
+        if (ImGui::TreeNode("MEGS-B Raw Packet"))
+        {
+            ImGui::TextWrapped("%s", ByteArrayToHexString(globalState.megsBPayloadBytes, sizeof(globalState.megsBPayloadBytes)).c_str());
+            ImGui::TreePop();
+        }
+
+        ImGui::TreePop();
+    }
+    mtx.unlock();
+
+}
+
 void updateStatusWindow()
 {
     ImGuiIO& io = ImGui::GetIO();
@@ -771,33 +815,6 @@ void updateStatusWindow()
         ImGui::Text("Refresh rate: %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
         ImGui::TreePop();
     }
-    mtx.lock();
-    if ( ImGui::TreeNode("ESP Raw Packet"))
-    {
-        ImGui::TextWrapped("ESP Payload: \n%s", ByteArrayToHexString(globalState.espPayloadBytes, sizeof(globalState.espPayloadBytes)).c_str());
-        ImGui::TreePop();
-    }
-    if (ImGui::TreeNode("MEGS-P Raw Packet"))
-    {
-        ImGui::TextWrapped("MP_ Payload: \n%s", ByteArrayToHexString(globalState.megsPPayloadBytes, sizeof(globalState.megsPPayloadBytes)).c_str());
-        ImGui::TreePop();
-    }
-    if (ImGui::TreeNode("SHK Raw Packet"))
-    {
-        ImGui::TextWrapped("SHK Payload: \n%s", ByteArrayToHexString(globalState.shkPayloadBytes, sizeof(globalState.shkPayloadBytes)).c_str());
-        ImGui::TreePop();
-    }
-    if (ImGui::TreeNode("MEGS-A Raw Packet"))
-    {
-        ImGui::TextWrapped("MA_ Payload: \n%s", ByteArrayToHexString(globalState.megsAPayloadBytes, sizeof(globalState.megsAPayloadBytes)).c_str());
-        ImGui::TreePop();
-    }
-    if (ImGui::TreeNode("MEGS-B Raw Packet"))
-    {
-        ImGui::TextWrapped("MB_ Payload: \n%s", ByteArrayToHexString(globalState.megsBPayloadBytes, sizeof(globalState.megsBPayloadBytes)).c_str());
-        ImGui::TreePop();
-    }
-    mtx.unlock();
     
     if ( ImGui::TreeNodeEx("Packet Counters", ImGuiTreeNodeFlags_DefaultOpen)) {
         renderInputTextWithColor("601 a59 MEGS-A Pkts", globalState.packetsReceived.MA.load(std::memory_order_relaxed), 12, false, 0.0, 0.9,-100,-200,nullptr,5);
@@ -1298,6 +1315,13 @@ int imgui_thread() {
             {
                 ImGui::Begin("Channel Status");
                 updateStatusWindow();
+                ImGui::End();
+
+            }
+            {
+                // show raw packets in separate window
+                ImGui::Begin("Raw Packets");
+                updateRawPacketWindow();
                 ImGui::End();
             }
 
