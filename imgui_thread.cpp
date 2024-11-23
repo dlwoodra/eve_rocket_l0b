@@ -767,8 +767,8 @@ void updateRawPacketWindow()
 {
 
     mtx.lock();
-    //if ( ImGui::TreeNodeEx("Raw Packet Payloads", ImGuiTreeNodeFlags_DefaultOpen) )
-    if ( ImGui::TreeNodeEx("Raw Packet Payloads") )
+    if ( ImGui::TreeNodeEx("Raw Packet Payloads", ImGuiTreeNodeFlags_DefaultOpen) )
+    //if ( ImGui::TreeNodeEx("Raw Packet Payloads") )
     {
 
         if (ImGui::TreeNode("ESP Raw Packet"))
