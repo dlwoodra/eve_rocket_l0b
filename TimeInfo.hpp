@@ -53,6 +53,7 @@ public:
     double getTAISeconds();
     double getTAISubseconds() const;
     uint32_t getSubSecondTicks();
+    uint32_t ydsod_to_tai(uint16_t year, uint16_t doy, uint32_t sod, uint32_t* taiTime, uint8_t return_with_leap_sec=true);
 
     long calculateTimeDifferenceInMilliseconds(const TimeInfo& other) const;
 
