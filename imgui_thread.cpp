@@ -571,8 +571,8 @@ void displayMAImageWithControls(GLuint megsATextureID)
     uint16_t maxValue = 0;
     uint16_t minValue = 0xFFFF;
 
-    uint16_t row255[MEGS_IMAGE_WIDTH]={0};
-    uint16_t row767[MEGS_IMAGE_WIDTH]={0};
+    uint16_t firstRow[MEGS_IMAGE_WIDTH]={0};
+    uint16_t secondRow[MEGS_IMAGE_WIDTH]={0};
     mtx.lock();
     for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; ++x) {
         hiRowValues[x] = globalState.megsa.image[yPosHi+1][x];
@@ -582,9 +582,6 @@ void displayMAImageWithControls(GLuint megsATextureID)
         if (lowRowValues[x] > maxValue) maxValue =lowRowValues[x];
         if (lowRowValues[x] < minValue) minValue = lowRowValues[x];   
     }
-    std::memcpy(row255, globalState.megsa.image[255], sizeof(row255));
-    std::memcpy(row767, globalState.megsa.image[767], sizeof(row767));
-
     mtx.unlock();
 
     //std::cout<< "Minvalue: " << minValue << " Maxvalue: " << maxValue << std::endl;
@@ -592,18 +589,27 @@ void displayMAImageWithControls(GLuint megsATextureID)
 
     {
         ImGui::Begin("MA Row Plots");
-        ImPlot::SetNextAxesToFit();
-        ImPlot::BeginPlot("Pixel Values", ImVec2(450, 180));
         std::string label; 
-        //label = "Row "+std::to_string(yPosHi+1);
-        //ImPlot::PlotLine(label.c_str(), hiRowValues, MEGS_IMAGE_WIDTH);
-        label = "Row "+std::to_string(255);
+        static int firstRowIdx = 255;
+        static int secondRowIdx = 767;
+
+        ImGui::InputInt("MB FirstRow", &firstRowIdx);
+        ImGui::InputInt("MB SecondRow", &secondRowIdx);
+
+        ImPlot::SetNextAxesToFit();
+        ImPlot::BeginPlot("MA Pixel Values", ImVec2(450, 180));
+
+        mtx.lock();
+        std::memcpy(firstRow, globalState.megsa.image[firstRowIdx], sizeof(firstRow));
+        std::memcpy(secondRow, globalState.megsa.image[secondRowIdx], sizeof(secondRow));
+        mtx.unlock();
+
+        label = "MA Row "+std::to_string(firstRowIdx);
         ImPlot::SetNextLineStyle(ImVec4(235.0f / 255.0f, 137.0f / 255.0f, 52.0f / 255.0f, 1.0f));
-        ImPlot::PlotLine(label.c_str(), row255, MEGS_IMAGE_WIDTH);
-        //label = "Row "+std::to_string(yPosLo-1);
-        //ImPlot::PlotLine(label.c_str(), lowRowValues, MEGS_IMAGE_WIDTH);
-        label = "Row "+std::to_string(767);
-        ImPlot::PlotLine(label.c_str(), row767, MEGS_IMAGE_WIDTH);
+        ImPlot::PlotLine(label.c_str(), firstRow, MEGS_IMAGE_WIDTH);
+
+        label = "MA Row "+std::to_string(secondRowIdx);
+        ImPlot::PlotLine(label.c_str(), secondRow, MEGS_IMAGE_WIDTH);
         ImPlot::EndPlot();
         ImGui::End();
     }
@@ -655,6 +661,8 @@ void displayMBImageWithControls(GLuint megsBTextureID)
     // dislpay the value of one pixel from each half
     uint16_t hiRowValues[MEGS_IMAGE_WIDTH];
     uint16_t lowRowValues[MEGS_IMAGE_WIDTH];
+    uint16_t firstRow[MEGS_IMAGE_WIDTH]={0};
+    uint16_t secondRow[MEGS_IMAGE_WIDTH]={0};
     uint16_t maxValue = 0;
     uint16_t minValue = 0xFFFF;
     mtx.lock();
@@ -668,16 +676,32 @@ void displayMBImageWithControls(GLuint megsBTextureID)
     }
     mtx.unlock();
 
+
     //std::cout<< "Minvalue: " << minValue << " Maxvalue: " << maxValue << std::endl;
 
     {
         ImGui::Begin("MB Row Plots");
+        std::string label; 
+        static int firstRowIdx = 255;
+        static int secondRowIdx = 767;
+
+        ImGui::InputInt("MB FirstRow", &firstRowIdx);
+        ImGui::InputInt("MB SecondRow", &secondRowIdx);
+
         ImPlot::SetNextAxesToFit();
-        ImPlot::BeginPlot("Pixel Values", ImVec2(450, 180));
-        std::string label = "Row "+std::to_string(yPosHi+1);
-        ImPlot::PlotLine(label.c_str(), hiRowValues, MEGS_IMAGE_WIDTH);
-        label = "Row "+std::to_string(yPosLo-1);
-        ImPlot::PlotLine(label.c_str(), lowRowValues, MEGS_IMAGE_WIDTH);
+        ImPlot::BeginPlot("MB Raw Pixel Values", ImVec2(450, 180));
+
+        mtx.lock();
+        std::memcpy(firstRow, globalState.megsb.image[firstRowIdx], sizeof(firstRow));
+        std::memcpy(secondRow, globalState.megsb.image[secondRowIdx], sizeof(secondRow));
+        mtx.unlock();
+
+        label = "MB Row "+std::to_string(firstRowIdx);
+        ImPlot::SetNextLineStyle(ImVec4(235.0f / 255.0f, 137.0f / 255.0f, 52.0f / 255.0f, 1.0f));
+        ImPlot::PlotLine(label.c_str(), firstRow, MEGS_IMAGE_WIDTH);
+
+        label = "MB Row "+std::to_string(secondRowIdx);
+        ImPlot::PlotLine(label.c_str(), secondRow, MEGS_IMAGE_WIDTH);
         ImPlot::EndPlot();
         ImGui::End();
     }
