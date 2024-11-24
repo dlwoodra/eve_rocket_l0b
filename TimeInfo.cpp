@@ -86,6 +86,90 @@ long TimeInfo::calculateTimeDifferenceInMilliseconds(const TimeInfo& other) cons
     return static_cast<int>(milliseconds);
 }
 
+uint32_t TimeInfo::ydsod_to_tai( uint16_t year, uint16_t doy, uint32_t sod,
+		  uint32_t *tai_in, uint8_t return_with_leap_sec  )
+{
+
+  //int32_t get_leap_seconds(uint32_t tai_local, uint32_t *leap_sec_local);
+
+  //
+  //  10) Declare local variables
+  //
+  //constexpr uint32_t j2000_tai=1325376000; /* tai @jan 01, 2000 0:00:00UT no leapsec*/
+  uint32_t leap_sec;
+  uint32_t tai=0;
+  constexpr uint32_t seconds_in_year = 365*86400;
+  constexpr uint32_t extra_seconds_in_leap_year = 86400;
+  constexpr uint32_t tai_epoch_year = 1958;
+
+  //
+  //  20) Check input variable ranges
+  //
+  if (year < tai_epoch_year)
+    {
+      printf("YDSOD_TO_TAI: ERROR - invalid year input %i\n",year);
+      return 1;
+    }
+  if (doy < 1 || doy > 366)
+    {
+      printf("YDSOD_TO_TAI: ERROR - invalid doy input %i\n",doy);
+      return 1;
+    }
+  if (sod > 86399)
+    {
+      printf("YDSOD_TO_TAI: ERROR - invalid sod input %i\n",sod);
+      return 1;
+    }
+
+  
+  //
+  //  30) Accumulate seconds for all years since 1958 to year-1
+  //
+  if ( year > tai_epoch_year )
+  {
+    for (uint32_t i=tai_epoch_year; i<=(year - (uint32_t) 1); i++)
+    {
+	  tai+=seconds_in_year;
+	  if (!(i & 3)) // faster than % 4
+	  { 
+	    tai+=extra_seconds_in_leap_year;
+	  } 
+	}
+  }
+
+  //
+  //  40) Add seconds in the days
+  //
+  tai+=((doy-1)*86400);
+
+  //
+  //  50) Add seconds in sod
+  //
+  tai+=sod;
+
+  //
+  //  60) Assign result to output
+  //
+  *tai_in = tai;
+
+  //
+  //  70) Return if no leap_second is needed
+  //
+  if (return_with_leap_sec == (uint8_t) 0) return 0;
+
+  //
+  //  80) Add leap seconds
+  //
+  get_leap_seconds(tai, &leap_sec);
+  *tai_in+=(leap_sec);
+
+  //
+  //  90) Return
+  //
+  return 0;
+}
+
+
 // int64_t TimeInfo::calculateTAIOffset() {
 //     std::tm taiEpoch = {};
 //     taiEpoch.tm_year = 58 - 1900;
