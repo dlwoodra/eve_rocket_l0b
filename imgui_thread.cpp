@@ -587,32 +587,38 @@ void displayMAImageWithControls(GLuint megsATextureID)
     //std::cout<< "Minvalue: " << minValue << " Maxvalue: " << maxValue << std::endl;
     ImGui::End();
 
+    ImGui::Begin("MA Row Plots");
     {
-        ImGui::Begin("MA Row Plots");
         std::string label; 
         static int firstRowIdx = 255;
         static int secondRowIdx = 767;
 
-        ImGui::InputInt("MB FirstRow", &firstRowIdx);
-        ImGui::InputInt("MB SecondRow", &secondRowIdx);
+        bool isTreeNodeRowSelectOpen = ImGui::TreeNode("Select MA Rows");
+        if (isTreeNodeRowSelectOpen) {
+            ImGui::InputInt("MA FirstRow", &firstRowIdx);
+            ImGui::InputInt("MA SecondRow", &secondRowIdx);
+            ImGui::TreePop();
+        }
 
         ImPlot::SetNextAxesToFit();
-        ImPlot::BeginPlot("MA Pixel Values", ImVec2(450, 180));
+        if (ImPlot::BeginPlot("MA Pixel Values", ImVec2(450, 180))) {
 
-        mtx.lock();
-        std::memcpy(firstRow, globalState.megsa.image[firstRowIdx], sizeof(firstRow));
-        std::memcpy(secondRow, globalState.megsa.image[secondRowIdx], sizeof(secondRow));
-        mtx.unlock();
+            mtx.lock();
+            std::memcpy(firstRow, globalState.megsa.image[firstRowIdx], sizeof(firstRow));
+            std::memcpy(secondRow, globalState.megsa.image[secondRowIdx], sizeof(secondRow));
+            mtx.unlock();
 
-        label = "MA Row "+std::to_string(firstRowIdx);
-        ImPlot::SetNextLineStyle(ImVec4(235.0f / 255.0f, 137.0f / 255.0f, 52.0f / 255.0f, 1.0f));
-        ImPlot::PlotLine(label.c_str(), firstRow, MEGS_IMAGE_WIDTH);
+            label = "MA Row "+std::to_string(firstRowIdx);
+            ImPlot::SetNextLineStyle(ImVec4(235.0f / 255.0f, 137.0f / 255.0f, 52.0f / 255.0f, 1.0f));
+            ImPlot::PlotLine(label.c_str(), firstRow, MEGS_IMAGE_WIDTH);
 
-        label = "MA Row "+std::to_string(secondRowIdx);
-        ImPlot::PlotLine(label.c_str(), secondRow, MEGS_IMAGE_WIDTH);
-        ImPlot::EndPlot();
-        ImGui::End();
+            label = "MA Row "+std::to_string(secondRowIdx);
+            ImPlot::PlotLine(label.c_str(), secondRow, MEGS_IMAGE_WIDTH);
+            ImPlot::EndPlot();
+        }
+
     }
+    ImGui::End();
 
 }
 
@@ -679,32 +685,38 @@ void displayMBImageWithControls(GLuint megsBTextureID)
 
     //std::cout<< "Minvalue: " << minValue << " Maxvalue: " << maxValue << std::endl;
 
+    ImGui::Begin("MB Row Plots");
     {
-        ImGui::Begin("MB Row Plots");
         std::string label; 
         static int firstRowIdx = 255;
         static int secondRowIdx = 767;
 
-        ImGui::InputInt("MB FirstRow", &firstRowIdx);
-        ImGui::InputInt("MB SecondRow", &secondRowIdx);
+        bool isTreeNodeRowSelectOpen = ImGui::TreeNode("Select MB Rows");
+        if (isTreeNodeRowSelectOpen) {
+            ImGui::InputInt("MB FirstRow", &firstRowIdx);
+            ImGui::InputInt("MB SecondRow", &secondRowIdx);
+            ImGui::TreePop();
+        }
 
         ImPlot::SetNextAxesToFit();
-        ImPlot::BeginPlot("MB Raw Pixel Values", ImVec2(450, 180));
+        if (ImPlot::BeginPlot("MB Raw Pixel Values", ImVec2(450, 180))) 
+        {
 
-        mtx.lock();
-        std::memcpy(firstRow, globalState.megsb.image[firstRowIdx], sizeof(firstRow));
-        std::memcpy(secondRow, globalState.megsb.image[secondRowIdx], sizeof(secondRow));
-        mtx.unlock();
+            mtx.lock();
+            std::memcpy(firstRow, globalState.megsb.image[firstRowIdx], sizeof(firstRow));
+            std::memcpy(secondRow, globalState.megsb.image[secondRowIdx], sizeof(secondRow));
+            mtx.unlock();
 
-        label = "MB Row "+std::to_string(firstRowIdx);
-        ImPlot::SetNextLineStyle(ImVec4(235.0f / 255.0f, 137.0f / 255.0f, 52.0f / 255.0f, 1.0f));
-        ImPlot::PlotLine(label.c_str(), firstRow, MEGS_IMAGE_WIDTH);
+            label = "MB Row "+std::to_string(firstRowIdx);
+            ImPlot::SetNextLineStyle(ImVec4(235.0f / 255.0f, 137.0f / 255.0f, 52.0f / 255.0f, 1.0f));
+            ImPlot::PlotLine(label.c_str(), firstRow, MEGS_IMAGE_WIDTH);
 
-        label = "MB Row "+std::to_string(secondRowIdx);
-        ImPlot::PlotLine(label.c_str(), secondRow, MEGS_IMAGE_WIDTH);
-        ImPlot::EndPlot();
-        ImGui::End();
+            label = "MB Row "+std::to_string(secondRowIdx);
+            ImPlot::PlotLine(label.c_str(), secondRow, MEGS_IMAGE_WIDTH);
+            ImPlot::EndPlot();
+        }
     }
+    ImGui::End();
 
 }
 
@@ -1014,10 +1026,11 @@ void updateESPWindow()
  
     uint16_t espIndex = globalState.espIndex.load();
 
-    if (ImGui::Begin("ESP MEGS-P Diodes")) {
+    ImGui::Begin("ESP MEGS-P Diodes");
+    {
         mtx.lock();
 
-        ImGui::SetNextItemWidth(ImGui::GetFontSize() * 10);
+        //ImGui::SetNextItemWidth(ImGui::GetFontSize() * 10);
 
         //std::string iso8601 = tai_to_iso8601(globalState.esp.tai_time_seconds);
         //std::string newiso8601 = tai_to_iso8601sss( iso8601, globalState.esp.tai_time_subseconds);
@@ -1039,8 +1052,8 @@ void updateESPWindow()
         renderInputTextWithColor("MP Ly-a", globalState.megsp.MP_lya[espIndex], 12, false, 0.0, 0.9);
         renderInputTextWithColor("MP dark", globalState.megsp.MP_dark[espIndex], 12, false, 0.0, 0.9);
         mtx.unlock();
-        ImGui::End();
     }
+    ImGui::End();
 
     // Plot the ESP data
     ImGui::Begin("ESP Target");
