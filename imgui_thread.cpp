@@ -562,7 +562,7 @@ void displayMAImageWithControls(GLuint megsATextureID)
     // Add a color bar
 
     SetRainbowCustomColormap(true);
-    ImPlot::ColormapScale("MA Colorbar", 0, 1, ImVec2(100, MEGS_IMAGE_HEIGHT*mazoom), "%g", 0, selectedMAColormap); // Adjust size as needed
+    ImPlot::ColormapScale("MA Colorbar", 0.0f, 255.0f, ImVec2(100, MEGS_IMAGE_HEIGHT*mazoom), "%g", 0, selectedMAColormap); // Adjust size as needed
     ImPlot::PopColormap();
 
     // dislpay the value of one pixel from each half
