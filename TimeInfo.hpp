@@ -39,16 +39,10 @@ public:
     TimeInfo();
     void updateNow();
 
-    //void updateTimeComponents();
-
-    int getYear();
-    int getDayOfYear();
-    int getMonth();
-    int getDayOfMonth();
-    int getHour();
     int getMinute();
-    int getSecond();
+
     double getMicrosecondsSinceEpoch();
+
     double getUTCSubseconds();
     double getTAISeconds();
     double getTAISubseconds() const;
@@ -59,14 +53,16 @@ public:
 
 private:
     std::chrono::system_clock::time_point now;
-    int year, dayOfYear, month, dayOfMonth, hour, minute, second;
+
+    int minute;
     uint64_t microsecondsSinceEpoch;
+    uint64_t microSeconds=0;
     double utcSubseconds;
 
     static const int64_t taiEpochOffset;
 
     void updateTimeComponents();
-    //static int64_t calculateTAIOffset();
+
 };
 
 
