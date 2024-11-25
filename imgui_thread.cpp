@@ -851,7 +851,31 @@ void updateStatusWindow()
         ImGui::Text("Refresh rate: %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
         ImGui::TreePop();
     }
-    
+
+    if ( ImGui::TreeNode("Clock Status") )
+    {
+        mtx.lock();
+        double eTAI    = globalState.esp.tai_time_seconds;
+        double eTAIsub = globalState.esp.tai_time_subseconds;
+        double rTAI    = globalState.esp.rec_tai_seconds;
+        double rTAIsub = globalState.esp.rec_tai_subseconds;
+        mtx.unlock();
+
+        //ImGui::Text("eTAI: %.3f ", eTAI);
+        //ImGui::Text("eTAIsub: %.3f ", eTAIsub);
+        //ImGui::Text("rTAI: %.3f ", rTAI);
+        //ImGui::Text("rTAIsub: %.3f ", rTAIsub);
+
+        double espTAI = tai_ss(eTAI, eTAIsub);
+        double espRecTAI = tai_ss(rTAI, rTAIsub);
+
+        ImGui::Text("Pkt TAI: %.3f ", espTAI);
+        ImGui::Text("Rec TAI: %.3f ", espRecTAI);
+        renderInputTextWithColor("Rec-Pkt (millisec)", 1.e3 * (espRecTAI - espTAI), 12, true, 70.0f, 100.0f, -70.f, -100.0f, "%.3f", 7);
+        ImGui::TreePop();
+    }
+
+
     if ( ImGui::TreeNodeEx("Packet Counters", ImGuiTreeNodeFlags_DefaultOpen)) {
         renderInputTextWithColor("601 a59 MEGS-A Pkts", globalState.packetsReceived.MA.load(std::memory_order_relaxed), 12, false, 0.0, 0.9,-100,-200,nullptr,5);
         renderInputTextWithColor("602 a5a MEGS-B Pkts", globalState.packetsReceived.MB.load(std::memory_order_relaxed), 12, false, 0.0, 0.9,-100,-200,nullptr,5);
