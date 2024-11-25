@@ -191,7 +191,7 @@ uint32_t payloadToTAITimeSubseconds(const std::vector<uint8_t>& payload) {
 }
 
 double tai_ss(uint32_t tai_seconds, uint32_t tai_subseconds) {
-    return tai_seconds + ((tai_subseconds>>16) / 65536.0f);
+    return (double) tai_seconds + (double) ((tai_subseconds>>16) / 65536.0f);
 }
 
 
