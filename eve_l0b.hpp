@@ -191,19 +191,9 @@ extern MEGS_STATS_STRUCT megs_stats;
 
 struct HEADERS
 {
-	//uint8_t aos_version;
-	//uint8_t sc_id;
-	//uint8_t vcdu_id;
 	uint32_t vcdu_counter;
-	//bool replay_flag;
-	//uint8_t im_pdu_id;
-	//uint64_t im_pdu_seq_counter;
 	uint16_t file_header_ptr;
-	//uint8_t version;
-	//bool type;
-	//bool secondary_header_flag;
 	uint16_t app_id;
-	//uint8_t segmentation_flag;
 	uint16_t source_sequence_counter;
 	uint16_t packet_length;
 	uint32_t tai_time_seconds;
