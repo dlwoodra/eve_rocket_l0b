@@ -190,6 +190,12 @@ uint32_t payloadToTAITimeSubseconds(const std::vector<uint8_t>& payload) {
            (static_cast<uint32_t>(payload[4]) << 16);
 }
 
+double tai_ss(uint32_t tai_seconds, uint32_t tai_subseconds) {
+    return tai_seconds + ((tai_subseconds>>16) / 65536.0f);
+}
+
+
+
 // use template to allow any of the data structures to have the time variables populated
 template <typename T>
 void populateStructureTimes(T& oneStructure, const std::vector<uint8_t>& payload) {
@@ -294,6 +300,8 @@ void processMegsAPacket(std::vector<uint8_t> payload,
         mtx.lock();
         globalState.megsa.tai_time_seconds = oneMEGSStructure.tai_time_seconds;
         globalState.megsa.tai_time_subseconds = oneMEGSStructure.tai_time_subseconds;
+        globalState.megsa.rec_tai_seconds = oneMEGSStructure.rec_tai_seconds;
+        globalState.megsa.rec_tai_subseconds = oneMEGSStructure.rec_tai_subseconds;
         globalState.megsa.sod = oneMEGSStructure.sod;
         globalState.megsa.yyyydoy = oneMEGSStructure.yyyydoy;
 
@@ -419,6 +427,8 @@ void processMegsBPacket(std::vector<uint8_t> payload, uint16_t sourceSequenceCou
         mtx.lock();
         globalState.megsb.tai_time_seconds = oneMEGSStructure.tai_time_seconds;
         globalState.megsb.tai_time_subseconds = oneMEGSStructure.tai_time_subseconds;
+        globalState.megsb.rec_tai_seconds = oneMEGSStructure.rec_tai_seconds;
+        globalState.megsb.rec_tai_subseconds = oneMEGSStructure.rec_tai_subseconds;
         globalState.megsb.sod = oneMEGSStructure.sod;
         globalState.megsb.yyyydoy = oneMEGSStructure.yyyydoy;
 
@@ -533,6 +543,10 @@ void processMegsPPacket(std::vector<uint8_t> payload,
     {
         globalState.packetsReceived.MP.fetch_add(1);
         mtx.lock();
+        globalState.megsp.tai_time_seconds = oneMEGSPStructure.tai_time_seconds;
+        globalState.megsp.tai_time_subseconds = oneMEGSPStructure.tai_time_subseconds;
+        globalState.megsp.rec_tai_seconds = oneMEGSPStructure.rec_tai_seconds;
+        globalState.megsp.rec_tai_subseconds = oneMEGSPStructure.rec_tai_subseconds;
         std::memcpy(globalState.megsPPayloadBytes, payload.data(), payload.size());
         mtx.unlock();
     }
@@ -568,13 +582,11 @@ void processESPPacket(std::vector<uint8_t> payload,
     static ESP_PACKET oneESPStructure = {0};
     static uint16_t processedESPPacketCounter = 0;
     static uint16_t lastSourceSequenceCounter = sourceSequenceCounter - 1;
-    //static long dataGapsESP = 0;
 
     if ( ((lastSourceSequenceCounter + 1) % 16384) != sourceSequenceCounter) {
         LogFileWriter::getInstance().logError("ESP packet out of sequence: {} {}", lastSourceSequenceCounter, sourceSequenceCounter);
         std::cout << "ESP packet out of sequence: " << lastSourceSequenceCounter << " " << sourceSequenceCounter << std::endl;
         globalState.dataGapsESP.fetch_add(1, std::memory_order_relaxed);
-        //dataGapsESP++;
         }
     lastSourceSequenceCounter = sourceSequenceCounter;
 
@@ -613,8 +625,6 @@ void processESPPacket(std::vector<uint8_t> payload,
         globalState.espIndex.store(index, std::memory_order_relaxed);
         
         mtx.lock();
-        globalState.esp.tai_time_seconds = oneESPStructure.tai_time_seconds;
-        globalState.esp.tai_time_subseconds = oneESPStructure.tai_time_subseconds;
         globalState.esp.ESP_xfer_cnt[index] = oneESPStructure.ESP_xfer_cnt[index];
         globalState.esp.ESP_q0[index] = oneESPStructure.ESP_q0[index];
         globalState.esp.ESP_q1[index] = oneESPStructure.ESP_q1[index];
@@ -636,8 +646,10 @@ void processESPPacket(std::vector<uint8_t> payload,
         globalState.packetsReceived.ESP.fetch_add(1, std::memory_order_relaxed);
 
         mtx.lock();
-        globalState.esp.rec_tai_seconds = oneESPStructure.tai_time_seconds;
-        globalState.esp.rec_tai_subseconds = oneESPStructure.tai_time_subseconds;
+        globalState.esp.tai_time_seconds = oneESPStructure.tai_time_seconds;
+        globalState.esp.tai_time_subseconds = oneESPStructure.tai_time_subseconds;
+        globalState.esp.rec_tai_seconds = oneESPStructure.rec_tai_seconds;
+        globalState.esp.rec_tai_subseconds = oneESPStructure.rec_tai_subseconds;
         std::memcpy(globalState.espPayloadBytes, payload.data(), payload.size());
         mtx.unlock();
     }
@@ -821,6 +833,10 @@ void processHKPacket(std::vector<uint8_t> payload,
     {
         globalState.packetsReceived.SHK.fetch_add(1, std::memory_order_relaxed);
         mtx.lock();        
+        globalState.shk.tai_time_seconds = oneSHKStructure.tai_time_seconds;
+        globalState.shk.tai_time_subseconds = oneSHKStructure.tai_time_subseconds;
+        globalState.shk.rec_tai_seconds = oneSHKStructure.rec_tai_seconds;
+        globalState.shk.rec_tai_subseconds = oneSHKStructure.rec_tai_subseconds;
         std::memcpy(globalState.shkPayloadBytes, payload.data(), payload.size());
         mtx.unlock();
     }
