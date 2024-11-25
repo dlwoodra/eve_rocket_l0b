@@ -28,7 +28,6 @@
 
 //prototypes
 bool isValidFilename(const std::string& filename);
-//std::vector<uint16_t> transposeImage(const uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT]);
 
 void processPackets(CCSDSReader& pktReader, std::unique_ptr<RecordFileWriter>& recordWriter, bool skipRecord);
 void processOnePacket(CCSDSReader& pktReader, const std::vector<uint8_t>& packet);
@@ -54,10 +53,9 @@ std::vector<uint16_t> transposeImageTo1D(const uint16_t image[MEGS_IMAGE_HEIGHT]
 uint32_t payloadBytesToUint32(const std::vector<uint8_t>& payload, const int32_t offsetByte);
 uint32_t payloadToTAITimeSeconds(const std::vector<uint8_t>& payload);
 uint32_t payloadToTAITimeSubseconds(const std::vector<uint8_t>& payload);
-//void populateStructureTimes(MEGS_IMAGE_REC& oneStructure, const std::vector<uint8_t>& payload);
-//void populateStructureTimes(MEGSP_PACKET& oneStructure, const std::vector<uint8_t>& payload);
-//void populateStructureTimes(ESP_PACKET& oneStructure, const std::vector<uint8_t>& payload);
-//void populateStructureTimes(SHK_PACKET& oneStructure, const std::vector<uint8_t>& payload);
+
+double tai_ss(uint32_t tai_secods, uint32_t tai_subseconds);
+
 void countSaturatedPixels(const uint16_t image[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH],
                           uint32_t& saturatedPixelsTop,
                           uint32_t& saturatedPixelsBottom,
