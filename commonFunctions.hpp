@@ -61,5 +61,4 @@ void countSaturatedPixels(const uint16_t image[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WID
                           uint32_t& saturatedPixelsBottom,
                           bool testPattern = false);
 
-
 #endif // COMMONFUNCTIONS_H
