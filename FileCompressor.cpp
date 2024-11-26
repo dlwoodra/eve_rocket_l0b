@@ -3,29 +3,7 @@
 // Public method to start the compression in a separate thread
 void FileCompressor::compressFile(const std::string& inputFilename) {
     compressAndTime(inputFilename);
-    // // Create a compression thread
-    // std::thread compressionThread(&FileCompressor::compressAndTime, this, inputFilename);
-    // if ( !globalState.running.load() ) {
-    //     compressionThread.join(); // Wait for the thread to finish
-    // } else {
-    // compressionThread.detach(); // Detach the thread, don't block waiting for it
-    // }
 }
-
-// void FileCompressor::compressFile(const std::string& inputFilename) {
-//     std::lock_guard<std::mutex> lock(compressorThreadMutex); // Lock while adding a thread
-//     compressionThreads.emplace_back(&FileCompressor::compressAndTime, this, inputFilename);
-// }
-
-// void FileCompressor::waitForAllThreads() {
-//     std::lock_guard<std::mutex> lock(compressorThreadMutex); // Lock while joining threads
-//     for (auto& thread : compressionThreads) {
-//         if (thread.joinable()) {
-//             thread.join();
-//         }
-//     }
-//     compressionThreads.clear();
-// }
 
 // Method to call pigz to compress a file
 void FileCompressor::compressWithPigz(const std::string& inputFile) {
