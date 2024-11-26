@@ -682,6 +682,9 @@ void displayMBImageWithControls(GLuint megsBTextureID)
     float value = 1.0f; // changing this will crop the image
     ImGui::Image((void*)(intptr_t)megsBTextureID, ImVec2(MEGS_IMAGE_WIDTH*mbzoom,MEGS_IMAGE_HEIGHT*mbzoom), ImVec2(0.0f,0.0f), ImVec2(value,value));
 
+    ImGui::SameLine();
+    // Add a color bar
+    
     SetRainbowCustomColormap(false);
     ImPlot::ColormapScale("MB Colorbar", 0.0f, 255.0f, ImVec2(100, MEGS_IMAGE_HEIGHT*mbzoom), "%g", 0, selectedMBColormap); // Adjust size as needed
     ImPlot::PopColormap();
