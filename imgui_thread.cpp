@@ -461,9 +461,8 @@ GLuint createProperTextureFromMEGSImage(uint16_t (*data)[MEGS_IMAGE_HEIGHT][MEGS
     std::vector<uint8_t> textureData(MEGS_TOTAL_PIXELS); // 8-bit data for display
 
     scaleImageToTexture(data, textureData, Image_Display_Scale);
-    SetRainbowCustomColormap(isMA);
-    //ImPlotColormap RainbowCustom = ImPlot::GetColormapIndex("RainbowCustom");
-    GenerateColorizedTexture(textureData, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, textureData, selectedMAColormap);
+
+    GenerateColorizedTexture(textureData, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, textureData, isMA ? selectedMAColormap : selectedMBColormap);
     ImPlot::PopColormap();
 
     // Generate and bind a new texture
@@ -684,7 +683,7 @@ void displayMBImageWithControls(GLuint megsBTextureID)
 
     ImGui::SameLine();
     // Add a color bar
-    
+
     SetRainbowCustomColormap(false);
     ImPlot::ColormapScale("MB Colorbar", 0.0f, 255.0f, ImVec2(100, MEGS_IMAGE_HEIGHT*mbzoom), "%g", 0, selectedMBColormap); // Adjust size as needed
     ImPlot::PopColormap();
