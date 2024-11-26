@@ -1098,7 +1098,6 @@ void updateStatusWindow()
         ImGui::TreePop();
     }
 
-
     mtx.lock();
     double eTAI    = globalState.esp.tai_time_seconds;
     double eTAIsub = globalState.esp.tai_time_subseconds;
