@@ -210,6 +210,6 @@ void print_help() {
   std::cout << "When provided, tlmfilename is a binary file of sync_marker,packet pairs. " << std::endl;
   std::cout << "Recorded files can be played back this way. " << std::endl;
   std::cout << "When using tlmfilename, -skipRecord will avoid creating additional files." << std::endl;
-  std::cout << "The -skipRecord option should not be used for opalkelly connections." << std::endl;
+  std::cout << "The -skipRecord option should not be used for OpalKelly connections." << std::endl;
   exit(EXIT_FAILURE);
 }
