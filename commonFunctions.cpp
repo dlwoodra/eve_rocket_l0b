@@ -351,6 +351,8 @@ void processMegsAPacket(std::vector<uint8_t> payload,
 
         isFirstImage = false;
 
+        globalState.megsAImageCount.fetch_add(1, std::memory_order_relaxed);
+
         // may need to run this in another thread
 
         // Write packet data to a FITS file if applicable
@@ -478,6 +480,8 @@ void processMegsBPacket(std::vector<uint8_t> payload, uint16_t sourceSequenceCou
         LogFileWriter::getInstance().logInfo("end of MEGS-B image ssc=2394");
 
         isFirstImage = false;
+
+        globalState.megsBImageCount.fetch_add(1, std::memory_order_relaxed);
 
         // may need to run this in another thread
 
