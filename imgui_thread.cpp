@@ -110,6 +110,23 @@ void populatePattern(uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT]) {
     }
 }
 
+std::vector<uint16_t> reorderCircularBuffer(const uint16_t* buffer, size_t size, size_t headIndex) {
+    std::vector<uint16_t> ordered(size);
+
+    // Copy elements from headIndex to the end of the buffer
+    size_t count = 0;
+    for (size_t i = headIndex; i < size; ++i) {
+        ordered[count++] = buffer[i];
+    }
+
+    // Copy elements from the beginning of the buffer to headIndex
+    for (size_t i = 0; i < headIndex; ++i) {
+        ordered[count++] = buffer[i];
+    }
+
+    return ordered;
+}
+
 std::vector<ImVec4> InterpolateColormap(ImPlotColormap colormap) {
     int newSize = 256;
     const int colormapSize = ImPlot::GetColormapSize(colormap);
@@ -825,6 +842,7 @@ std::string ByteArrayToHexString(const std::vector<uint8_t>& payloadBytes)
 
 void updateRawPacketWindow()
 {
+    ImGui::Begin("Raw Packets");
 
     mtx.lock();
     if ( ImGui::TreeNodeEx("Raw Packet Payloads", ImGuiTreeNodeFlags_DefaultOpen) )
@@ -865,10 +883,124 @@ void updateRawPacketWindow()
     }
     mtx.unlock();
 
+    ImGui::End();
+
+}
+
+void copyROIToSmallImage(const uint16_t* largeImage, size_t largeWidth,
+                   uint16_t* smallImage, size_t smallWidth,
+                   size_t startRow, size_t startCol,
+                   size_t height, size_t width) {
+    // Iterate through the rectangle row by row
+    for (size_t row = 0; row < height; ++row) {
+        const uint16_t* sourceRow = largeImage + (startRow + row) * largeWidth + startCol;
+        uint16_t* targetRow = smallImage + row * smallWidth;
+
+        // Use std::copy for efficient memory copying
+        std::copy(sourceRow, sourceRow + width, targetRow);
+    }
+}
+
+uint16_t findMinImageValue(const uint16_t* image, size_t width, size_t height) {
+    return *std::min_element(image, image + (width * height));
+}
+
+void calculateCentroid(uint16_t* image, size_t width, size_t height, double& xcentroid, double& ycentroid) {
+    double xsum = 0.0;
+    double ysum = 0.0;
+    double total = 0.0;
+    uint16_t minValue = *std::min_element(image, image + (width*height));
+
+    // Iterate through the image pixels
+    for (size_t y = 0; y < height; ++y) {
+        for (size_t x = 0; x < width; ++x) {
+            uint16_t pixelValue = (image[y * width + x] - minValue); //remove "background", at least one pixel will be zero
+            double weight = static_cast<double>(pixelValue);
+
+            // Accumulate the weighted sum
+            xsum += weight * x;
+            ysum += weight * y;
+            total += weight;
+        }
+    }
+    // If the total weight is zero, set the centroid to the origin
+    if (total <= 0.0) {
+        xcentroid = 0.0;
+        ycentroid = 0.0;
+        return;
+    }
+
+    // Calculate the centroid coordinates
+    xcentroid = xsum / total;
+    ycentroid = ysum / total;
+}
+
+void updateControlWindow()
+{
+    ImGui::Begin("Control Panel");
+
+    if ( ImGui::TreeNode("Developer Control") )
+    {
+        ImGui::Text("CCSDSReader packet delay (ms)");
+        bool enableSlowReplay = globalState.args.slowReplay.load();
+        ImGui::Checkbox("Enable Slow Replay", &enableSlowReplay);
+        globalState.args.slowReplay.store(enableSlowReplay);
+
+        if (enableSlowReplay) {
+            int delay = globalState.slowReplayWaitTime.load();
+            ImGui::SliderInt("Packet Delay", &delay, 1, 10);
+            globalState.slowReplayWaitTime.store(delay);
+        }
+        ImGui::TreePop();
+    }
+
+    if ( ImGui::TreeNode("MEGS Rate Meter") )
+    {
+        ImGui::Text("MEGS Rate Meter X Position");
+        static int MASelected=1;
+        ImGui::RadioButton("MEGS-A", &MASelected, 1);
+        ImGui::SameLine();
+        ImGui::RadioButton("MEGS-B", &MASelected, 0);
+
+        static int xyTarget[2] = {1720, 252};
+        static int xyhalfWidth[2] = {5, 5};
+        float itemWidthValue = ImGui::GetFontSize() * 6;
+        ImGui::PushItemWidth(itemWidthValue);
+
+        ImGui::InputInt2("X,Y Target", xyTarget);
+
+        uint16_t imageSmall[xyhalfWidth[0] * 2][xyhalfWidth[1] * 2];
+
+        mtx.lock();
+        // create a pointer to the selected image
+        auto& selectedIMage = MASelected ? globalState.megsa.image : globalState.megsb.image;
+        int value = selectedIMage[xyTarget[1]][xyTarget[0]];
+        copyROIToSmallImage(&selectedIMage[0][0], MEGS_IMAGE_WIDTH, 
+            &imageSmall[0][0], xyhalfWidth[0]*2, 
+            xyTarget[1] - xyhalfWidth[1], 
+            xyTarget[0] - xyhalfWidth[0], 
+            2 * xyhalfWidth[1], 2 * xyhalfWidth[0]);
+        mtx.unlock();
+        ImGui::Text("Value at Target: %d", value);
+
+        ImGui::InputInt2("X,Y halfWidth", xyhalfWidth);
+        double xcentroid, ycentroid;
+        calculateCentroid(&imageSmall[0][0], xyhalfWidth[0] * 2, xyhalfWidth[1] * 2, xcentroid, ycentroid);
+        xcentroid += xyTarget[0] - xyhalfWidth[0];
+        ycentroid += xyTarget[1] - xyhalfWidth[1];
+
+        ImGui::Text("Centroid location: %.2f %.2f", xcentroid, ycentroid);
+
+        ImGui::TreePop();
+    }
+
+    ImGui::End();
 }
 
 void updateStatusWindow()
 {
+    ImGui::Begin("Channel Status");
+
     LimitState state = Green;
 
     ImGuiIO& io = ImGui::GetIO();
@@ -988,6 +1120,7 @@ void updateStatusWindow()
         renderInputTextWithColor("MEGS-B Bottom Saturated", globalState.saturatedPixelsMBBottom.load(std::memory_order_relaxed), 12, true, 0.0, 0.9);
         ImGui::TreePop();
     }
+    ImGui::End(); // end of Channel Status
 }
 
 void plotESPTarget(int lastIdx) {
@@ -1110,30 +1243,40 @@ void updateESPWindow()
         renderInputTextWithColor("MP dark", globalState.megsp.MP_dark[espIndex], 12, false, 0.0, 0.9);
         mtx.unlock();
     }
-    ImGui::End();
+    ImGui::End(); // end of ESP MEGS-P Diodes
 
     // Plot the ESP data
     ImGui::Begin("ESP Target");
     mtx.lock();
     plotESPTarget(espIndex);
     mtx.unlock();
-    ImGui::End();
+    ImGui::End(); // end of ESP Target
 
 
     ImGui::Begin("ESP Timeseries");
-    mtx.lock();
+
     ImPlot::SetNextAxesToFit();
     ImVec2 availableSize = ImGui::GetContentRegionAvail(); // Get the available space for the plot
     float halfHeight = availableSize.y / 2;
     ImVec2 plotSize(availableSize.x, halfHeight);
 
+    int headIndex = (espIndex + 1) % ESP_INTEGRATIONS_PER_FILE;
+
     if (ImPlot::BeginPlot("##Quads", plotSize)) { 
         static ImPlotLegendFlags quadLegendFlags = ImPlotLegendFlags_Horizontal | ImPlotLegendFlags_Outside;
         ImPlot::SetupLegend(ImPlotLocation_North, quadLegendFlags);
-        ImPlot::PlotLine("ESP q0", globalState.esp.ESP_q0, ESP_INTEGRATIONS_PER_FILE);
-        ImPlot::PlotLine("ESP q1", globalState.esp.ESP_q1, ESP_INTEGRATIONS_PER_FILE);
-        ImPlot::PlotLine("ESP q2", globalState.esp.ESP_q2, ESP_INTEGRATIONS_PER_FILE);
-        ImPlot::PlotLine("ESP q3", globalState.esp.ESP_q3, ESP_INTEGRATIONS_PER_FILE);
+
+        mtx.lock();
+        std::vector<uint16_t> q0 = reorderCircularBuffer(globalState.esp.ESP_q0, ESP_INTEGRATIONS_PER_FILE, headIndex);
+        std::vector<uint16_t> q1 = reorderCircularBuffer(globalState.esp.ESP_q1, ESP_INTEGRATIONS_PER_FILE, headIndex);
+        std::vector<uint16_t> q2 = reorderCircularBuffer(globalState.esp.ESP_q2, ESP_INTEGRATIONS_PER_FILE, headIndex);
+        std::vector<uint16_t> q3 = reorderCircularBuffer(globalState.esp.ESP_q3, ESP_INTEGRATIONS_PER_FILE, headIndex);
+        mtx.unlock();
+
+        ImPlot::PlotLine("ESP q0", q0.data(), ESP_INTEGRATIONS_PER_FILE);
+        ImPlot::PlotLine("ESP q1", q1.data(), ESP_INTEGRATIONS_PER_FILE);
+        ImPlot::PlotLine("ESP q2", q2.data(), ESP_INTEGRATIONS_PER_FILE);
+        ImPlot::PlotLine("ESP q3", q3.data(), ESP_INTEGRATIONS_PER_FILE);
         ImPlot::EndPlot();
     }
 
@@ -1143,25 +1286,35 @@ void updateESPWindow()
     if (ImPlot::BeginPlot("##Others", plotSize)) {
         static ImPlotLegendFlags espOtherLegendFlags = ImPlotLegendFlags_Horizontal | ImPlotLegendFlags_Outside;
         ImPlot::SetupLegend(ImPlotLocation_North, espOtherLegendFlags);
-        ImPlot::PlotLine("ESP 17", globalState.esp.ESP_171, ESP_INTEGRATIONS_PER_FILE);
-        ImPlot::PlotLine("ESP 25", globalState.esp.ESP_257, ESP_INTEGRATIONS_PER_FILE);
-        ImPlot::PlotLine("ESP 30", globalState.esp.ESP_304, ESP_INTEGRATIONS_PER_FILE);
-        ImPlot::PlotLine("ESP 36", globalState.esp.ESP_366, ESP_INTEGRATIONS_PER_FILE);
-        ImPlot::PlotLine("ESP dark", globalState.esp.ESP_dark, ESP_INTEGRATIONS_PER_FILE);
+
+        mtx.lock();
+        std::vector<uint16_t> ESP_171 = reorderCircularBuffer(globalState.esp.ESP_171, ESP_INTEGRATIONS_PER_FILE, headIndex);
+        std::vector<uint16_t> ESP_257 = reorderCircularBuffer(globalState.esp.ESP_257, ESP_INTEGRATIONS_PER_FILE, headIndex);
+        std::vector<uint16_t> ESP_304 = reorderCircularBuffer(globalState.esp.ESP_304, ESP_INTEGRATIONS_PER_FILE, headIndex);
+        std::vector<uint16_t> ESP_366 = reorderCircularBuffer(globalState.esp.ESP_366, ESP_INTEGRATIONS_PER_FILE, headIndex);
+        std::vector<uint16_t> ESP_dark = reorderCircularBuffer(globalState.esp.ESP_dark, ESP_INTEGRATIONS_PER_FILE, headIndex);
+        std::vector<uint16_t> MP_Lya = reorderCircularBuffer(globalState.megsp.MP_lya, MEGSP_INTEGRATIONS_PER_FILE, headIndex);
+        std::vector<uint16_t> MP_dark = reorderCircularBuffer(globalState.megsp.MP_dark, MEGSP_INTEGRATIONS_PER_FILE, headIndex);
+        mtx.unlock();
+
+        ImPlot::PlotLine("ESP 17", ESP_171.data(), ESP_INTEGRATIONS_PER_FILE);
+        ImPlot::PlotLine("ESP 25", ESP_257.data(), ESP_INTEGRATIONS_PER_FILE);
+        ImPlot::PlotLine("ESP 30", ESP_304.data(), ESP_INTEGRATIONS_PER_FILE);
+        ImPlot::PlotLine("ESP 36", ESP_366.data(), ESP_INTEGRATIONS_PER_FILE);
+        ImPlot::PlotLine("ESP dark", ESP_dark.data(), ESP_INTEGRATIONS_PER_FILE);
+        ImPlot::PlotLine("MEGSP Lya", MP_Lya.data(), MEGSP_INTEGRATIONS_PER_FILE);
+        ImPlot::PlotLine("MEGSP dark", MP_dark.data(), MEGSP_INTEGRATIONS_PER_FILE);
         ImPlot::EndPlot();
     }
 
-    // reset to single column layout
-    //ImGui::Columns(1);
 
-    mtx.unlock();
-    ImGui::End();
- 
+    ImGui::End(); // end of ESP Timeseries
 }
 
 void displayFPGAStatus() {
 
-
+    ImGui::Begin("SDO-EVE Rocket FPGA Status");                          // Create a window called "Hello, world!" and append into it.
+            
     uint16_t reg0 = globalState.FPGA_reg0.load();
     uint16_t reg1 = globalState.FPGA_reg1.load();
     uint16_t reg2 = globalState.FPGA_reg2.load();
@@ -1246,7 +1399,7 @@ void displayFPGAStatus() {
         renderInputTextWithColor("FPGA Temp (C)", temperature, 12, true, 49.0f, 50.0f, 20.0f, 19.0f, "%.1f");
         ImGui::TreePop();
     }
-
+    ImGui::End(); // end of FPGA Status
 }
 
 
@@ -1279,7 +1432,7 @@ int imgui_thread() {
 #endif
 
     // Create window with graphics context
-    GLFWwindow* window = glfwCreateWindow(1200, 800, "Dear ImGui GLFW+OpenGL3 example", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(1200, 800, "SDO-EVE Rocket L0b - Dear ImGui GLFW+OpenGL3", nullptr, nullptr);
     if (window == nullptr)
         return 1;
     glfwMakeContextCurrent(window);
@@ -1298,7 +1451,7 @@ int imgui_thread() {
 
 
     // Preload fonts into ImGui's font atlas (this should be done outside the rendering loop)
-    ImFont* pFont = io.Fonts->AddFontFromFileTTF("./fonts/DejaVuSans.ttf", 16.0f);
+    ImFont* pFont = io.Fonts->AddFontFromFileTTF("./fonts/DejaVuSans.ttf", 14.0f);
     bool isFontLoaded = false;
 
     // Setup Dear ImGui style
@@ -1314,10 +1467,9 @@ int imgui_thread() {
     }
 
     ImGui::CreateContext();
+
     // Setup ImPlot
     ImPlot::CreateContext();
-
-
 
 
     // Setup Platform/Renderer backends
@@ -1330,7 +1482,7 @@ int imgui_thread() {
     // Demo loads fonts here
 
     // Our state
-    bool show_demo_window = false; //true;
+    bool show_demo_window = true;
     //bool show_another_window = false;
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
@@ -1393,12 +1545,7 @@ int imgui_thread() {
 
         // 2. Show a simple window that we create ourselves. We use a Begin/End pair to create a named window.
         {
-            //static int counter = 0;
-
-            ImGui::Begin("SDO-EVE Rocket FPGA Status");                          // Create a window called "Hello, world!" and append into it.
-            //ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
             displayFPGAStatus();
-            ImGui::End();
         }
 
         {
@@ -1409,20 +1556,20 @@ int imgui_thread() {
 
             // 3. Show another simple window.
             {
-                ImGui::Begin("Channel Status");
                 updateStatusWindow();
-                ImGui::End();
 
             }
             {
                 // show raw packets in separate window
-                ImGui::Begin("Raw Packets");
                 updateRawPacketWindow();
-                ImGui::End();
             }
 
             {
                 updateESPWindow();
+            }
+
+            {
+                updateControlWindow();
             }
 
             // debugging image display
