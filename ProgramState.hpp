@@ -18,6 +18,7 @@ struct ProgramState {
 		std::atomic<bool> readBinAsUSB{false};
 	} args;
 	bool guiEnabled = false;
+	std::atomic<int8_t> slowReplayWaitTime{1};
 	std::atomic<uint16_t> FPGA_reg0{0};
 	std::atomic<uint16_t> FPGA_reg1{0};
 	std::atomic<uint16_t> FPGA_reg2{0};
