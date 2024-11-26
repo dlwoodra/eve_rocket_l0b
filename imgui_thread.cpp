@@ -13,6 +13,7 @@
 #include <iostream>
 #include <string>
 #include <filesystem>
+#include <deque>
 
 #define GL_SILENCE_DEPRECATION
 #if defined(IMGUI_IMPL_OPENGL_ES2)
@@ -547,6 +548,54 @@ void renderUpdatedTextureFromMEGSBImage(GLuint megsBTextureID)
 }
 
 
+void copyROIToSmallImage(const uint16_t* largeImage, size_t largeWidth,
+                   uint16_t* smallImage, size_t smallWidth,
+                   size_t startRow, size_t startCol,
+                   size_t height, size_t width) {
+    // Iterate through the rectangle row by row
+    for (size_t row = 0; row < height; ++row) {
+        const uint16_t* sourceRow = largeImage + (startRow + row) * largeWidth + startCol;
+        uint16_t* targetRow = smallImage + row * smallWidth;
+
+        // Use std::copy for efficient memory copying
+        std::copy(sourceRow, sourceRow + width, targetRow);
+    }
+}
+
+uint16_t findMinImageValue(const uint16_t* image, size_t width, size_t height) {
+    return *std::min_element(image, image + (width * height));
+}
+
+void calculateCentroid(uint16_t* image, size_t width, size_t height, double& xcentroid, double& ycentroid) {
+    double xsum = 0.0;
+    double ysum = 0.0;
+    double total = 0.0;
+    uint16_t minValue = *std::min_element(image, image + (width*height));
+
+    // Iterate through the image pixels
+    for (size_t y = 0; y < height; ++y) {
+        for (size_t x = 0; x < width; ++x) {
+            uint16_t pixelValue = (image[y * width + x] - minValue); //remove "background", at least one pixel will be zero
+            double weight = static_cast<double>(pixelValue);
+
+            // Accumulate the weighted sum
+            xsum += weight * x;
+            ysum += weight * y;
+            total += weight;
+        }
+    }
+    // If the total weight is zero, set the centroid to the origin
+    if (total <= 0.0) {
+        xcentroid = 0.0;
+        ycentroid = 0.0;
+        return;
+    }
+
+    // Calculate the centroid coordinates
+    xcentroid = xsum / total;
+    ycentroid = ysum / total;
+}
+
 void displayMAImageWithControls(GLuint megsATextureID)
 {
     ImGui::Begin("MEGS-A Image Viewer");
@@ -651,6 +700,69 @@ void displayMAImageWithControls(GLuint megsATextureID)
         }
 
     }
+    ImGui::End();
+
+    ImGui::Begin("MEGS-A Rate Meter");
+
+    if ( ImGui::TreeNode("MA Rate Meter") )
+    {
+        static std::deque<uint16_t> megsARateMeterDN;
+        size_t maxRateMeterSize = 10;
+
+        static int xyTarget[2] = {1720, 252};
+        static int xyhalfWidth[2] = {5, 5};
+        float itemWidthValue = ImGui::GetFontSize() * 6;
+        ImGui::PushItemWidth(itemWidthValue);
+
+        ImGui::InputInt2("X,Y Target", xyTarget);
+
+        uint16_t imageSmall[xyhalfWidth[0] * 2][xyhalfWidth[1] * 2];
+
+        mtx.lock();
+        // create a pointer to the selected image
+        auto& selectedIMage = globalState.megsa.image;
+        int value = selectedIMage[xyTarget[1]][xyTarget[0]];
+        copyROIToSmallImage(&selectedIMage[0][0], MEGS_IMAGE_WIDTH, 
+            &imageSmall[0][0], xyhalfWidth[0]*2, 
+            xyTarget[1] - xyhalfWidth[1], 
+            xyTarget[0] - xyhalfWidth[0], 
+            2 * xyhalfWidth[1], 2 * xyhalfWidth[0]);
+        mtx.unlock();
+        ImGui::Text("DN at Target: %d", value);
+
+        // only update when megsAUpdated is set to true
+        static uint32_t megsAImageCountPrev = 0;
+        if (globalState.megsAImageCount.load(std::memory_order_relaxed) != megsAImageCountPrev) {
+            megsAImageCountPrev = globalState.megsAImageCount.load(std::memory_order_relaxed);
+            // add the value to the rate meter deque
+            if ( megsARateMeterDN.size() >= maxRateMeterSize ) {
+                megsARateMeterDN.pop_front();
+            }
+            megsARateMeterDN.push_back(value);
+        }
+
+        ImGui::InputInt2("X,Y halfWidth", xyhalfWidth);
+        double xcentroid, ycentroid;
+        calculateCentroid(&imageSmall[0][0], xyhalfWidth[0] * 2, xyhalfWidth[1] * 2, xcentroid, ycentroid);
+        xcentroid += xyTarget[0] - xyhalfWidth[0];
+        ycentroid += xyTarget[1] - xyhalfWidth[1];
+
+        ImGui::Text("Centroid location: %.2f %.2f", xcentroid, ycentroid);
+
+        // Plot the rate meter
+        ImPlot::SetNextAxesToFit();
+        if (ImPlot::BeginPlot("MEGS-A Rate Meter", ImVec2(-1, 200))) {
+            std::vector<uint16_t> megsARateMeterDNVec(megsARateMeterDN.begin(), megsARateMeterDN.end());
+            ImPlot::SetNextMarkerStyle(ImPlotMarker_Circle);
+            ImPlot::PushStyleColor(ImPlotCol_Line, ImVec4(0.0f, 1.0f, 0.0f, 1.0f)); // Green
+            ImPlot::PlotLine("MEGS-A Rate Meter", megsARateMeterDNVec.data(), megsARateMeterDNVec.size());
+            ImPlot::PopStyleColor();
+            ImPlot::EndPlot();
+        }
+
+        ImGui::TreePop();
+    }
+
     ImGui::End();
 
 }
@@ -759,6 +871,67 @@ void displayMBImageWithControls(GLuint megsBTextureID)
     }
     ImGui::End();
 
+    ImGui::Begin("MEGS-B Rate Meter");
+
+    if ( ImGui::TreeNode("MB Rate Meter") )
+    {
+        static std::deque<uint16_t> megsBRateMeterDN;
+        size_t maxRateMeterSize = 10;
+
+        static int xyTarget[2] = {1720, 252};
+        static int xyhalfWidth[2] = {5, 5};
+        float itemWidthValue = ImGui::GetFontSize() * 6;
+        ImGui::PushItemWidth(itemWidthValue);
+
+        ImGui::InputInt2("X,Y Target", xyTarget);
+
+        uint16_t imageSmall[xyhalfWidth[0] * 2][xyhalfWidth[1] * 2];
+
+        mtx.lock();
+        // create a pointer to the selected image
+        auto& selectedIMage = globalState.megsb.image;
+        int value = selectedIMage[xyTarget[1]][xyTarget[0]];
+        copyROIToSmallImage(&selectedIMage[0][0], MEGS_IMAGE_WIDTH, 
+            &imageSmall[0][0], xyhalfWidth[0]*2, 
+            xyTarget[1] - xyhalfWidth[1], 
+            xyTarget[0] - xyhalfWidth[0], 
+            2 * xyhalfWidth[1], 2 * xyhalfWidth[0]);
+        mtx.unlock();
+        ImGui::Text("DN at Target: %d", value);
+
+        // only update when megsAUpdated is set to true
+        static uint32_t megsBImageCountPrev = 0;
+        if (globalState.megsBImageCount.load(std::memory_order_relaxed) != megsBImageCountPrev) {
+            megsBImageCountPrev = globalState.megsBImageCount.load(std::memory_order_relaxed);
+            // add the value to the rate meter deque
+            if ( megsBRateMeterDN.size() >= maxRateMeterSize ) {
+                megsBRateMeterDN.pop_front();
+            }
+            megsBRateMeterDN.push_back(value);
+        }
+
+        ImGui::InputInt2("X,Y halfWidth", xyhalfWidth);
+        double xcentroid, ycentroid;
+        calculateCentroid(&imageSmall[0][0], xyhalfWidth[0] * 2, xyhalfWidth[1] * 2, xcentroid, ycentroid);
+        xcentroid += xyTarget[0] - xyhalfWidth[0];
+        ycentroid += xyTarget[1] - xyhalfWidth[1];
+
+        ImGui::Text("Centroid location: %.2f %.2f", xcentroid, ycentroid);
+
+        // Plot the rate meter
+        ImPlot::SetNextAxesToFit();
+        if (ImPlot::BeginPlot("MEGS-B Rate Meter", ImVec2(-1, 200))) {
+            std::vector<uint16_t> megsBRateMeterDNVec(megsBRateMeterDN.begin(), megsBRateMeterDN.end());
+            ImPlot::SetNextMarkerStyle(ImPlotMarker_Circle);
+            ImPlot::PushStyleColor(ImPlotCol_Line, ImVec4(0.0f, 1.0f, 0.0f, 1.0f)); // Green
+            ImPlot::PlotLine("MEGS-B Rate Meter", megsBRateMeterDNVec.data(), megsBRateMeterDNVec.size());
+            ImPlot::PopStyleColor();
+            ImPlot::EndPlot();
+        }
+
+        ImGui::TreePop();
+    }
+    ImGui::End();
 }
 
 
@@ -887,53 +1060,6 @@ void updateRawPacketWindow()
 
 }
 
-void copyROIToSmallImage(const uint16_t* largeImage, size_t largeWidth,
-                   uint16_t* smallImage, size_t smallWidth,
-                   size_t startRow, size_t startCol,
-                   size_t height, size_t width) {
-    // Iterate through the rectangle row by row
-    for (size_t row = 0; row < height; ++row) {
-        const uint16_t* sourceRow = largeImage + (startRow + row) * largeWidth + startCol;
-        uint16_t* targetRow = smallImage + row * smallWidth;
-
-        // Use std::copy for efficient memory copying
-        std::copy(sourceRow, sourceRow + width, targetRow);
-    }
-}
-
-uint16_t findMinImageValue(const uint16_t* image, size_t width, size_t height) {
-    return *std::min_element(image, image + (width * height));
-}
-
-void calculateCentroid(uint16_t* image, size_t width, size_t height, double& xcentroid, double& ycentroid) {
-    double xsum = 0.0;
-    double ysum = 0.0;
-    double total = 0.0;
-    uint16_t minValue = *std::min_element(image, image + (width*height));
-
-    // Iterate through the image pixels
-    for (size_t y = 0; y < height; ++y) {
-        for (size_t x = 0; x < width; ++x) {
-            uint16_t pixelValue = (image[y * width + x] - minValue); //remove "background", at least one pixel will be zero
-            double weight = static_cast<double>(pixelValue);
-
-            // Accumulate the weighted sum
-            xsum += weight * x;
-            ysum += weight * y;
-            total += weight;
-        }
-    }
-    // If the total weight is zero, set the centroid to the origin
-    if (total <= 0.0) {
-        xcentroid = 0.0;
-        ycentroid = 0.0;
-        return;
-    }
-
-    // Calculate the centroid coordinates
-    xcentroid = xsum / total;
-    ycentroid = ysum / total;
-}
 
 void updateControlWindow()
 {
@@ -954,45 +1080,7 @@ void updateControlWindow()
         ImGui::TreePop();
     }
 
-    if ( ImGui::TreeNode("MEGS Rate Meter") )
-    {
-        ImGui::Text("MEGS Rate Meter X Position");
-        static int MASelected=1;
-        ImGui::RadioButton("MEGS-A", &MASelected, 1);
-        ImGui::SameLine();
-        ImGui::RadioButton("MEGS-B", &MASelected, 0);
 
-        static int xyTarget[2] = {1720, 252};
-        static int xyhalfWidth[2] = {5, 5};
-        float itemWidthValue = ImGui::GetFontSize() * 6;
-        ImGui::PushItemWidth(itemWidthValue);
-
-        ImGui::InputInt2("X,Y Target", xyTarget);
-
-        uint16_t imageSmall[xyhalfWidth[0] * 2][xyhalfWidth[1] * 2];
-
-        mtx.lock();
-        // create a pointer to the selected image
-        auto& selectedIMage = MASelected ? globalState.megsa.image : globalState.megsb.image;
-        int value = selectedIMage[xyTarget[1]][xyTarget[0]];
-        copyROIToSmallImage(&selectedIMage[0][0], MEGS_IMAGE_WIDTH, 
-            &imageSmall[0][0], xyhalfWidth[0]*2, 
-            xyTarget[1] - xyhalfWidth[1], 
-            xyTarget[0] - xyhalfWidth[0], 
-            2 * xyhalfWidth[1], 2 * xyhalfWidth[0]);
-        mtx.unlock();
-        ImGui::Text("Value at Target: %d", value);
-
-        ImGui::InputInt2("X,Y halfWidth", xyhalfWidth);
-        double xcentroid, ycentroid;
-        calculateCentroid(&imageSmall[0][0], xyhalfWidth[0] * 2, xyhalfWidth[1] * 2, xcentroid, ycentroid);
-        xcentroid += xyTarget[0] - xyhalfWidth[0];
-        ycentroid += xyTarget[1] - xyhalfWidth[1];
-
-        ImGui::Text("Centroid location: %.2f %.2f", xcentroid, ycentroid);
-
-        ImGui::TreePop();
-    }
 
     ImGui::End();
 }
