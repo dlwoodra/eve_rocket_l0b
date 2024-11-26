@@ -30,7 +30,11 @@ const char* Image_Display_Scale_Items[] = { "Mod 256", "Full Scale", "HistEqual"
 
 ImPlotColormap selectedMAColormap = ImPlotColormap_Jet;
 ImPlotColormap selectedMBColormap = ImPlotColormap_Jet;
-constexpr uint16_t numColormaps = 16;
+
+static int customColorMapIdMA = -1;
+static int customColorMapIdMB = -1;
+
+constexpr uint16_t numColormaps = 18; // 16 default colormaps + 2 custom colormaps
 
 enum LimitState {
     NoCheck,
@@ -137,7 +141,8 @@ const char* GetColormapShortNameByIndex(uint16_t index) {
         "Dark",
         "Pastel",
         "Pink",
-        "Twilight"
+        "Twilight",
+        "RainbowCustomMA", "RainbowCustomMB"
     };
     return colormapNames[index];
 }
@@ -159,7 +164,8 @@ const char* GetColormapNameByIndex(uint16_t index) {
         "ImPlotColormap_Dark",
         "ImPlotColormap_Pastel",
         "ImPlotColormap_Pink",
-        "ImPlotColormap_Twilight"
+        "ImPlotColormap_Twilight",
+        "RainbowCustomMA", "RainbowCustomMB"
     };
     if (index >= 0 && index < colormapNames.size()) {
         return colormapNames[index];
@@ -184,7 +190,8 @@ ImPlotColormap GetColormapObjectByIndex(uint16_t index) {
         ImPlotColormap_Dark,
         ImPlotColormap_Pastel,
         ImPlotColormap_Pink,
-        ImPlotColormap_Twilight
+        ImPlotColormap_Twilight,
+        customColorMapIdMA, customColorMapIdMB
     };
     if (index >= 0 && index < colormaps.size()) {
         return colormaps[index];
@@ -194,31 +201,27 @@ ImPlotColormap GetColormapObjectByIndex(uint16_t index) {
 
 // Modify colormap to replace the highest value with white, lowest value with black
 void SetRainbowCustomColormap(bool isMA) {
-    static int customColorMapId = -1;
-    if (customColorMapId == -1) {
-        ImPlotColormap selectedColorMap;
-        if (isMA) {
-            selectedColorMap = GetColormapObjectByIndex(selectedMAColormap);
-        } else {
-            selectedColorMap = GetColormapObjectByIndex(selectedMBColormap);
-        }
+    // init
+    if ((isMA && (customColorMapIdMA == -1)) || (!isMA && (customColorMapIdMB == -1))) {
 
-        // use a pulldown menu to select the colormap
+        std::vector<ImVec4> custom256 = InterpolateColormap(ImPlotColormap_Jet); // just pick Jet
 
-        // Get the default colormap size
-        std::vector<ImVec4> custom256 = InterpolateColormap(selectedColorMap);
-
+        // Modify the first and last colors to be black and white
         custom256[0] = ImVec4(0.0f, 0.0f, 0.0f, 1.0f); // Black
         custom256[255] = ImVec4(1.0f, 1.0f, 1.0f, 1.0f); // White
 
         // Register the modified colormap
         if (isMA) {
-            customColorMapId = ImPlot::AddColormap("RainbowCustomMA", custom256.data(), custom256.size(), true);
+            customColorMapIdMA = ImPlot::AddColormap("RainbowCustomMA", custom256.data(), custom256.size(), true);
         } else {    
-            customColorMapId = ImPlot::AddColormap("RainbowCustomMB", custom256.data(), custom256.size(), true);
+            customColorMapIdMB = ImPlot::AddColormap("RainbowCustomMB", custom256.data(), custom256.size(), true);
         }
     }
-    ImPlot::PushColormap(customColorMapId);
+    if (isMA) {
+        ImPlot::PushColormap(customColorMapIdMA);
+    } else {
+        ImPlot::PushColormap(customColorMapIdMB);
+    }
 
     // after using it,need to use ImPlot::PopColormap();
 }   
@@ -408,6 +411,15 @@ void ShowColormapSelector(bool isMA) {
         case 6: selectedColormap = ImPlotColormap_Paired; break;
         case 7: selectedColormap = ImPlotColormap_Greys; break;
         case 8: selectedColormap = ImPlotColormap_RdBu; break;
+        case 9: selectedColormap = ImPlotColormap_BrBG; break;
+        case 10: selectedColormap = ImPlotColormap_PiYG; break;
+        case 11: selectedColormap = ImPlotColormap_Deep; break;
+        case 12: selectedColormap = ImPlotColormap_Dark; break;
+        case 13: selectedColormap = ImPlotColormap_Pastel; break;
+        case 14: selectedColormap = ImPlotColormap_Pink; break;
+        case 15: selectedColormap = ImPlotColormap_Twilight; break;
+        case 16: selectedColormap = customColorMapIdMA; break;
+        case 17: selectedColormap = customColorMapIdMB; break;
     }
 
     ImPlot::PushColormap(selectedColormap);
@@ -506,9 +518,15 @@ void renderUpdatedTextureFromMEGSBImage(GLuint megsBTextureID)
     std::vector<uint8_t> textureData(width * height);
 
     scaleImageToTexture(&globalState.megsb.image, textureData, Image_Display_Scale_MB);
+    SetRainbowCustomColormap(false);
+
+    std::vector<uint8_t> colorTextureData( width * height * 3); //r,g,b
+    GenerateColorizedTexture(textureData, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, colorTextureData, selectedMBColormap);
 
     glBindTexture(GL_TEXTURE_2D, megsBTextureID);
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, textureData.data());
+    // to just use red color, use the next line and comment the line after
+    //glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, textureData.data());
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, colorTextureData.data());
     glBindTexture(GL_TEXTURE_2D, megsBTextureID);
 }
 
@@ -531,7 +549,6 @@ void displayMAImageWithControls(GLuint megsATextureID)
     ImPlot::PopColormap();
 
     mtx.lock();
-    //std::string iso8601 = tai_to_iso8601(globalState.megsa.tai_time_seconds);
     std::string tmpiISO8601sss = tai_to_iso8601_with_milliseconds(globalState.megsa.tai_time_seconds, globalState.megsa.tai_time_subseconds); 
     mtx.unlock();
 
@@ -626,16 +643,19 @@ void displayMBImageWithControls(GLuint megsBTextureID)
 {
     ImGui::Begin("MEGS-B Image Viewer");
 
-    // Zoom slider
     ImGui::SetNextItemWidth(120);
-    //ImGui::SliderFloat("MB Zoom", &mbzoom, 0.25f, 1.0f, "MB Zoom %.1fx");
     ImGui::InputFloat("MB Zoom", &mbzoom, 0.2f, 0.2f, "%.2f");
     ImGui::SameLine();
     ImGui::SetNextItemWidth(100);
     ImGui::Combo("Scaletype", &Image_Display_Scale_MB, Image_Display_Scale_Items, IM_ARRAYSIZE(Image_Display_Scale_Items));
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(70);
+    ShowColormapSelector(false); // false for MEGS-B
+    ImGui::NewLine();
+
+    ImPlot::PopColormap();
 
     mtx.lock();
-    //std::string iso8601 = tai_to_iso8601(globalState.megsb.tai_time_seconds);
     std::string tmpiISO8601sss = tai_to_iso8601_with_milliseconds(globalState.megsb.tai_time_seconds, globalState.megsb.tai_time_subseconds); 
     mtx.unlock();
 
@@ -662,15 +682,18 @@ void displayMBImageWithControls(GLuint megsBTextureID)
     float value = 1.0f; // changing this will crop the image
     ImGui::Image((void*)(intptr_t)megsBTextureID, ImVec2(MEGS_IMAGE_WIDTH*mbzoom,MEGS_IMAGE_HEIGHT*mbzoom), ImVec2(0.0f,0.0f), ImVec2(value,value));
 
-    ImGui::End();
+    SetRainbowCustomColormap(false);
+    ImPlot::ColormapScale("MB Colorbar", 0.0f, 255.0f, ImVec2(100, MEGS_IMAGE_HEIGHT*mbzoom), "%g", 0, selectedMBColormap); // Adjust size as needed
+    ImPlot::PopColormap();
 
     // dislpay the value of one pixel from each half
     uint16_t hiRowValues[MEGS_IMAGE_WIDTH];
     uint16_t lowRowValues[MEGS_IMAGE_WIDTH];
-    uint16_t firstRow[MEGS_IMAGE_WIDTH]={0};
-    uint16_t secondRow[MEGS_IMAGE_WIDTH]={0};
     uint16_t maxValue = 0;
     uint16_t minValue = 0xFFFF;
+
+    uint16_t firstRow[MEGS_IMAGE_WIDTH]={0};
+    uint16_t secondRow[MEGS_IMAGE_WIDTH]={0};
     mtx.lock();
     for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; ++x) {
         hiRowValues[x] = globalState.megsb.image[yPosHi+1][x];
@@ -682,8 +705,7 @@ void displayMBImageWithControls(GLuint megsBTextureID)
     }
     mtx.unlock();
 
-
-    //std::cout<< "Minvalue: " << minValue << " Maxvalue: " << maxValue << std::endl;
+    ImGui::End();
 
     ImGui::Begin("MB Row Plots");
     {
@@ -845,6 +867,8 @@ void updateRawPacketWindow()
 
 void updateStatusWindow()
 {
+    LimitState state = Green;
+
     ImGuiIO& io = ImGui::GetIO();
     if ( ImGui::TreeNode("Display Status") )
     {
@@ -852,26 +876,33 @@ void updateStatusWindow()
         ImGui::TreePop();
     }
 
-    if ( ImGui::TreeNode("Clock Status") )
+
+    mtx.lock();
+    double eTAI    = globalState.esp.tai_time_seconds;
+    double eTAIsub = globalState.esp.tai_time_subseconds;
+    double rTAI    = globalState.esp.rec_tai_seconds;
+    double rTAIsub = globalState.esp.rec_tai_subseconds;
+    mtx.unlock();
+    
+    double espTAI = tai_ss(eTAI, eTAIsub);
+    double espRecTAI = tai_ss(rTAI, rTAIsub);
+
+    double deltaTimeMilliSec = (espTAI - espRecTAI)*1000.f;
+    double redLim = 125.0f;
+    double yellowLim = 70.0f;
+    if ( (deltaTimeMilliSec > redLim) | (deltaTimeMilliSec < -redLim) ) {
+        state = Red;
+    } else if ( (deltaTimeMilliSec > yellowLim) | (deltaTimeMilliSec < -yellowLim) ) {
+        state = Yellow;
+    }
+
+    bool isTreeNodeClockStatusOpen = ImGui::TreeNode("Clock Status");
+    addFilledCircleToTreeNode(state);
+    if ( isTreeNodeClockStatusOpen )
     {
-        mtx.lock();
-        double eTAI    = globalState.esp.tai_time_seconds;
-        double eTAIsub = globalState.esp.tai_time_subseconds;
-        double rTAI    = globalState.esp.rec_tai_seconds;
-        double rTAIsub = globalState.esp.rec_tai_subseconds;
-        mtx.unlock();
-
-        //ImGui::Text("eTAI: %.3f ", eTAI);
-        //ImGui::Text("eTAIsub: %.3f ", eTAIsub);
-        //ImGui::Text("rTAI: %.3f ", rTAI);
-        //ImGui::Text("rTAIsub: %.3f ", rTAIsub);
-
-        double espTAI = tai_ss(eTAI, eTAIsub);
-        double espRecTAI = tai_ss(rTAI, rTAIsub);
-
         ImGui::Text("Pkt TAI: %.3f ", espTAI);
         ImGui::Text("Rec TAI: %.3f ", espRecTAI);
-        renderInputTextWithColor("Rec-Pkt (millisec)", 1.e3 * (espRecTAI - espTAI), 12, true, 70.0f, 100.0f, -70.f, -100.0f, "%.3f", 7);
+        renderInputTextWithColor("Rec-Pkt (millisec)", 1.e3 * (deltaTimeMilliSec), 12, true, yellowLim, redLim, -yellowLim, -redLim, "%.3f", 7);
         ImGui::TreePop();
     }
 
@@ -887,7 +918,7 @@ void updateStatusWindow()
     }
 
 
-    LimitState state = Green;
+    state = Green; // initialize to green
     if ((globalState.dataGapsMA.load() != 0) || (globalState.dataGapsMB.load() != 0) ||
         (globalState.dataGapsESP.load() != 0) || (globalState.dataGapsMP.load() != 0) ||
         (globalState.dataGapsSHK.load() != 0)) {
@@ -1301,6 +1332,8 @@ int imgui_thread() {
     //bool show_another_window = false;
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
+    SetRainbowCustomColormap(true);
+    SetRainbowCustomColormap(false);
     
     //std::lock_guard<std::mutex> lock(mtx); // lock the mutex
     mtx.lock();
