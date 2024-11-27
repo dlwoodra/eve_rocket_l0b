@@ -64,6 +64,7 @@ struct ProgramState {
 	MEGSP_PACKET megsp;
 	uint8_t megsPPayloadBytes[STANDARD_MEGSP_PACKET_LENGTH+1];
 	SHK_PACKET shk;
+	SHK_CONVERTED_PACKET shkConv;
 	uint8_t shkPayloadBytes[STANDARD_SHK_PACKET_LENGTH+1];
 };
 
