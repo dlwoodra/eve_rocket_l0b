@@ -249,11 +249,7 @@ void countSaturatedPixels(const uint16_t image[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WID
 void processMegsAPacket(std::vector<uint8_t> payload, 
     uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp) {
 
-    //LogFileWriter::getInstance().logInfo("processMegsAPacket");
-
     // insert pixels into image
-
-    //static std::string iso8601;
 
     static uint16_t processedPacketCounter=0;
     int8_t status=0;
@@ -281,9 +277,7 @@ void processMegsAPacket(std::vector<uint8_t> payload,
     if ((previousSrcSeqCount == -1) || (sourceSequenceCounter == 0) || 
         (sourceSequenceCounter <= previousSrcSeqCount)) {
         // packet is from a new image
-        //std::string logMsg = "MA starting new image first SrcSeqCounter: " + std::to_string(sourceSequenceCounter);
         LogFileWriter::getInstance().logInfo("MA starting new image first SrcSeqCounter: {}", sourceSequenceCounter);
-        //std::cout << "Info: " << logMsg << std::endl;
 
         //reset oneMEGSStructure
         oneMEGSStructure = MEGS_IMAGE_REC{0}; // c++11 
@@ -341,7 +335,6 @@ void processMegsAPacket(std::vector<uint8_t> payload,
 
     if ( parityErrors > 0 ) {
         LogFileWriter::getInstance().logError("MA parity errors: {} SSC: {}", parityErrors, sourceSequenceCounter);
-        //std::cout << "processMegsAPacket - assemble_image returned parity errors: " << parityErrors << " ssc:"<<sourceSequenceCounter<<"\n";
     }
     processedPacketCounter++; // count packets processed
 
@@ -359,9 +352,7 @@ void processMegsAPacket(std::vector<uint8_t> payload,
         std::unique_ptr<FITSWriter> fitsFileWriter;
         fitsFileWriter = std::unique_ptr<FITSWriter>(new FITSWriter());
         // the c++14 way fitsFileWriter = std::make_unique<FITSWriter>();
-        //std::cout << "processMegsAPacket number of packets: " << processedPacketCounter << std::endl;
         if (fitsFileWriter) {
-            //std::cout << "processMegsAPacket: tai_time_seconds = " << oneMEGSStructure.tai_time_seconds << std::endl;
 
             if (!fitsFileWriter->writeMegsAFITS( oneMEGSStructure )) {
                 LogFileWriter::getInstance().logInfo("writeMegsAFITS write error");
@@ -376,11 +367,7 @@ void processMegsAPacket(std::vector<uint8_t> payload,
 
 void processMegsBPacket(std::vector<uint8_t> payload, uint16_t sourceSequenceCounter, uint16_t packetLength, double timeStamp) {
 
-    //LogFileWriter::getInstance().logInfo("processMegsBPacket");
-
     // insert pixels into image
-
-    //static std::string iso8601;
 
     static uint16_t processedPacketCounter=0;
     int8_t status=0;
@@ -406,9 +393,7 @@ void processMegsBPacket(std::vector<uint8_t> payload, uint16_t sourceSequenceCou
     if ((previousSrcSeqCount == -1) || (sourceSequenceCounter == 0) || 
         (sourceSequenceCounter <= previousSrcSeqCount)) {
         // packet is from a new image
-        //std::string logMsg = "MB starting new image first SrcSeqCounter: " + std::to_string(sourceSequenceCounter);
         LogFileWriter::getInstance().logInfo("MB starting new image first SrcSeqCounter: {}", sourceSequenceCounter);
-        //std::cout << "Info: " << logMsg << std::endl;
 
         //reset oneMEGSStructure
         oneMEGSStructure = MEGS_IMAGE_REC{0}; // c++11 
@@ -470,13 +455,11 @@ void processMegsBPacket(std::vector<uint8_t> payload, uint16_t sourceSequenceCou
     }
     if ( parityErrors > 0 ) {
         LogFileWriter::getInstance().logError("MB parity errors: {} in SSC:", parityErrors,sourceSequenceCounter);
-        //std::cout << "processMegsBPacket - assemble_image returned parity errors: " << parityErrors << " ssc:"<<sourceSequenceCounter<<"\n";
     }
 
     processedPacketCounter++; // count packets processed
 
     if ( sourceSequenceCounter == 2394) {
-        //std::cout<<"end of MEGS-B at 2394"<<"\n";
         LogFileWriter::getInstance().logInfo("end of MEGS-B image ssc=2394");
 
         isFirstImage = false;
@@ -489,10 +472,7 @@ void processMegsBPacket(std::vector<uint8_t> payload, uint16_t sourceSequenceCou
         std::unique_ptr<FITSWriter> fitsFileWriter;
         fitsFileWriter = std::unique_ptr<FITSWriter>(new FITSWriter());
         // the c++14 way fitsFileWriter = std::make_unique<FITSWriter>();
-        //std::cout << "processMegsBPacket number of packets: " << processedPacketCounter << std::endl;
         if (fitsFileWriter) {
-            //std::cout << "procesMegsBPacket: tai_time_seconds = " << oneMEGSStructure.tai_time_seconds << std::endl;
-
             if (!fitsFileWriter->writeMegsBFITS( oneMEGSStructure )) {
                 LogFileWriter::getInstance().logInfo("writeMegsBFITS write error");
                 std::cout << "ERROR: writeMegsBFITS returned an error" << std::endl;
@@ -519,9 +499,6 @@ void processMegsPPacket(std::vector<uint8_t> payload,
     }
     lastSourceSequenceCounter = sourceSequenceCounter;
 
-    //LogFileWriter::getInstance().logInfo("processMegsPPacket");
-    //std::cout<<"processMegsPPacket 1" << std::endl;
-
     populateStructureTimes(oneMEGSPStructure, payload);
 
     int firstbyteoffset = 10; //time=8,mode=2
@@ -532,7 +509,6 @@ void processMegsPPacket(std::vector<uint8_t> payload,
 
         int incr = (i*bytesPerIntegration) + firstbyteoffset; // 4 is bytes per integration, 2 bytes per diode * 2 diodes per integration
         int index = packetoffset + i;
-        //std::cout<<"processMegsPPacket 2l " << i << " "<<incr << " "<<index << " "<< sizeof(payload)<<std::endl;
 
         oneMEGSPStructure.MP_lya[index] = (uint16_t (payload[incr]) << 8) | (uint16_t (payload[incr + 1]));
         oneMEGSPStructure.MP_dark[index] = (uint16_t (payload[incr+2]) << 8) | (uint16_t (payload[incr+3]));
@@ -564,14 +540,11 @@ void processMegsPPacket(std::vector<uint8_t> payload,
         // the c++14 way fitsFileWriter = std::make_unique<FITSWriter>();
 
         if (fitsFileWriter) {
-            //std::cout << "procesMegsPPacket: tai_time_seconds = " << oneMEGSPStructure.tai_time_seconds << std::endl;
 
             if (!fitsFileWriter->writeMegsPFITS( oneMEGSPStructure )) {
                 LogFileWriter::getInstance().logInfo("writeMegsPFITS write error");
                 std::cout << "ERROR: writeMegsPFITS returned an error" << std::endl;
             }
-            //std::cout<<"processMegsPPacket - MP_lya values" << std::endl;
-            //printBytes(oneMEGSPStructure.MP_lya,19);
 
             processedPacketCounter = 0;
             // reset the structure immediately after writing
@@ -594,9 +567,6 @@ void processESPPacket(std::vector<uint8_t> payload,
         }
     lastSourceSequenceCounter = sourceSequenceCounter;
 
-    //printBytes(&payload[0], 40);
-    //std::cout<<"processESPPacket processedESPPacketCounter:"<<processedESPPacketCounter << std::endl;
-
     populateStructureTimes(oneESPStructure, payload);
     
     constexpr int firstbyteoffset = 10;
@@ -613,7 +583,7 @@ void processESPPacket(std::vector<uint8_t> payload,
         //if (index > 39) {
         //    std::cout << "processESPPacket index out of range: " << index << std::endl;
         //}
-        // correct order is 
+        // correct order is shown below
         // quads are 3,4,5,6
         oneESPStructure.ESP_xfer_cnt[index] = (uint16_t (payload[incr]) << 8) | (uint16_t (payload[incr + 1]));
         oneESPStructure.ESP_366[index] = (uint16_t (payload[incr+2]) << 8) | (uint16_t (payload[incr+3]));
@@ -660,7 +630,6 @@ void processESPPacket(std::vector<uint8_t> payload,
 
 
     // ONLY WRITE WHEN STRUCTURE IS FULL
-    //std::cout<<"processESPPacket 2 - processedESPPacketCounter:"<<processedESPPacketCounter << std::endl;
     if ( processedESPPacketCounter == ESP_PACKETS_PER_FILE ) {
 
         // Write packet data to a FITS file if applicable
@@ -669,14 +638,11 @@ void processESPPacket(std::vector<uint8_t> payload,
         // the c++14 way fitsFileWriter = std::make_unique<FITSWriter>();
 
         if (fitsFileWriter) {
-            //std::cout << "procesESPPacket: tai_time_seconds = " << oneESPStructure.tai_time_seconds << std::endl;
 
             if (!fitsFileWriter->writeESPFITS( oneESPStructure )) {
                 LogFileWriter::getInstance().logInfo("writeESPFITS write error");
                 std::cout << "ERROR: writESPFITS returned an error" << std::endl;
             }
-            //std::cout<<"processESPPacket - ESP diode 0 values" << std::endl;
-            //printBytes(oneESPStructure.ESP_q0,19);
 
             processedESPPacketCounter = 0;
             // reset the structure immediately after writing
@@ -684,6 +650,79 @@ void processESPPacket(std::vector<uint8_t> payload,
         }
     }
 
+}
+
+SHK_CONVERTED_PACKET convertSHKData(SHK_PACKET rawSHK) {
+    SHK_CONVERTED_PACKET shk = {0};
+
+    shk.tai_time_seconds = rawSHK.tai_time_seconds;
+    shk.tai_time_subseconds = rawSHK.tai_time_subseconds;
+    shk.rec_tai_seconds = rawSHK.rec_tai_seconds;
+    shk.rec_tai_subseconds = rawSHK.rec_tai_subseconds;
+    shk.sod = rawSHK.sod;
+    shk.yyyydoy = rawSHK.yyyydoy;
+    constexpr double sixtenfour = 610.4f;
+    constexpr int32_t eightk = 0x8000;
+
+    for (int i=0; i<SHK_INTEGRATIONS_PER_FILE; i++) {
+        shk.FPGA_Board_Temperature[i]  = -5260.0f + rawSHK.FPGA_Board_Temperature[i] * 0.1526f; // deg C
+        shk.FPGA_Board_p5_0_Voltage[i] = (rawSHK.FPGA_Board_p5_0_Voltage[i] - eightk) * sixtenfour; // uV
+        shk.FPGA_Board_p3_3_Voltage[i] = (rawSHK.FPGA_Board_p3_3_Voltage[i] - eightk) * sixtenfour; // uV
+        shk.FPGA_Board_p2_5_Voltage[i] = (rawSHK.FPGA_Board_p2_5_Voltage[i] - eightk) * sixtenfour; // uV
+        shk.FPGA_Board_p1_2_Voltage[i] = (rawSHK.FPGA_Board_p1_2_Voltage[i] - eightk) * sixtenfour; // uV
+
+        shk.MEGSA_CEB_Temperature[i]   = -(rawSHK.MEGSA_CEB_Temperature[i] - eightk) * sixtenfour; // deg C
+        shk.MEGSA_CPR_Temperature[i]   = -(rawSHK.MEGSA_CPR_Temperature[i] - eightk) * sixtenfour; // deg C
+        shk.MEGSA_p24_Voltage[i]       = -(rawSHK.MEGSA_p24_Voltage[i] - eightk) * sixtenfour * 4; // uV
+        shk.MEGSA_p15_Voltage[i]       = (rawSHK.MEGSA_p15_Voltage[i] - eightk) * sixtenfour * 3; // uV
+        shk.MEGSA_m15_Voltage[i]       = -(rawSHK.MEGSA_m15_Voltage[i] - eightk) * sixtenfour * 3; // uV
+        shk.MEGSA_p5_0_Analog_Voltage[i]  = -(rawSHK.MEGSA_p5_0_Analog_Voltage[i] - eightk) * sixtenfour; // uV
+        shk.MEGSA_m5_0_Voltage[i]         = -(rawSHK.MEGSA_m5_0_Voltage[i] - eightk) * sixtenfour; // uV
+        shk.MEGSA_p5_0_Digital_Voltage[i] = -(rawSHK.MEGSA_p5_0_Digital_Voltage[i] - eightk) * sixtenfour; // uV
+        shk.MEGSA_p2_5_Voltage[i]         = -(rawSHK.MEGSA_p2_5_Voltage[i] - eightk) * sixtenfour; // uV
+        shk.MEGSA_p24_Current[i]          = -(rawSHK.MEGSA_p24_Current[i] - eightk) * sixtenfour * 4; // uA
+        shk.MEGSA_p15_Current[i]          = -(rawSHK.MEGSA_p15_Current[i] - eightk) * sixtenfour * 3; // uA - suspicious sign
+        shk.MEGSA_m15_Current[i]          = -(rawSHK.MEGSA_m15_Current[i] - eightk) * sixtenfour * 3; // uA
+        shk.MEGSA_p5_0_Analog_Current[i]  = -(rawSHK.MEGSA_p5_0_Analog_Current[i] - eightk) * sixtenfour; // uA
+        shk.MEGSA_m5_0_Current[i]         = -(rawSHK.MEGSA_m5_0_Current[i] - eightk) * sixtenfour; // uV?
+        shk.MEGSA_p5_0_Digital_Current[i] = -(rawSHK.MEGSA_p5_0_Digital_Current[i]) * 5.957e-5 - 1.952; // A
+        shk.MEGSA_p2_5_Current[i]         = -(rawSHK.MEGSA_p2_5_Current[i] - eightk) * sixtenfour; // uA
+
+        shk.MEGSB_CEB_Temperature[i]   = -(rawSHK.MEGSB_CEB_Temperature[i] - eightk) * sixtenfour; // deg C
+        shk.MEGSB_CPR_Temperature[i]   = -(rawSHK.MEGSB_CPR_Temperature[i] - eightk) * sixtenfour; // deg C
+        shk.MEGSB_p24_Voltage[i]       = -(rawSHK.MEGSB_p24_Voltage[i] - eightk) * sixtenfour * 4; // uV
+        shk.MEGSB_p15_Voltage[i]       = (rawSHK.MEGSB_p15_Voltage[i] - eightk) * sixtenfour * 3; // uV
+        shk.MEGSB_m15_Voltage[i]       = -(rawSHK.MEGSB_m15_Voltage[i] - eightk) * sixtenfour * 3; // uV
+        shk.MEGSB_p5_0_Analog_Voltage[i]  = -(rawSHK.MEGSB_p5_0_Analog_Voltage[i] - eightk) * sixtenfour; // uV
+        shk.MEGSB_m5_0_Voltage[i]         = -(rawSHK.MEGSB_m5_0_Voltage[i] - eightk) * sixtenfour; // uV
+        shk.MEGSB_p5_0_Digital_Voltage[i] = -(rawSHK.MEGSB_p5_0_Digital_Voltage[i] - eightk) * sixtenfour; // uV
+        shk.MEGSB_p2_5_Voltage[i]         = -(rawSHK.MEGSB_p2_5_Voltage[i] - eightk) * sixtenfour; // uV
+        shk.MEGSB_p24_Current[i]          = -(rawSHK.MEGSB_p24_Current[i] - eightk) * sixtenfour * 4; // uA
+        shk.MEGSB_p15_Current[i]          = -(rawSHK.MEGSB_p15_Current[i] - eightk) * sixtenfour * 3; // uA - suspicious sign
+        shk.MEGSB_m15_Current[i]          = -(rawSHK.MEGSB_m15_Current[i] - eightk) * sixtenfour * 3; // uA
+        shk.MEGSB_p5_0_Analog_Current[i]  = -(rawSHK.MEGSB_p5_0_Analog_Current[i] - eightk) * sixtenfour; // uA
+        shk.MEGSB_m5_0_Current[i]         = -(rawSHK.MEGSB_m5_0_Current[i] - eightk) * sixtenfour; // uV?
+        shk.MEGSB_p5_0_Digital_Current[i] = -(rawSHK.MEGSB_p5_0_Digital_Current[i]) * 5.957e-5 - 1.952; // A
+        shk.MEGSB_p2_5_Current[i]         = -(rawSHK.MEGSB_p2_5_Current[i] - eightk) * sixtenfour; // uA
+
+        shk.MEGSA_PRT[i] = -159.899f + 10.0f + (0.063084f * rawSHK.MEGSA_PRT[i]); // using SURF cable offset of +10
+        shk.MEGSA_Thermistor_Diode[i] = 211.5647 + 10.0f - (0.0821814f * rawSHK.MEGSA_Thermistor_Diode[i]);
+        shk.MEGSB_PRT[i] = -159.899f + 10.0f + (0.063084f * rawSHK.MEGSB_PRT[i]); // using SURF cable offset of +10
+        shk.MEGSB_Thermistor_Diode[i] = 211.5647f +10.0f - (0.0821814f * rawSHK.MEGSB_Thermistor_Diode[i]);
+
+        shk.ESP_Detector_Temperature[i] = 107.67103f - (0.074409605f * rawSHK.ESP_Detector_Temperature[i]) + 
+            (2.3621067e-5) * (rawSHK.ESP_Detector_Temperature[i] * rawSHK.ESP_Detector_Temperature[i]) +
+            (-3.450586e-9) * (rawSHK.ESP_Detector_Temperature[i] * rawSHK.ESP_Detector_Temperature[i] * rawSHK.ESP_Detector_Temperature[i]);
+        shk.ESP_Electrometer_Temperature[i] = 107.67103f - (0.074409605f * rawSHK.ESP_Electrometer_Temperature[i]) + 
+            (2.3621067e-5) * (rawSHK.ESP_Electrometer_Temperature[i] * rawSHK.ESP_Electrometer_Temperature[i]) +
+            (-3.450586e-9) * (rawSHK.ESP_Electrometer_Temperature[i] * rawSHK.ESP_Electrometer_Temperature[i] * rawSHK.ESP_Electrometer_Temperature[i]);
+        shk.MEGSP_Temperature[i] = 107.67103f - (0.074409605f * rawSHK.MEGSP_Temperature[i]) + 
+            (2.3621067e-5) * (rawSHK.MEGSP_Temperature[i] * rawSHK.MEGSP_Temperature[i]) +
+            (-3.450586e-9) * (rawSHK.MEGSP_Temperature[i] * rawSHK.MEGSP_Temperature[i] * rawSHK.MEGSP_Temperature[i]);
+
+    }
+
+    return shk;
 }
 
 void processHKPacket(std::vector<uint8_t> payload, 
@@ -716,7 +755,7 @@ void processHKPacket(std::vector<uint8_t> payload,
     {
         int incr = firstbyteoffset;
         int index = packetoffset;
-        oneSHKStructure.mode[index] = payload[9]; // value is 0-10 and fits in one byte
+        oneSHKStructure.mode[index] = payload[9]; // value is 0-10 and fits in one byte - note MSB will contain a 1-minute heartbeat
         oneSHKStructure.FPGA_Board_Temperature[index] = payloadBytesToUint32(payload, incr+4);
         oneSHKStructure.FPGA_Board_p5_0_Voltage[index] = payloadBytesToUint32(payload, incr+8);
         oneSHKStructure.FPGA_Board_p3_3_Voltage[index] = payloadBytesToUint32(payload, incr+12);
@@ -852,15 +891,18 @@ void processHKPacket(std::vector<uint8_t> payload,
         fitsFileWriter = std::unique_ptr<FITSWriter>(new FITSWriter());
         // the c++14 way fitsFileWriter = std::make_unique<FITSWriter>();
 
+        // perform conversions
+        SHK_CONVERTED_PACKET oneSHKConvertedData = convertSHKData(oneSHKStructure);
+        mtx.lock();
+        globalState.shkConv = oneSHKConvertedData;
+        mtx.unlock();
+
         if (fitsFileWriter) {
-            //std::cout << "procesSHKPacket: tai_time_seconds = " << oneSHKStructure.tai_time_seconds << std::endl;
 
             if (!fitsFileWriter->writeSHKFITS( oneSHKStructure )) {
                 LogFileWriter::getInstance().logInfo("writeSHKFITS write error");
                 std::cout << "ERROR: writeSHKFITS returned an error" << std::endl;
             }
-            //std::cout<<"processSHKPacket - SHK FPGA_Board_Temperature values" << std::endl;
-            //printBytes(oneSHKStructure.FPGA_Board_Temperature,19);
 
             processedPacketCounter = 0;
             // reset the structure immediately after writing
