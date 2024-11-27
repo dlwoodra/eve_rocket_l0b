@@ -4,8 +4,6 @@
 
 #define DEBUG
 
-// absorbed eve_structures.h
-
 #include <atomic>
 #include <stdbool.h>
 #include <stdio.h>
@@ -24,7 +22,6 @@
 #include <cstdint>
 #include <thread>
 #include <chrono>
-//#include "CCSDSReader.hpp"
 
 // Constants
 constexpr uint32_t SYNC_MARKER = 0x1ACFFC1D; // sync marker
@@ -65,14 +62,6 @@ constexpr uint16_t IMAGE_UPDATE_INTERVAL = 114; //266; // best values are evenly
 #define n_bytes_per_vcdu 1784			// Includes CRC 16bit word
 #define n_bytes_per_vcdu_header 28		// The vcdu header is 28 bytes
 #define n_bytes_per_vcdu_data 1756		// Each vcdu is 1756 bytes
-
-//#define megsa1boundary 556  // Y		The pixel value (row) defining the row between Slit 1 and Slit 2
-//#define megsa2boundary 750  // X		The pixel value (column) defining the row between Slit 2 and SAM
-
-//#define PIXELS_PER_HALF_VCDU 438	 	// 1752 bytes or 876 total pixels/vcdu
-//#define FONTWIDTH 32				// Used in quicklook images
-//#define FONTHEIGHT 32				// Used in quicklook images
-#define skipval 4				// Scale quicklook images by this factor
 
 #define N_PKT_PER_IMAGE 		2395	// There are 2395 packets in each image
 
@@ -127,18 +116,6 @@ constexpr uint32_t MEGS_IMAGE_T_HEIGHT = 2048; //transposed
 #define E_FITS_IO			401			// Error Reading/Writing Fits file
 
 
-// User defined include files
-//#include "eve_structures.hpp" // the contents of eve_structures were pasted in below
-//#include "eve_graphics.h"
-//#include "rainbow_colors.h"
-//#include "fits_rw.h"
-//#include "eveplot.h"
-//#include "filter_pos.h"
-//#include "png.h"
-//#include "logutilities.h"
-//#include "ccsds_crc_tab.h"
-//#include "gsl/gsl_statistics.h"
-//#include "gsl/gsl_fft_real.h"
 
 //
 //define structures
@@ -146,14 +123,6 @@ constexpr uint32_t MEGS_IMAGE_T_HEIGHT = 2048; //transposed
 
 // contents from eve_structures.hpp
 
-// struct Plot_spectra_data
-// {
-// 	char filename[256];
-//     uint16_t image[MEGS_IMAGE_WIDTH][MEGS_IMAGE_HEIGHT];
-// 	uint32_t time;
-// 	int readout_mode;
-// 	int aORb;
-// }plot_spectra_structA, plot_spectra_structB;
 
 // define program state variables to use across both threads here
 
@@ -281,9 +250,7 @@ struct SHK_PACKET
 	//uint32_t spare62;
 	//uint32_t spare63;
 	//uint32_t spare64;
-	//char* cstrISO8601 = nullptr;
-
-}; // __attribute__ ((packed));
+};
 
 extern struct SHK_PACKET shk_data;
 
@@ -344,7 +311,7 @@ struct SHK_CONVERTED_PACKET
 	double ESP_Electrometer_Temperature[SHK_INTEGRATIONS_PER_FILE];
 	double ESP_Detector_Temperature[SHK_INTEGRATIONS_PER_FILE];
 	double MEGSP_Temperature[SHK_INTEGRATIONS_PER_FILE]; 			// 60
-}; // __attribute__ ((packed));
+};
 
 extern struct SHK_CONVERTED_PACKET shk_converted_data;
 
@@ -367,7 +334,7 @@ struct ESP_PACKET
 	uint16_t ESP_304[ESP_INTEGRATIONS_PER_FILE];
 	uint16_t ESP_366[ESP_INTEGRATIONS_PER_FILE];
 	uint16_t ESP_dark[ESP_INTEGRATIONS_PER_FILE];
-}; // __attribute__ ((packed));
+};
 
 extern struct ESP_PACKET esp_data;
 
@@ -381,7 +348,7 @@ struct MEGSP_PACKET
   uint32_t rec_tai_subseconds;
   uint16_t MP_lya[MEGSP_INTEGRATIONS_PER_FILE];
   uint16_t MP_dark[MEGSP_INTEGRATIONS_PER_FILE];
-}; // __attribute__ ((packed));
+};
 
 extern struct MEGSP_PACKET megsp_data;
 
@@ -394,26 +361,10 @@ struct MEGS_IMAGE_REC {
   uint32_t rec_tai_subseconds;
   uint16_t vcdu_count;
   uint16_t image[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH];
-}; // __attribute__ ((packed));
+};
 
 extern struct MEGS_IMAGE_REC megs_image_rec;
 
-// struct TLM_ERRORS
-// {
-// 	uint16_t	crc;
-// 	uint16_t	parity;
-// 	uint16_t	sync;
-// };
-
-// extern TLM_ERRORS tlm_errors;
-
-
-//global variables
-//extern std::mutex mtx;
-//extern ProgramState globalState; //Declaration only
-
-
-// +++++++++++++++++  The procedure prototypes  ++++++++++++++++++
 
 int assemble_image( uint8_t * vcdu,  MEGS_IMAGE_REC * ptr, uint16_t sourceSequenceCounter, bool testPattern, int32_t& xpos, int32_t& ypos, int8_t *status);
 int	processPHOTOpacket(uint32_t *esp_time_seconds, uint32_t *esp_index, uint8_t *vcdu_data);
@@ -438,6 +389,5 @@ int checkdir( char * filename );
 
 // imgui_thread.cpp function prototypes
 //void histogramEqualization(uint16_t (*image)[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH], std::vector<uint8_t>& textureData);
-
 
 #endif
