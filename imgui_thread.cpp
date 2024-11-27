@@ -1538,7 +1538,7 @@ int imgui_thread() {
 
 
     // Preload fonts into ImGui's font atlas (this should be done outside the rendering loop)
-    ImFont* pFont = io.Fonts->AddFontFromFileTTF("./fonts/DejaVuSans.ttf", 14.0f);
+    ImFont* pFont = io.Fonts->AddFontFromFileTTF("./fonts/DejaVuSans.ttf", 16.0f);
     bool isFontLoaded = false;
 
     // Setup Dear ImGui style
