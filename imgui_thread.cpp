@@ -1108,8 +1108,8 @@ void updateStatusWindow()
     double espTAI = tai_ss(eTAI, eTAIsub);
     double espRecTAI = tai_ss(rTAI, rTAIsub);
 
-    double deltaTimeMilliSec = (espTAI - espRecTAI)*1000.f;
-    double redLim = 125.0f;
+    double deltaTimeMilliSec = (espTAI - espRecTAI)*1000.0f;
+    double redLim = 100.0f;
     double yellowLim = 70.0f;
     if ( (deltaTimeMilliSec > redLim) | (deltaTimeMilliSec < -redLim) ) {
         state = Red;
@@ -1123,7 +1123,7 @@ void updateStatusWindow()
     {
         ImGui::Text("Pkt TAI: %.3f ", espTAI);
         ImGui::Text("Rec TAI: %.3f ", espRecTAI);
-        renderInputTextWithColor("Rec-Pkt (millisec)", 1.e3 * (deltaTimeMilliSec), 12, true, yellowLim, redLim, -yellowLim, -redLim, "%.3f", 7);
+        renderInputTextWithColor("Rec-Pkt (millisec)", (deltaTimeMilliSec), 12, true, yellowLim, redLim, -yellowLim, -redLim, "%.3f", 7);
         ImGui::TreePop();
     }
 
@@ -1569,7 +1569,7 @@ int imgui_thread() {
     // Demo loads fonts here
 
     // Our state
-    bool show_demo_window = true;
+    bool show_demo_window = false;
     //bool show_another_window = false;
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
