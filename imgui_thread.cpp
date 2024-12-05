@@ -1110,7 +1110,8 @@ void updateStatusWindow()
 
     double deltaTimeMilliSec = (espTAI - espRecTAI)*1000.0f;
     double redLim = 100.0f;
-    double yellowLim = 70.0f;
+    double yellowLim = 99.9f; // essentially disable yellow state
+    //double yellowLim = 70.0f;
     if ( (deltaTimeMilliSec > redLim) | (deltaTimeMilliSec < -redLim) ) {
         state = Red;
     } else if ( (deltaTimeMilliSec > yellowLim) | (deltaTimeMilliSec < -yellowLim) ) {
@@ -1307,11 +1308,6 @@ void updateESPWindow()
     {
         mtx.lock();
 
-        //ImGui::SetNextItemWidth(ImGui::GetFontSize() * 10);
-
-        //std::string iso8601 = tai_to_iso8601(globalState.esp.tai_time_seconds);
-        //std::string newiso8601 = tai_to_iso8601sss( iso8601, globalState.esp.tai_time_subseconds);
-        //const char* tmpiISO8601sss = newiso8601.c_str(); 
         std::string tmpiISO8601sss = tai_to_iso8601_with_milliseconds(globalState.esp.tai_time_seconds, globalState.esp.tai_time_subseconds); 
         ImGui::Text("pkt:%s", tmpiISO8601sss.c_str());
 
@@ -1413,14 +1409,24 @@ void displayFPGAStatus() {
 
     LimitState state = Green;
 
-    if ( (shortPacketCounter > 0.5f) || (packetsPerSecond > 850.0f) || (readsPerSecond > 30.0f) ||
-        (packetsPerSecond < 3.9f) || (readsPerSecond < 12.9f) )
+    float yellowHighReadsPerSecond = 30.0f; // WAG
+    float redHighReadsPerSecond = 31.0f; // WAG
+    float yellowLowReadsPerSecond = 12.9f; // WAG
+    float redLowReadsPerSecond = 11.9f; // WAG
+
+    float yellowHighPacketsPerSecond = 850.0f; // WAG
+    float redHighPacketsPerSecond = 900.0f; // WAG
+    float yellowLowPacketsPerSecond = 1.9f; // WAG
+    float redLowPacketsPerSecond = 1.8f; // WAG
+
+    if ( (shortPacketCounter > 0) || (packetsPerSecond > yellowHighPacketsPerSecond) || (readsPerSecond > yellowHighReadsPerSecond) ||
+        (packetsPerSecond < yellowLowPacketsPerSecond) || (readsPerSecond < yellowLowReadsPerSecond) )
     {
         //set yellow color
         state = Yellow;
     }
-    if ( (shortPacketCounter > 0.9f) || (packetsPerSecond > 900.0f) || (readsPerSecond > 31.0f) ||
-        (packetsPerSecond < 2.9f) || (readsPerSecond < 11.9f) )
+    if ( (shortPacketCounter > 0) || (packetsPerSecond > redHighPacketsPerSecond) || (readsPerSecond > redHighReadsPerSecond) ||
+        (packetsPerSecond < redLowPacketsPerSecond) || (readsPerSecond < redLowReadsPerSecond) )
     {
         //set red hi color
         state = Red;
@@ -1434,12 +1440,24 @@ void displayFPGAStatus() {
         renderInputTextWithColor("Reg 1", reg1, 6, false, 0.0, 0.9);
         renderInputTextWithColor("Reg 2", reg2, 6, false, 0.0, 0.9);
         renderInputTextWithColor("Reg 3", reg3, 6, false, 0.0, 0.9);
-        renderInputTextWithColor("64k Reads/s", readsPerSecond, 6, true, 30.0f, 31.0f, 12.9f, 11.9f);
+
+        renderInputTextWithColor("64k Reads/s", readsPerSecond, 6, true, yellowHighReadsPerSecond, redHighReadsPerSecond, yellowLowReadsPerSecond, redLowReadsPerSecond);
         // to convert reads per second to Mb/s div by 2 (read/s * 65536Bytes/read * 8bits/Byte * 1Mb/(1024*1024bits)=Mb/s )
         float mBps = (readsPerSecond >> 1); // * 65536.0f * 8.0f/ 1024.0f / 1024.0f is same as 2^16 * 2^3 / 2^10 / 2^10 = 2^-1
-        renderInputTextWithColor("USB Mb/s", mBps, 6, true, 18.0, 21.0f, 6.9, 0.51, "%.1f");
-        renderInputTextWithColor("pkt/s", packetsPerSecond, 6, true, 850.0, 900.0f, 1.9f, 1.8f);
-        renderInputTextWithColor("short pkts", shortPacketCounter, 6, true, 0.5f, 0.9f);
+
+        float yellowHighmBps = 18.0f; // WAG
+        float redHighmBps = 21.0f; // WAG
+        float yellowLowmBps = 6.9f; // WAG
+        float redLowmBps = 0.51f; // WAG
+
+        renderInputTextWithColor("USB Mb/s", mBps, 6, true, yellowHighmBps, redHighmBps, yellowLowmBps, redLowmBps, "%.1f");
+
+        renderInputTextWithColor("pkt/s", packetsPerSecond, 6, true, yellowHighPacketsPerSecond, redHighPacketsPerSecond, yellowLowPacketsPerSecond, redLowPacketsPerSecond);
+
+        float yellowHighShortPacketCounter = 0.5f;
+        float redHighShortPacketCounter = 0.9f;
+        renderInputTextWithColor("short pkts", shortPacketCounter, 6, true, yellowHighShortPacketCounter, redHighShortPacketCounter);
+
         ImGui::TreePop();
     }
 
@@ -1447,12 +1465,19 @@ void displayFPGAStatus() {
     int FIFORxEmpty = (reg0 >> 1) & 0x01;
     int FIFORxError = (reg0 >> 2) & 0x01;
     //reg3 is temperature
-    float temperature = (reg3 >> 4) * 503.975f / 4096.0f - 273.15f;
+    float temperature = (reg3 >> 4) * 503.975f / 4096.0f - 273.15f; // usually in the high 30s
+
+    float yellowHighTemp = 49.0f;
+    float redHighTemp = 50.0f;
+    float yellowLowTemp = 20.0f;
+    float redLowTemp = 19.0f;
+
     state = Green;
-    if (( temperature > 49.0f) || (temperature < 20.0f) || (FIFORxEmpty) || (FIFORxError)){
+
+    if (( temperature > yellowHighTemp) || (temperature < yellowLowTemp) || (FIFORxEmpty) || (FIFORxError)){
         state = Yellow;
     }
-    if ((FIFORxError) || (temperature > 50.0f) || (temperature < 19.0f)){
+    if ((FIFORxError) || (temperature > redHighTemp) || (temperature < redLowTemp)){
         state = Red;
     }
 
@@ -1483,7 +1508,9 @@ void displayFPGAStatus() {
         }
         //reg2 is overflow
         renderInputTextWithColor("FIFO Overflow", reg2, 12, true, 0, 0.9f);
-        renderInputTextWithColor("FPGA Temp (C)", temperature, 12, true, 49.0f, 50.0f, 20.0f, 19.0f, "%.1f");
+
+        renderInputTextWithColor("FPGA Temp (C)", temperature, 12, true, yellowHighTemp, redHighTemp, yellowLowTemp, redLowTemp, "%.1f");
+
         ImGui::TreePop();
     }
     ImGui::End(); // end of FPGA Status
