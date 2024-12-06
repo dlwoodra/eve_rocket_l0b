@@ -677,7 +677,9 @@ void displayMAImageWithControls(GLuint megsATextureID)
 
         bool isTreeNodeRowSelectOpen = ImGui::TreeNode("Select MA Rows");
         if (isTreeNodeRowSelectOpen) {
+            ImGui::SetNextItemWidth(100);
             ImGui::InputInt("MA FirstRow", &firstRowIdx);
+            ImGui::SetNextItemWidth(100);
             ImGui::InputInt("MA SecondRow", &secondRowIdx);
             ImGui::TreePop();
         }
@@ -709,7 +711,7 @@ void displayMAImageWithControls(GLuint megsATextureID)
         static std::deque<uint16_t> megsARateMeterDN;
         size_t maxRateMeterSize = 10;
 
-        static int xyTarget[2] = {1720, 252};
+        static int xyTarget[2] = {1610, 285}; // SAM center?
         static int xyhalfWidth[2] = {5, 5};
         float itemWidthValue = ImGui::GetFontSize() * 6;
         ImGui::PushItemWidth(itemWidthValue);
