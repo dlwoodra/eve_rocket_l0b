@@ -848,7 +848,9 @@ void displayMBImageWithControls(GLuint megsBTextureID)
 
         bool isTreeNodeRowSelectOpen = ImGui::TreeNode("Select MB Rows");
         if (isTreeNodeRowSelectOpen) {
+            ImGui::SetNextItemWidth(100);
             ImGui::InputInt("MB FirstRow", &firstRowIdx);
+            ImGui::SetNextItemWidth(100);
             ImGui::InputInt("MB SecondRow", &secondRowIdx);
             ImGui::TreePop();
         }
@@ -1082,7 +1084,45 @@ void updateControlWindow()
         ImGui::TreePop();
     }
 
-
+    if ( ImGui::TreeNode("Reset Packet Gap Counters") )
+    {
+        if (ImGui::Button("Reset All")) {
+            globalState.dataGapsMA.store(0);
+            globalState.dataGapsMB.store(0);
+            globalState.dataGapsESP.store(0);
+            globalState.dataGapsMP.store(0);
+            globalState.dataGapsSHK.store(0);
+        }
+        if (ImGui::Button("Reset MEGS-A Gap Count")) {
+            globalState.dataGapsMA.store(0);
+        }
+        if (ImGui::Button("Reset MEGS-B Gap Count")) {
+            globalState.dataGapsMB.store(0);
+        }
+        if (ImGui::Button("Reset ESP Gap Count")) {
+            globalState.dataGapsESP.store(0);
+        }
+        if (ImGui::Button("Reset MEGS-P Gap Count")) {
+            globalState.dataGapsMP.store(0);
+        }
+        if (ImGui::Button("Reset SHK Gap Count")) {
+            globalState.dataGapsSHK.store(0);
+        }
+        ImGui::TreePop();
+    }
+    if (ImGui::TreeNode("Reset Parity Error Counters")) {
+        if (ImGui::Button("Reset All")) {
+            globalState.parityErrorsMA.store(0);
+            globalState.parityErrorsMB.store(0);
+        }
+        if (ImGui::Button("Reset MEGS-A Parity Errors")) {
+            globalState.parityErrorsMA.store(0);
+        }
+        if (ImGui::Button("Reset MEGS-B Parity Errors")) {
+            globalState.parityErrorsMB.store(0);
+        }
+        ImGui::TreePop();
+    }
 
     ImGui::End();
 }
@@ -1469,10 +1509,10 @@ void displayFPGAStatus() {
     //reg3 is temperature
     float temperature = (reg3 >> 4) * 503.975f / 4096.0f - 273.15f; // usually in the high 30s
 
-    float yellowHighTemp = 49.0f;
-    float redHighTemp = 50.0f;
-    float yellowLowTemp = 20.0f;
-    float redLowTemp = 19.0f;
+    float yellowHighTemp = 50.0f;
+    float redHighTemp = 60.0f; // XEM7310 spec says +70 is max operating temperature
+    float yellowLowTemp = 15.0f;
+    float redLowTemp = 10.0f;
 
     state = Green;
 
