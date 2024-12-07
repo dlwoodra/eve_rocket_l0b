@@ -12,6 +12,8 @@
 #include "RecordFileWriter.hpp"
 #include "USBInputSource.hpp"
 #include "ProgramState.hpp"
+#include <functional>
+#include <array>
 #include <omp.h>
 
 //#include <chrono> // included in RecordFileWriter.hpp
