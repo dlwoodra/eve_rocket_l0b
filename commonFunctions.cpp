@@ -652,73 +652,120 @@ void processESPPacket(std::vector<uint8_t> payload,
 
 }
 
-SHK_CONVERTED_PACKET convertSHKData(SHK_PACKET rawSHK) {
+
+SHK_CONVERTED_PACKET convertSHKData(SHK_PACKET& rawSHK) {
     SHK_CONVERTED_PACKET shk = {0};
 
-    shk.tai_time_seconds = rawSHK.tai_time_seconds;
-    shk.tai_time_subseconds = rawSHK.tai_time_subseconds;
-    shk.rec_tai_seconds = rawSHK.rec_tai_seconds;
-    shk.rec_tai_subseconds = rawSHK.rec_tai_subseconds;
-    shk.sod = rawSHK.sod;
-    shk.yyyydoy = rawSHK.yyyydoy;
-    constexpr double sixtenfour = 610.4f;
-    constexpr int32_t eightk = 0x8000;
+    constexpr double CONVERSION_UV_SLOPE = 610.4e-6;
+    constexpr double MID_POINT = 32768.0f;
+
+    // lambda function for applying conversion
+     auto apply_cubic_conversion = [&](double raw, double a, double b, double c, double d) -> double {
+         return a + b * raw + c * raw * raw + d * raw * raw * raw;
+    };
 
     for (int i=0; i<SHK_INTEGRATIONS_PER_FILE; i++) {
         shk.FPGA_Board_Temperature[i]  = -5260.0f + rawSHK.FPGA_Board_Temperature[i] * 0.1526f; // deg C
-        shk.FPGA_Board_p5_0_Voltage[i] = (rawSHK.FPGA_Board_p5_0_Voltage[i] - eightk) * sixtenfour; // uV
-        shk.FPGA_Board_p3_3_Voltage[i] = (rawSHK.FPGA_Board_p3_3_Voltage[i] - eightk) * sixtenfour; // uV
-        shk.FPGA_Board_p2_5_Voltage[i] = (rawSHK.FPGA_Board_p2_5_Voltage[i] - eightk) * sixtenfour; // uV
-        shk.FPGA_Board_p1_2_Voltage[i] = (rawSHK.FPGA_Board_p1_2_Voltage[i] - eightk) * sixtenfour; // uV
+        shk.FPGA_Board_p5_0_Voltage[i] = (static_cast<double>(rawSHK.FPGA_Board_p5_0_Voltage[i]) - MID_POINT) * CONVERSION_UV_SLOPE; // uV
+        shk.FPGA_Board_p3_3_Voltage[i] = (static_cast<double>(rawSHK.FPGA_Board_p3_3_Voltage[i]) - MID_POINT) * CONVERSION_UV_SLOPE; // uV
+        shk.FPGA_Board_p2_5_Voltage[i] = (static_cast<double>(rawSHK.FPGA_Board_p2_5_Voltage[i]) - MID_POINT) * CONVERSION_UV_SLOPE; // uV
+        shk.FPGA_Board_p1_2_Voltage[i] = (static_cast<double>(rawSHK.FPGA_Board_p1_2_Voltage[i]) - MID_POINT) * CONVERSION_UV_SLOPE; // uV
 
-        shk.MEGSA_CEB_Temperature[i]   = -(rawSHK.MEGSA_CEB_Temperature[i] - eightk) * sixtenfour; // deg C
-        shk.MEGSA_CPR_Temperature[i]   = -(rawSHK.MEGSA_CPR_Temperature[i] - eightk) * sixtenfour; // deg C
-        shk.MEGSA_p24_Voltage[i]       = -(rawSHK.MEGSA_p24_Voltage[i] - eightk) * sixtenfour * 4; // uV
-        shk.MEGSA_p15_Voltage[i]       = (rawSHK.MEGSA_p15_Voltage[i] - eightk) * sixtenfour * 3; // uV
-        shk.MEGSA_m15_Voltage[i]       = -(rawSHK.MEGSA_m15_Voltage[i] - eightk) * sixtenfour * 3; // uV
-        shk.MEGSA_p5_0_Analog_Voltage[i]  = -(rawSHK.MEGSA_p5_0_Analog_Voltage[i] - eightk) * sixtenfour; // uV
-        shk.MEGSA_m5_0_Voltage[i]         = -(rawSHK.MEGSA_m5_0_Voltage[i] - eightk) * sixtenfour; // uV
-        shk.MEGSA_p5_0_Digital_Voltage[i] = -(rawSHK.MEGSA_p5_0_Digital_Voltage[i] - eightk) * sixtenfour; // uV
-        shk.MEGSA_p2_5_Voltage[i]         = -(rawSHK.MEGSA_p2_5_Voltage[i] - eightk) * sixtenfour; // uV
-        shk.MEGSA_p24_Current[i]          = -(rawSHK.MEGSA_p24_Current[i] - eightk) * sixtenfour * 4; // uA
-        shk.MEGSA_p15_Current[i]          = -(rawSHK.MEGSA_p15_Current[i] - eightk) * sixtenfour * 3; // uA - suspicious sign
-        shk.MEGSA_m15_Current[i]          = -(rawSHK.MEGSA_m15_Current[i] - eightk) * sixtenfour * 3; // uA
-        shk.MEGSA_p5_0_Analog_Current[i]  = -(rawSHK.MEGSA_p5_0_Analog_Current[i] - eightk) * sixtenfour; // uA
-        shk.MEGSA_m5_0_Current[i]         = -(rawSHK.MEGSA_m5_0_Current[i] - eightk) * sixtenfour; // uV?
-        shk.MEGSA_p5_0_Digital_Current[i] = -(rawSHK.MEGSA_p5_0_Digital_Current[i]) * 5.957e-5 - 1.952; // A
-        shk.MEGSA_p2_5_Current[i]         = -(rawSHK.MEGSA_p2_5_Current[i] - eightk) * sixtenfour; // uA
+        shk.MEGSA_CEB_Temperature[i]   = -(static_cast<double>(rawSHK.MEGSA_CEB_Temperature[i]) - MID_POINT) * CONVERSION_UV_SLOPE; // deg C
+        shk.MEGSA_CPR_Temperature[i]   = -(static_cast<double>(rawSHK.MEGSA_CPR_Temperature[i]) - MID_POINT) * CONVERSION_UV_SLOPE; // deg C
+        shk.MEGSA_p24_Voltage[i]       = -(static_cast<double>(rawSHK.MEGSA_p24_Voltage[i]) - MID_POINT) * CONVERSION_UV_SLOPE * 4; // uV
+        shk.MEGSA_p15_Voltage[i]       = -(static_cast<double>(rawSHK.MEGSA_p15_Voltage[i]) - MID_POINT) * CONVERSION_UV_SLOPE * 3; // uV
+        shk.MEGSA_m15_Voltage[i]       = (static_cast<double>(rawSHK.MEGSA_m15_Voltage[i]) - MID_POINT) * CONVERSION_UV_SLOPE * 3; // uV
+        shk.MEGSA_p5_0_Analog_Voltage[i]  = -(static_cast<double>(rawSHK.MEGSA_p5_0_Analog_Voltage[i]) - MID_POINT) * CONVERSION_UV_SLOPE; // uV
+        shk.MEGSA_m5_0_Voltage[i]         = (static_cast<double>(rawSHK.MEGSA_m5_0_Voltage[i]) - MID_POINT) * CONVERSION_UV_SLOPE; // uV
+        shk.MEGSA_p5_0_Digital_Voltage[i] = -(static_cast<double>(rawSHK.MEGSA_p5_0_Digital_Voltage[i]) - MID_POINT) * CONVERSION_UV_SLOPE; // uV
+        shk.MEGSA_p2_5_Voltage[i]         = -(static_cast<double>(rawSHK.MEGSA_p2_5_Voltage[i]) - MID_POINT) * CONVERSION_UV_SLOPE; // uV
+        shk.MEGSA_p24_Current[i]          = -(static_cast<double>(rawSHK.MEGSA_p24_Current[i]) - MID_POINT) * CONVERSION_UV_SLOPE * 4; // uA
+        shk.MEGSA_p15_Current[i]          = -(static_cast<double>(rawSHK.MEGSA_p15_Current[i]) - MID_POINT) * CONVERSION_UV_SLOPE * 3; // uA - suspicious sign
+        shk.MEGSA_m15_Current[i]          = -(static_cast<double>(rawSHK.MEGSA_m15_Current[i]) - MID_POINT) * CONVERSION_UV_SLOPE * 3; // uA
+        shk.MEGSA_p5_0_Analog_Current[i]  = -(static_cast<double>(rawSHK.MEGSA_p5_0_Analog_Current[i]) - MID_POINT) * CONVERSION_UV_SLOPE; // uA
+        shk.MEGSA_m5_0_Current[i]         = -(static_cast<double>(rawSHK.MEGSA_m5_0_Current[i]) - MID_POINT) * CONVERSION_UV_SLOPE; // uV?
+        shk.MEGSA_p5_0_Digital_Current[i] = -(static_cast<double>(rawSHK.MEGSA_p5_0_Digital_Current[i]) * 5.957e-5 - 1.952); // A
+        shk.MEGSA_p2_5_Current[i]         = -(static_cast<double>(rawSHK.MEGSA_p2_5_Current[i]) - MID_POINT) * CONVERSION_UV_SLOPE; // uA
 
-        shk.MEGSB_CEB_Temperature[i]   = -(rawSHK.MEGSB_CEB_Temperature[i] - eightk) * sixtenfour; // deg C
-        shk.MEGSB_CPR_Temperature[i]   = -(rawSHK.MEGSB_CPR_Temperature[i] - eightk) * sixtenfour; // deg C
-        shk.MEGSB_p24_Voltage[i]       = -(rawSHK.MEGSB_p24_Voltage[i] - eightk) * sixtenfour * 4; // uV
-        shk.MEGSB_p15_Voltage[i]       = (rawSHK.MEGSB_p15_Voltage[i] - eightk) * sixtenfour * 3; // uV
-        shk.MEGSB_m15_Voltage[i]       = -(rawSHK.MEGSB_m15_Voltage[i] - eightk) * sixtenfour * 3; // uV
-        shk.MEGSB_p5_0_Analog_Voltage[i]  = -(rawSHK.MEGSB_p5_0_Analog_Voltage[i] - eightk) * sixtenfour; // uV
-        shk.MEGSB_m5_0_Voltage[i]         = -(rawSHK.MEGSB_m5_0_Voltage[i] - eightk) * sixtenfour; // uV
-        shk.MEGSB_p5_0_Digital_Voltage[i] = -(rawSHK.MEGSB_p5_0_Digital_Voltage[i] - eightk) * sixtenfour; // uV
-        shk.MEGSB_p2_5_Voltage[i]         = -(rawSHK.MEGSB_p2_5_Voltage[i] - eightk) * sixtenfour; // uV
-        shk.MEGSB_p24_Current[i]          = -(rawSHK.MEGSB_p24_Current[i] - eightk) * sixtenfour * 4; // uA
-        shk.MEGSB_p15_Current[i]          = -(rawSHK.MEGSB_p15_Current[i] - eightk) * sixtenfour * 3; // uA - suspicious sign
-        shk.MEGSB_m15_Current[i]          = -(rawSHK.MEGSB_m15_Current[i] - eightk) * sixtenfour * 3; // uA
-        shk.MEGSB_p5_0_Analog_Current[i]  = -(rawSHK.MEGSB_p5_0_Analog_Current[i] - eightk) * sixtenfour; // uA
-        shk.MEGSB_m5_0_Current[i]         = -(rawSHK.MEGSB_m5_0_Current[i] - eightk) * sixtenfour; // uV?
-        shk.MEGSB_p5_0_Digital_Current[i] = -(rawSHK.MEGSB_p5_0_Digital_Current[i]) * 5.957e-5 - 1.952; // A
-        shk.MEGSB_p2_5_Current[i]         = -(rawSHK.MEGSB_p2_5_Current[i] - eightk) * sixtenfour; // uA
+        shk.MEGSB_CEB_Temperature[i]   = -(static_cast<double>(rawSHK.MEGSB_CEB_Temperature[i]) - MID_POINT) * CONVERSION_UV_SLOPE; // deg C
+        shk.MEGSB_CPR_Temperature[i]   = -(static_cast<double>(rawSHK.MEGSB_CPR_Temperature[i]) - MID_POINT) * CONVERSION_UV_SLOPE; // deg C
+        shk.MEGSB_p24_Voltage[i]       = -(static_cast<double>(rawSHK.MEGSB_p24_Voltage[i]) - MID_POINT) * CONVERSION_UV_SLOPE * 4; // uV
+        shk.MEGSB_p15_Voltage[i]       = -(static_cast<double>(rawSHK.MEGSB_p15_Voltage[i]) - MID_POINT) * CONVERSION_UV_SLOPE * 3; // uV
+        shk.MEGSB_m15_Voltage[i]       = (static_cast<double>(rawSHK.MEGSB_m15_Voltage[i]) - MID_POINT) * CONVERSION_UV_SLOPE * 3; // uV
+        shk.MEGSB_p5_0_Analog_Voltage[i]  = -(static_cast<double>(rawSHK.MEGSB_p5_0_Analog_Voltage[i]) - MID_POINT) * CONVERSION_UV_SLOPE; // uV
+        shk.MEGSB_m5_0_Voltage[i]         = (static_cast<double>(rawSHK.MEGSB_m5_0_Voltage[i]) - MID_POINT) * CONVERSION_UV_SLOPE; // uV
+        shk.MEGSB_p5_0_Digital_Voltage[i] = -(static_cast<double>(rawSHK.MEGSB_p5_0_Digital_Voltage[i]) - MID_POINT) * CONVERSION_UV_SLOPE; // uV
+        shk.MEGSB_p2_5_Voltage[i]         = -(static_cast<double>(rawSHK.MEGSB_p2_5_Voltage[i]) - MID_POINT) * CONVERSION_UV_SLOPE; // uV
+        shk.MEGSB_p24_Current[i]          = -(static_cast<double>(rawSHK.MEGSB_p24_Current[i]) - MID_POINT) * CONVERSION_UV_SLOPE * 4; // uA
+        shk.MEGSB_p15_Current[i]          = -(static_cast<double>(rawSHK.MEGSB_p15_Current[i]) - MID_POINT) * CONVERSION_UV_SLOPE * 3; // uA - suspicious sign
+        shk.MEGSB_m15_Current[i]          = -(static_cast<double>(rawSHK.MEGSB_m15_Current[i]) - MID_POINT) * CONVERSION_UV_SLOPE * 3; // uA
+        shk.MEGSB_p5_0_Analog_Current[i]  = -(static_cast<double>(rawSHK.MEGSB_p5_0_Analog_Current[i]) - MID_POINT) * CONVERSION_UV_SLOPE; // uA
+        shk.MEGSB_m5_0_Current[i]         = -(static_cast<double>(rawSHK.MEGSB_m5_0_Current[i]) - MID_POINT) * CONVERSION_UV_SLOPE; // uV?
+        shk.MEGSB_p5_0_Digital_Current[i] = -(static_cast<double>(rawSHK.MEGSB_p5_0_Digital_Current[i]) * 5.957e-5 - 1.952); // A
+        shk.MEGSB_p2_5_Current[i]         = -(static_cast<double>(rawSHK.MEGSB_p2_5_Current[i]) - MID_POINT) * CONVERSION_UV_SLOPE; // uA
 
-        shk.MEGSA_PRT[i] = -159.899f + 10.0f + (0.063084f * rawSHK.MEGSA_PRT[i]); // using SURF cable offset of +10
-        shk.MEGSA_Thermistor_Diode[i] = 211.5647 + 10.0f - (0.0821814f * rawSHK.MEGSA_Thermistor_Diode[i]);
-        shk.MEGSB_PRT[i] = -159.899f + 10.0f + (0.063084f * rawSHK.MEGSB_PRT[i]); // using SURF cable offset of +10
-        shk.MEGSB_Thermistor_Diode[i] = 211.5647f +10.0f - (0.0821814f * rawSHK.MEGSB_Thermistor_Diode[i]);
+        double NOFF = -30.0f; // Toms doc says add +10 for SURF cables
+        shk.MEGSA_PRT[i] = -159.899f + NOFF + (0.063084f * static_cast<double>(rawSHK.MEGSA_PRT[i])); // using SURF cable offset of +10
 
-        shk.ESP_Detector_Temperature[i] = 107.67103f - (0.074409605f * rawSHK.ESP_Detector_Temperature[i]) + 
-            (2.3621067e-5) * (rawSHK.ESP_Detector_Temperature[i] * rawSHK.ESP_Detector_Temperature[i]) +
-            (-3.450586e-9) * (rawSHK.ESP_Detector_Temperature[i] * rawSHK.ESP_Detector_Temperature[i] * rawSHK.ESP_Detector_Temperature[i]);
-        shk.ESP_Electrometer_Temperature[i] = 107.67103f - (0.074409605f * rawSHK.ESP_Electrometer_Temperature[i]) + 
-            (2.3621067e-5) * (rawSHK.ESP_Electrometer_Temperature[i] * rawSHK.ESP_Electrometer_Temperature[i]) +
-            (-3.450586e-9) * (rawSHK.ESP_Electrometer_Temperature[i] * rawSHK.ESP_Electrometer_Temperature[i] * rawSHK.ESP_Electrometer_Temperature[i]);
-        shk.MEGSP_Temperature[i] = 107.67103f - (0.074409605f * rawSHK.MEGSP_Temperature[i]) + 
-            (2.3621067e-5) * (rawSHK.MEGSP_Temperature[i] * rawSHK.MEGSP_Temperature[i]) +
-            (-3.450586e-9) * (rawSHK.MEGSP_Temperature[i] * rawSHK.MEGSP_Temperature[i] * rawSHK.MEGSP_Temperature[i]);
+        NOFF = 10.0f;
+        shk.MEGSA_Thermistor_Diode[i] = 211.5647 + NOFF - (0.0821814f * static_cast<double>(rawSHK.MEGSA_Thermistor_Diode[i]));
+        shk.MEGSB_PRT[i] = -159.899f + NOFF + (0.063084f * static_cast<double>(rawSHK.MEGSB_PRT[i])); // using SURF cable offset of +10
+        shk.MEGSB_Thermistor_Diode[i] = 211.5647f + NOFF - (0.0821814f * static_cast<double>(rawSHK.MEGSB_Thermistor_Diode[i]));
+
+        const static std::array<double, 4> polycoeffs = {107.67103, -0.074409605, 2.3621067e-5, -3.450586e-9};
+        shk.ESP_Detector_Temperature[i]     = apply_cubic_conversion(rawSHK.ESP_Detector_Temperature[i],     polycoeffs[0], polycoeffs[1], polycoeffs[2], polycoeffs[3]);
+        shk.ESP_Electrometer_Temperature[i] = apply_cubic_conversion(rawSHK.ESP_Electrometer_Temperature[i], polycoeffs[0], polycoeffs[1], polycoeffs[2], polycoeffs[3]);
+        shk.MEGSP_Temperature[i]            = apply_cubic_conversion(rawSHK.MEGSP_Temperature[i],            polycoeffs[0], polycoeffs[1], polycoeffs[2], polycoeffs[3]);
+
+        rawSHK.cFPGA_Board_Temperature[i] = shk.FPGA_Board_Temperature[i];
+        rawSHK.cFPGA_Board_p5_0_Voltage[i] = shk.FPGA_Board_p5_0_Voltage[i];
+        rawSHK.cFPGA_Board_p3_3_Voltage[i] = shk.FPGA_Board_p3_3_Voltage[i];
+        rawSHK.cFPGA_Board_p2_5_Voltage[i] = shk.FPGA_Board_p2_5_Voltage[i];
+        rawSHK.cFPGA_Board_p1_2_Voltage[i] = shk.FPGA_Board_p1_2_Voltage[i];
+
+        rawSHK.cMEGSA_CEB_Temperature[i] = shk.MEGSA_CEB_Temperature[i];
+        rawSHK.cMEGSA_CPR_Temperature[i] = shk.MEGSA_CPR_Temperature[i];
+        rawSHK.cMEGSA_p24_Voltage[i] = shk.MEGSA_p24_Voltage[i];
+        rawSHK.cMEGSA_p15_Voltage[i] = shk.MEGSA_p15_Voltage[i];
+        rawSHK.cMEGSA_m15_Voltage[i] = shk.MEGSA_m15_Voltage[i];
+        rawSHK.cMEGSA_p5_0_Analog_Voltage[i]  = shk.MEGSA_p5_0_Analog_Voltage[i];
+        rawSHK.cMEGSA_m5_0_Voltage[i]         = shk.MEGSA_m5_0_Voltage[i];
+        rawSHK.cMEGSA_p5_0_Digital_Voltage[i] = shk.MEGSA_p5_0_Digital_Voltage[i];
+        rawSHK.cMEGSA_p2_5_Voltage[i]         = shk.MEGSA_p2_5_Voltage[i];
+        rawSHK.cMEGSA_p24_Current[i] = shk.MEGSA_p24_Current[i];
+        rawSHK.cMEGSA_p15_Current[i] = shk.MEGSA_p15_Current[i];
+        rawSHK.cMEGSA_m15_Current[i] = shk.MEGSA_m15_Current[i];
+        rawSHK.cMEGSA_p5_0_Analog_Current[i]  = shk.MEGSA_p5_0_Analog_Current[i];
+        rawSHK.cMEGSA_m5_0_Current[i]         = shk.MEGSA_m5_0_Current[i];
+        rawSHK.cMEGSA_p5_0_Digital_Current[i] = shk.MEGSA_p5_0_Digital_Current[i];
+        rawSHK.cMEGSA_p2_5_Current[i]         = shk.MEGSA_p2_5_Current[i];
+
+        rawSHK.cMEGSB_CEB_Temperature[i] = shk.MEGSB_CEB_Temperature[i];
+        rawSHK.cMEGSB_CPR_Temperature[i] = shk.MEGSB_CPR_Temperature[i];
+        rawSHK.cMEGSB_p24_Voltage[i] = shk.MEGSB_p24_Voltage[i];
+        rawSHK.cMEGSB_p15_Voltage[i] = shk.MEGSB_p15_Voltage[i];
+        rawSHK.cMEGSB_m15_Voltage[i] = shk.MEGSB_m15_Voltage[i];
+        rawSHK.cMEGSB_p5_0_Analog_Voltage[i]  = shk.MEGSB_p5_0_Analog_Voltage[i];
+        rawSHK.cMEGSB_m5_0_Voltage[i]         = shk.MEGSB_m5_0_Voltage[i];
+        rawSHK.cMEGSB_p5_0_Digital_Voltage[i] = shk.MEGSB_p5_0_Digital_Voltage[i];
+        rawSHK.cMEGSB_p2_5_Voltage[i]         = shk.MEGSB_p2_5_Voltage[i];
+        rawSHK.cMEGSB_p24_Current[i] = shk.MEGSB_p24_Current[i];
+        rawSHK.cMEGSB_p15_Current[i] = shk.MEGSB_p15_Current[i];
+        rawSHK.cMEGSB_m15_Current[i] = shk.MEGSB_m15_Current[i];
+        rawSHK.cMEGSB_p5_0_Analog_Current[i]  = shk.MEGSB_p5_0_Analog_Current[i];
+        rawSHK.cMEGSB_m5_0_Current[i]         = shk.MEGSB_m5_0_Current[i];
+        rawSHK.cMEGSB_p5_0_Digital_Current[i] = shk.MEGSB_p5_0_Digital_Current[i];
+        rawSHK.cMEGSB_p2_5_Current[i]         = shk.MEGSB_p2_5_Current[i];
+
+        rawSHK.cMEGSA_Thermistor_Diode[i] = shk.MEGSA_Thermistor_Diode[i];
+        rawSHK.cMEGSA_PRT[i]              = shk.MEGSA_PRT[i];
+        rawSHK.cMEGSB_Thermistor_Diode[i] = shk.MEGSB_Thermistor_Diode[i];
+        rawSHK.cMEGSB_PRT[i]              = shk.MEGSB_PRT[i];
+
+        rawSHK.cESP_Detector_Temperature[i]     = shk.ESP_Detector_Temperature[i];
+        rawSHK.cESP_Electrometer_Temperature[i] = shk.ESP_Electrometer_Temperature[i];
+        rawSHK.cMEGSP_Temperature[i]            = shk.MEGSP_Temperature[i];
 
     }
 
@@ -782,9 +829,9 @@ void processHKPacket(std::vector<uint8_t> payload,
         oneSHKStructure.MEGSA_Digital_Status_Register[index] = payloadBytesToUint32(payload, incr+96);
         oneSHKStructure.MEGSA_Integration_Timer_Register[index] = payloadBytesToUint32(payload, incr+100);
         oneSHKStructure.MEGSA_Command_Error_Count_Register[index] = payloadBytesToUint32(payload, incr+104);
-        oneSHKStructure.MEGSA_CEB_FPGA_Version_Register[index] = payloadBytesToUint32(payload, incr+108);
+        oneSHKStructure.MEGSA_CEB_FPGA_Version_Register[index] = payloadBytesToUint32(payload, incr+108); // 27*4 from doc
         // gap of 4 32-bit values
-        oneSHKStructure.MEGSB_CEB_Temperature[index] = payloadBytesToUint32(payload, incr+128);
+        oneSHKStructure.MEGSB_CEB_Temperature[index] = payloadBytesToUint32(payload, incr+128); //32*4 from doc
         oneSHKStructure.MEGSB_CPR_Temperature[index] = payloadBytesToUint32(payload, incr+132);
         oneSHKStructure.MEGSB_p24_Voltage[index] = payloadBytesToUint32(payload, incr+136);
         oneSHKStructure.MEGSB_p15_Voltage[index] = payloadBytesToUint32(payload, incr+140);
@@ -807,10 +854,14 @@ void processHKPacket(std::vector<uint8_t> payload,
         oneSHKStructure.MEGSB_Command_Error_Count_Register[index] = payloadBytesToUint32(payload, incr+208);
         oneSHKStructure.MEGSB_CEB_FPGA_Version_Register[index] = payloadBytesToUint32(payload, incr+212);
 
-        oneSHKStructure.MEGSA_Thermistor_Diode[index] = payloadBytesToUint32(payload, incr+216);
-        oneSHKStructure.MEGSA_PRT[index] = payloadBytesToUint32(payload, incr+220);
-        oneSHKStructure.MEGSB_Thermistor_Diode[index] = payloadBytesToUint32(payload, incr+224);
-        oneSHKStructure.MEGSB_PRT[index] = payloadBytesToUint32(payload, incr+228);
+        oneSHKStructure.MEGSA_PRT[index] = payloadBytesToUint32(payload, incr+216); // 54*4
+        oneSHKStructure.MEGSA_Thermistor_Diode[index] = payloadBytesToUint32(payload, incr+220); // 55*4
+        oneSHKStructure.MEGSB_PRT[index] = payloadBytesToUint32(payload, incr+224); // 56*4
+        oneSHKStructure.MEGSB_Thermistor_Diode[index] = payloadBytesToUint32(payload, incr+228); // 57*4
+
+        oneSHKStructure.ESP_Electrometer_Temperature[index] = payloadBytesToUint32(payload, incr+232); // 58*4
+        oneSHKStructure.ESP_Detector_Temperature[index] = payloadBytesToUint32(payload, incr+236); // 59*4
+        oneSHKStructure.MEGSP_Temperature[index] = payloadBytesToUint32(payload, incr+240); // 60*4
         // additional 4 spares at the end
 
         mtx.lock();
