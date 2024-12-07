@@ -178,14 +178,14 @@ struct SHK_PACKET
 	uint32_t tai_time_seconds;  
 	uint32_t tai_time_subseconds;
 	uint32_t rec_tai_seconds;
- 	uint32_t rec_tai_subseconds;
+ 	uint32_t rec_tai_subseconds; // 6 in fits file
 // 10/22/2024 mode will be used for integration rate in seconds 1=1sec, 10 will be max seconds
 	uint32_t mode[SHK_INTEGRATIONS_PER_FILE]; // only 16 bits but use 32 for alignment
 
 	//uint32_t spare0; 						// 0
-	uint32_t FPGA_Board_Temperature[SHK_INTEGRATIONS_PER_FILE];
+	uint32_t FPGA_Board_Temperature[SHK_INTEGRATIONS_PER_FILE]; // 8 in fits file
 	uint32_t FPGA_Board_p5_0_Voltage[SHK_INTEGRATIONS_PER_FILE];
-	uint32_t FPGA_Board_p3_3_Voltage[SHK_INTEGRATIONS_PER_FILE];
+	uint32_t FPGA_Board_p3_3_Voltage[SHK_INTEGRATIONS_PER_FILE]; // 10 in fits file
 	uint32_t FPGA_Board_p2_5_Voltage[SHK_INTEGRATIONS_PER_FILE];
 	uint32_t FPGA_Board_p1_2_Voltage[SHK_INTEGRATIONS_PER_FILE];
 	uint32_t MEGSA_CEB_Temperature[SHK_INTEGRATIONS_PER_FILE];
@@ -195,7 +195,7 @@ struct SHK_PACKET
 	uint32_t MEGSA_m15_Voltage[SHK_INTEGRATIONS_PER_FILE];				// 10
 	uint32_t MEGSA_p5_0_Analog_Voltage[SHK_INTEGRATIONS_PER_FILE];
 	uint32_t MEGSA_m5_0_Voltage[SHK_INTEGRATIONS_PER_FILE];
-	uint32_t MEGSA_p5_0_Digital_Voltage[SHK_INTEGRATIONS_PER_FILE];
+	uint32_t MEGSA_p5_0_Digital_Voltage[SHK_INTEGRATIONS_PER_FILE]; // 20 in fits file
 	uint32_t MEGSA_p2_5_Voltage[SHK_INTEGRATIONS_PER_FILE];
 	uint32_t MEGSA_p24_Current[SHK_INTEGRATIONS_PER_FILE];
 	uint32_t MEGSA_p15_Current[SHK_INTEGRATIONS_PER_FILE];
@@ -205,7 +205,8 @@ struct SHK_PACKET
 	uint32_t MEGSA_p5_0_Digital_Current[SHK_INTEGRATIONS_PER_FILE];	// 20
 	uint32_t MEGSA_p2_5_Current[SHK_INTEGRATIONS_PER_FILE];
 	uint32_t MEGSA_Integration_Register[SHK_INTEGRATIONS_PER_FILE];
-	uint32_t MEGSA_Analog_Mux_Register[SHK_INTEGRATIONS_PER_FILE]; // DN
+
+	uint32_t MEGSA_Analog_Mux_Register[SHK_INTEGRATIONS_PER_FILE]; // DN // 30 in fits file
 	uint32_t MEGSA_Digital_Status_Register[SHK_INTEGRATIONS_PER_FILE]; // DN
 	uint32_t MEGSA_Integration_Timer_Register[SHK_INTEGRATIONS_PER_FILE];
 	uint32_t MEGSA_Command_Error_Count_Register[SHK_INTEGRATIONS_PER_FILE];
@@ -216,20 +217,21 @@ struct SHK_PACKET
 	//uint32_t spare31;
 	uint32_t MEGSB_CEB_Temperature[SHK_INTEGRATIONS_PER_FILE];
 	uint32_t MEGSB_CPR_Temperature[SHK_INTEGRATIONS_PER_FILE];
-	uint32_t MEGSB_p24_Voltage[SHK_INTEGRATIONS_PER_FILE];
+	uint32_t MEGSB_p24_Voltage[SHK_INTEGRATIONS_PER_FILE]; 
 	uint32_t MEGSB_p15_Voltage[SHK_INTEGRATIONS_PER_FILE];
 	uint32_t MEGSB_m15_Voltage[SHK_INTEGRATIONS_PER_FILE];
-	uint32_t MEGSB_p5_0_Analog_Voltage[SHK_INTEGRATIONS_PER_FILE];
+	uint32_t MEGSB_p5_0_Analog_Voltage[SHK_INTEGRATIONS_PER_FILE]; // 40 in fits file
 	uint32_t MEGSB_m5_0_Voltage[SHK_INTEGRATIONS_PER_FILE];
 	uint32_t MEGSB_p5_0_Digital_Voltage[SHK_INTEGRATIONS_PER_FILE];
 	uint32_t MEGSB_p2_5_Voltage[SHK_INTEGRATIONS_PER_FILE];			// 40
 	uint32_t MEGSB_p24_Current[SHK_INTEGRATIONS_PER_FILE];
 	uint32_t MEGSB_p15_Current[SHK_INTEGRATIONS_PER_FILE];
 	uint32_t MEGSB_m15_Current[SHK_INTEGRATIONS_PER_FILE];
-	uint32_t MEGSB_p5_0_Analog_Current[SHK_INTEGRATIONS_PER_FILE];
+	uint32_t MEGSB_p5_0_Analog_Current[SHK_INTEGRATIONS_PER_FILE]; 
 	uint32_t MEGSB_m5_0_Current[SHK_INTEGRATIONS_PER_FILE];
 	uint32_t MEGSB_p5_0_Digital_Current[SHK_INTEGRATIONS_PER_FILE];	
-	uint32_t MEGSB_p2_5_Current[SHK_INTEGRATIONS_PER_FILE];
+	uint32_t MEGSB_p2_5_Current[SHK_INTEGRATIONS_PER_FILE]; // 50 in fits file
+
 	uint32_t MEGSB_Integration_Register[SHK_INTEGRATIONS_PER_FILE];
 	uint32_t MEGSB_Analog_Mux_Register[SHK_INTEGRATIONS_PER_FILE];
 	uint32_t MEGSB_Digital_Status_Register[SHK_INTEGRATIONS_PER_FILE];		// 50
@@ -237,31 +239,81 @@ struct SHK_PACKET
 	uint32_t MEGSB_Command_Error_Count_Register[SHK_INTEGRATIONS_PER_FILE];
 	uint32_t MEGSB_CEB_FPGA_Version_Register[SHK_INTEGRATIONS_PER_FILE];
 
-	uint32_t MEGSA_Thermistor_Diode[SHK_INTEGRATIONS_PER_FILE];  //special conversion
 	uint32_t MEGSA_PRT[SHK_INTEGRATIONS_PER_FILE];
+	uint32_t MEGSA_Thermistor_Diode[SHK_INTEGRATIONS_PER_FILE];  //special conversion 
+	uint32_t MEGSB_PRT[SHK_INTEGRATIONS_PER_FILE]; // 60 in fits file
 	uint32_t MEGSB_Thermistor_Diode[SHK_INTEGRATIONS_PER_FILE];
-	uint32_t MEGSB_PRT[SHK_INTEGRATIONS_PER_FILE];
 
-	uint32_t ESP_Electrometer_Temperature[SHK_INTEGRATIONS_PER_FILE];
 	uint32_t ESP_Detector_Temperature[SHK_INTEGRATIONS_PER_FILE];
+	uint32_t ESP_Electrometer_Temperature[SHK_INTEGRATIONS_PER_FILE];
 	uint32_t MEGSP_Temperature[SHK_INTEGRATIONS_PER_FILE]; 			// 60
 
 	//uint32_t spare61;
 	//uint32_t spare62;
 	//uint32_t spare63;
 	//uint32_t spare64;
+
+	// converted values
+	double cFPGA_Board_Temperature[SHK_INTEGRATIONS_PER_FILE];
+	double cFPGA_Board_p5_0_Voltage[SHK_INTEGRATIONS_PER_FILE];
+	double cFPGA_Board_p3_3_Voltage[SHK_INTEGRATIONS_PER_FILE];
+	double cFPGA_Board_p2_5_Voltage[SHK_INTEGRATIONS_PER_FILE]; // group of 4
+	double cFPGA_Board_p1_2_Voltage[SHK_INTEGRATIONS_PER_FILE];
+	
+	double cMEGSA_CEB_Temperature[SHK_INTEGRATIONS_PER_FILE];
+	double cMEGSA_CPR_Temperature[SHK_INTEGRATIONS_PER_FILE]; // 70 in fits file
+	double cMEGSA_p24_Voltage[SHK_INTEGRATIONS_PER_FILE]; // group of 4
+	double cMEGSA_p15_Voltage[SHK_INTEGRATIONS_PER_FILE];
+	double cMEGSA_m15_Voltage[SHK_INTEGRATIONS_PER_FILE];				// 10
+	double cMEGSA_p5_0_Analog_Voltage[SHK_INTEGRATIONS_PER_FILE];
+	double cMEGSA_m5_0_Voltage[SHK_INTEGRATIONS_PER_FILE]; // group of 4
+	double cMEGSA_p5_0_Digital_Voltage[SHK_INTEGRATIONS_PER_FILE];
+	double cMEGSA_p2_5_Voltage[SHK_INTEGRATIONS_PER_FILE];
+	double cMEGSA_p24_Current[SHK_INTEGRATIONS_PER_FILE];
+	double cMEGSA_p15_Current[SHK_INTEGRATIONS_PER_FILE]; // 16th converted var, group of 4
+	double cMEGSA_m15_Current[SHK_INTEGRATIONS_PER_FILE]; // 80 in fits file
+	double cMEGSA_p5_0_Analog_Current[SHK_INTEGRATIONS_PER_FILE];
+	double cMEGSA_m5_0_Current[SHK_INTEGRATIONS_PER_FILE];
+	double cMEGSA_p5_0_Digital_Current[SHK_INTEGRATIONS_PER_FILE];	// 20 // group of 4
+	double cMEGSA_p2_5_Current[SHK_INTEGRATIONS_PER_FILE];
+
+	double cMEGSB_CEB_Temperature[SHK_INTEGRATIONS_PER_FILE];
+	double cMEGSB_CPR_Temperature[SHK_INTEGRATIONS_PER_FILE];
+	double cMEGSB_p24_Voltage[SHK_INTEGRATIONS_PER_FILE]; //group of 4
+	double cMEGSB_p15_Voltage[SHK_INTEGRATIONS_PER_FILE];
+	double cMEGSB_m15_Voltage[SHK_INTEGRATIONS_PER_FILE];
+	double cMEGSB_p5_0_Analog_Voltage[SHK_INTEGRATIONS_PER_FILE]; // 90 in fits file
+	double cMEGSB_m5_0_Voltage[SHK_INTEGRATIONS_PER_FILE]; //group of 4
+	double cMEGSB_p5_0_Digital_Voltage[SHK_INTEGRATIONS_PER_FILE];
+	double cMEGSB_p2_5_Voltage[SHK_INTEGRATIONS_PER_FILE];			// 30
+	double cMEGSB_p24_Current[SHK_INTEGRATIONS_PER_FILE];
+	double cMEGSB_p15_Current[SHK_INTEGRATIONS_PER_FILE]; // 32nd converted var // group of 4
+	double cMEGSB_m15_Current[SHK_INTEGRATIONS_PER_FILE];
+	double cMEGSB_p5_0_Analog_Current[SHK_INTEGRATIONS_PER_FILE]; 
+	double cMEGSB_m5_0_Current[SHK_INTEGRATIONS_PER_FILE];
+	double cMEGSB_p5_0_Digital_Current[SHK_INTEGRATIONS_PER_FILE];	 //group of 4
+	double cMEGSB_p2_5_Current[SHK_INTEGRATIONS_PER_FILE]; // 100 in fits file
+
+	double cMEGSA_Thermistor_Diode[SHK_INTEGRATIONS_PER_FILE];  //special conversion
+	double cMEGSA_PRT[SHK_INTEGRATIONS_PER_FILE];
+	double cMEGSB_Thermistor_Diode[SHK_INTEGRATIONS_PER_FILE]; //40 //group of 4
+	double cMEGSB_PRT[SHK_INTEGRATIONS_PER_FILE];
+
+	double cESP_Electrometer_Temperature[SHK_INTEGRATIONS_PER_FILE];
+	double cESP_Detector_Temperature[SHK_INTEGRATIONS_PER_FILE];
+	double cMEGSP_Temperature[SHK_INTEGRATIONS_PER_FILE]; // 44 // 107 in fits file
 };
 
 extern struct SHK_PACKET shk_data;
 
 struct SHK_CONVERTED_PACKET
 {
-	uint32_t yyyydoy;
-  	uint32_t sod;
-	uint32_t tai_time_seconds;  
-	uint32_t tai_time_subseconds;
-	uint32_t rec_tai_seconds;
- 	uint32_t rec_tai_subseconds;
+	//uint32_t yyyydoy;
+  	//uint32_t sod;
+	//uint32_t tai_time_seconds;  
+	//uint32_t tai_time_subseconds;
+	//uint32_t rec_tai_seconds;
+ 	//uint32_t rec_tai_subseconds;
 // 10/22/2024 mode will be used for integration rate in seconds 1=1sec, 10 will be max seconds
 	//uint32_t spare0; 						// 0
 	double FPGA_Board_Temperature[SHK_INTEGRATIONS_PER_FILE];
@@ -269,6 +321,7 @@ struct SHK_CONVERTED_PACKET
 	double FPGA_Board_p3_3_Voltage[SHK_INTEGRATIONS_PER_FILE];
 	double FPGA_Board_p2_5_Voltage[SHK_INTEGRATIONS_PER_FILE];
 	double FPGA_Board_p1_2_Voltage[SHK_INTEGRATIONS_PER_FILE];
+
 	double MEGSA_CEB_Temperature[SHK_INTEGRATIONS_PER_FILE];
 	double MEGSA_CPR_Temperature[SHK_INTEGRATIONS_PER_FILE];
 	double MEGSA_p24_Voltage[SHK_INTEGRATIONS_PER_FILE];
