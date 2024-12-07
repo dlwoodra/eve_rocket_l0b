@@ -659,32 +659,30 @@ int FITSWriter::writeSHKFITSBinaryTable(const std::string& filename, const SHK_P
     
     const std::string extname = "SHK_DATA";
     std::vector<std::string> columnNames = {
-        "YYYYDOY", "SOD", "TAI_TIME_SECONDS", "TAI_TIME_SUBSECONDS",
-        "REC_TAI_SECONDS", "REC_TAI_SUBSECONDS", "mode", 
-        "FPGA_Board_Temperature", "FPGA_Board_p5_0_Voltage", 
-        "FPGA_Board_p3_3_Voltage", "FPGA_Board_p1_2_Voltage",
-        "MEGSA_CEB_Temperature", "MEGSA_CPR_Temperature",
-        "MEGSA_p24_Voltage", "MEGSA_p15_Voltage", "MEGSA_m15_Voltage",
-        "MEGSA_p5_0_Analog_Voltage", "MEGSA_m5_0_Voltage", 
-        "MEGSA_p5_0_Digital_Voltage", "MEGSA_p2_5_Voltage",
-        "MEGSA_p24_Current", "MEGSA_p15_Current", "MEGSA_m15_Current", //16
-        "MEGSA_p5_0_Analog_Current", "MEGsA_m5_0_Current", 
-        "MEGSA_p5_0_Digital_Current", "MEGSA_p2_5_Current", 
-        "MEGSA_Integration_Register", "MEGSA_Analog_Mux_Register",
-        "MEGSA_Digital_Status_Register", "MEGSA_Integration_Timer_Register",
-        "MEGSA_Command_Error_Count_Register", "MEGSA_CEB_FPGA_Version_Register",
-        "MEGSB_CEB_Temperature", "MEGSB_CPR_Temperature", //28
-        "MEGSB_p24_Voltage", "MEGSB_p15_Voltage", "MEGSB_m15_Voltage",
-        "MEGSB_p5_0_Analog_Voltage", "MEGSB_m5_0_Voltage", 
-        "MEGSB_p5_0_Digital_Voltage", "MEGSB_p2_5_Voltage",
-        "MEGSB_p24_Current", "MEGSB_p15_Current", "MEGSB_m15_Current",
-        "MEGSB_p5_0_Analog_Current", "MEGSB_m5_0_Current", //40
-        "MEGSB_p5_0_Digital_Current", "MEGSB_p2_5_Current", 
-        "MEGSB_Integration_Register", "MEGSB_Analog_Mux_Register",
-        "MEGSB_Digital_Status_Register", "MEGSB_Integration_Timer_Register",
-        "MEGSB_Command_Error_Count_Register", "MEGSB_CEB_FPGA_Version_Register", //48
-        "MEGSA_Thermistor_Diode", "MEGSA_PRT",
-        "MEGSB_Thermistor_Diode", "MEGSB_PRT" //52 + 6 from common time stuff
+        "YYYYDOY", "SOD", "TAI_TIME_SECONDS", "TAI_TIME_SUBSECONDS", // 4
+        "REC_TAI_SECONDS", "REC_TAI_SUBSECONDS", "mode",  // 7
+        "FPGA_Board_Temperature", "FPGA_Board_p5_0_Voltage", "FPGA_Board_p3_3_Voltage", "FPGA_Board_p2_5_Voltage", 
+        "FPGA_Board_p1_2_Voltage", "MEGSA_CEB_Temperature", "MEGSA_CPR_Temperature", "MEGSA_p24_Voltage", 
+        "MEGSA_p15_Voltage", "MEGSA_m15_Voltage", "MEGSA_p5_0_Analog_Voltage", "MEGSA_m5_0_Voltage", // 19
+        "MEGSA_p5_0_Digital_Voltage", "MEGSA_p2_5_Voltage", "MEGSA_p24_Current", "MEGSA_p15_Current", //16+7
+        "MEGSA_m15_Current", "MEGSA_p5_0_Analog_Current", "MEGsA_m5_0_Current", "MEGSA_p5_0_Digital_Current", 
+        "MEGSA_p2_5_Current", "MEGSA_Integration_Register", "MEGSA_Analog_Mux_Register", "MEGSA_Digital_Status_Register", 
+        "MEGSA_Integration_Timer_Register", "MEGSA_Command_Error_Count_Register", "MEGSA_CEB_FPGA_Version_Register", "MEGSB_CEB_Temperature", 
+        "MEGSB_CPR_Temperature", "MEGSB_p24_Voltage", "MEGSB_p15_Voltage", "MEGSB_m15_Voltage", //  39, 32+7
+        "MEGSB_p5_0_Analog_Voltage", "MEGSB_m5_0_Voltage", "MEGSB_p5_0_Digital_Voltage", "MEGSB_p2_5_Voltage", //  43
+        "MEGSB_p24_Current", "MEGSB_p15_Current", "MEGSB_m15_Current", "MEGSB_p5_0_Analog_Current", 
+        "MEGSB_m5_0_Current", "MEGSB_p5_0_Digital_Current", "MEGSB_p2_5_Current", "MEGSB_Integration_Register", 
+        "MEGSB_Analog_Mux_Register", "MEGSB_Digital_Status_Register", "MEGSB_Integration_Timer_Register", "MEGSB_Command_Error_Count_Register", //48+7
+        "MEGSB_CEB_FPGA_Version_Register", "MEGSA_Thermistor_Diode", "MEGSA_PRT", "MEGSB_Thermistor_Diode", //52+7
+        "MEGSB_PRT", "ESP_Electrometer_Temperature", "ESP_Detector_Temperature", "MEGSP_Temperature", // 63= 56+7
+        "cFPGA_Board_Temperature", "cFPGA_Board_p5_0_Voltage", "cFPGA_Board_p3_3_Voltage", "cFPGA_Board_p2_5_Voltage", "cFPGA_Board_p1_2_Voltage", // 68
+        "cMEGSA_CEB_Temperature", "cMEGSA_CPR_Temperature", "cMEGSA_p24_Voltage", "cMEGSA_p15_Voltage", "cMEGSA_m15_Voltage", "cMEGSA_p5_0_Analog_Voltage", "cMEGSA_m5_0_Voltage", "cMEGSA_p5_0_Digital_Voltage", "cMEGSA_p2_5_Voltage", // 77
+        "cMEGSA_p24_Current", "cMEGSA_p15_Current", "cMEGSA_m15_Current", "cMEGSA_p5_0_Analog_Current", "cMEGsA_m5_0_Current", "cMEGSA_p5_0_Digital_Current", "cMEGSA_p2_5_Current",  // 84
+        "cMEGSB_CEB_Temperature", "cMEGSB_CPR_Temperature", "cMEGSB_p24_Voltage", "cMEGSB_p15_Voltage", "cMEGSB_m15_Voltage", "cMEGSB_p5_0_Analog_Voltage", "cMEGSB_m5_0_Voltage", "cMEGSB_p5_0_Digital_Voltage", "cMEGSB_p2_5_Voltage",  // 93
+        "cMEGSB_p24_Current", "cMEGSB_p15_Current", "cMEGSB_m15_Current", "cMEGSB_p5_0_Analog_Current", "cMEGSB_m5_0_Current", "cMEGSB_p5_0_Digital_Current", "cMEGSB_p2_5_Current", // 100
+        "cMEGSA_Thermistor_Diode", "cMEGSA_PRT", "cMEGSB_Thermistor_Diode", "cMEGSB_PRT", // 104
+        "cESP_Electrometer_Temperature", "cESP_Detector_Temperature", "cMEGSP_Temperature" // 107
+
     };
 
     std::vector<std::string> columnTypes = {"V", "V", "V", "V", 
@@ -693,26 +691,41 @@ int FITSWriter::writeSHKFITSBinaryTable(const std::string& filename, const SHK_P
         "V","V","V","V", "V","V","V","V", "V","V","V","V", "V","V","V","V", //16
         "V","V","V","V", "V","V","V","V", "V","V","V","V", "V","V","V","V", //32
         "V","V","V","V", "V","V","V","V", "V","V","V","V", "V","V","V","V", //48
-        "V","V","V","V" //52 + 6
+        "V","V","V","V", "V","V","V","V", // 53 +7 before converted values
+        // add 44 doubles
+        "D","D","D","D", "D","D","D","D", "D","D","D","D", "D","D","D","D",
+        "D","D","D","D", "D","D","D","D", "D","D","D","D", "D","D","D","D",
+        "D","D","D","D", "D","D","D","D", "D","D","D","D"
         };
     std::string combinedColumnTypes;    
     for (const auto& type : columnTypes) {
         combinedColumnTypes += type;  // Concatenate each string in columnTypes
     }
-    std::vector<std::string> columnUnits = {"DATE", "s", "s", "s", "s", "s", "", "s", 
+    std::vector<std::string> columnUnits = {"DATE", "s", "s", "s", 
+    "s", "s", // rec tai
+    "DN", // mode code, MSB is a heartbeat at 1 minute, LSBs are sample time in seconds 
     "DN","DN","DN","DN", "DN","DN","DN","DN", "DN","DN","DN","DN", "DN","DN","DN","DN",
     "DN","DN","DN","DN", "DN","DN","DN","DN", "DN","DN","DN","DN", "DN","DN","DN","DN",
     "DN","DN","DN","DN", "DN","DN","DN","DN", "DN","DN","DN","DN", "DN","DN","DN","DN",
-    "DN","DN","DN","DN"};
+    "DN","DN","DN","DN", "DN","DN","DN","DN",
+    "C","V","V","V", "V","C","C","V", "V","V","V","V", "V","V","A","A", // 5 FPGAs, 2 Temps, 7 Voltages, 2 Currents (p24 and p15)
+    "A","A","A","A", "A","C","C","V", "V","V","V","V", "V","V","A","A", // 5 Currents, 2 Temps, 7 Voltages, 2 Currents
+    "A","A","A","A", "A","C","C","C", "C","C","C","C" // 5 Currents, 7 Temps
+    };
 
     
     int32_t n = SHK_INTEGRATIONS_PER_FILE;
-    std::vector<int> columnLengths = {1,1,1,1,1,1, n,
+    std::vector<int> columnLengths = {1,1,1,1,
+        1,1, // rec_tai
+        n, // mode
         n,n,n,n, n,n,n,n, n,n,n,n, n,n,n,n,
         n,n,n,n, n,n,n,n, n,n,n,n, n,n,n,n,
         n,n,n,n, n,n,n,n, n,n,n,n, n,n,n,n,
-        n,n,n,n
-    };
+        n,n,n,n, n,n,n,n,
+        n,n,n,n, n,n,n,n, n,n,n,n, n,n,n,n, // converted
+        n,n,n,n, n,n,n,n, n,n,n,n, n,n,n,n, // converted
+        n,n,n,n, n,n,n,n, n,n,n,n  // converted
+    }; //
     
 
     //copy data
@@ -740,12 +753,13 @@ int FITSWriter::writeSHKFITSBinaryTable(const std::string& filename, const SHK_P
     	uint32_t MEGSA_p5_0_Digital_Voltage[SHK_INTEGRATIONS_PER_FILE];
     	uint32_t MEGSA_p2_5_Voltage[SHK_INTEGRATIONS_PER_FILE];
     	uint32_t MEGSA_p24_Current[SHK_INTEGRATIONS_PER_FILE];
-    	uint32_t MEGSA_p15_Current[SHK_INTEGRATIONS_PER_FILE];
+    	uint32_t MEGSA_p15_Current[SHK_INTEGRATIONS_PER_FILE]; // 16
     	uint32_t MEGSA_m15_Current[SHK_INTEGRATIONS_PER_FILE];
     	uint32_t MEGSA_p5_0_Analog_Current[SHK_INTEGRATIONS_PER_FILE];
     	uint32_t MEGSA_m5_0_Current[SHK_INTEGRATIONS_PER_FILE];
     	uint32_t MEGSA_p5_0_Digital_Current[SHK_INTEGRATIONS_PER_FILE];	// 20
     	uint32_t MEGSA_p2_5_Current[SHK_INTEGRATIONS_PER_FILE];
+
     	uint32_t MEGSA_Integration_Register[SHK_INTEGRATIONS_PER_FILE];
     	uint32_t MEGSA_Analog_Mux_Register[SHK_INTEGRATIONS_PER_FILE]; // DN
     	uint32_t MEGSA_Digital_Status_Register[SHK_INTEGRATIONS_PER_FILE]; // DN
@@ -760,7 +774,7 @@ int FITSWriter::writeSHKFITSBinaryTable(const std::string& filename, const SHK_P
     	uint32_t MEGSB_CPR_Temperature[SHK_INTEGRATIONS_PER_FILE];
     	uint32_t MEGSB_p24_Voltage[SHK_INTEGRATIONS_PER_FILE];
     	uint32_t MEGSB_p15_Voltage[SHK_INTEGRATIONS_PER_FILE];
-    	uint32_t MEGSB_m15_Voltage[SHK_INTEGRATIONS_PER_FILE];
+    	uint32_t MEGSB_m15_Voltage[SHK_INTEGRATIONS_PER_FILE]; // 16
     	uint32_t MEGSB_p5_0_Analog_Voltage[SHK_INTEGRATIONS_PER_FILE];
     	uint32_t MEGSB_m5_0_Voltage[SHK_INTEGRATIONS_PER_FILE];
     	uint32_t MEGSB_p5_0_Digital_Voltage[SHK_INTEGRATIONS_PER_FILE];
@@ -772,11 +786,12 @@ int FITSWriter::writeSHKFITSBinaryTable(const std::string& filename, const SHK_P
     	uint32_t MEGSB_m5_0_Current[SHK_INTEGRATIONS_PER_FILE];
     	uint32_t MEGSB_p5_0_Digital_Current[SHK_INTEGRATIONS_PER_FILE];	
     	uint32_t MEGSB_p2_5_Current[SHK_INTEGRATIONS_PER_FILE];
+
     	uint32_t MEGSB_Integration_Register[SHK_INTEGRATIONS_PER_FILE];
     	uint32_t MEGSB_Analog_Mux_Register[SHK_INTEGRATIONS_PER_FILE];
     	uint32_t MEGSB_Digital_Status_Register[SHK_INTEGRATIONS_PER_FILE];		// 50
     	uint32_t MEGSB_Integration_Timer_Register[SHK_INTEGRATIONS_PER_FILE];
-    	uint32_t MEGSB_Command_Error_Count_Register[SHK_INTEGRATIONS_PER_FILE];
+    	uint32_t MEGSB_Command_Error_Count_Register[SHK_INTEGRATIONS_PER_FILE]; //16
     	uint32_t MEGSB_CEB_FPGA_Version_Register[SHK_INTEGRATIONS_PER_FILE];                    
 
     	uint32_t MEGSA_Thermistor_Diode[SHK_INTEGRATIONS_PER_FILE];  //special conversion
@@ -787,6 +802,55 @@ int FITSWriter::writeSHKFITSBinaryTable(const std::string& filename, const SHK_P
     	uint32_t ESP_Electrometer_Temperature[SHK_INTEGRATIONS_PER_FILE];
     	uint32_t ESP_Detector_Temperature[SHK_INTEGRATIONS_PER_FILE];
     	uint32_t MEGSP_Temperature[SHK_INTEGRATIONS_PER_FILE]; 			// 60
+
+        double cFPGA_Board_Temperature[SHK_INTEGRATIONS_PER_FILE];
+        double cFPGA_Board_p5_0_Voltage[SHK_INTEGRATIONS_PER_FILE];
+        double cFPGA_Board_p3_3_Voltage[SHK_INTEGRATIONS_PER_FILE];
+        double cFPGA_Board_p2_5_Voltage[SHK_INTEGRATIONS_PER_FILE];
+        double cFPGA_Board_p1_2_Voltage[SHK_INTEGRATIONS_PER_FILE];
+
+        double cMEGSA_CEB_Temperature[SHK_INTEGRATIONS_PER_FILE];
+        double cMEGSA_CPR_Temperature[SHK_INTEGRATIONS_PER_FILE];
+        double cMEGSA_p24_Voltage[SHK_INTEGRATIONS_PER_FILE];
+        double cMEGSA_p15_Voltage[SHK_INTEGRATIONS_PER_FILE];
+        double cMEGSA_m15_Voltage[SHK_INTEGRATIONS_PER_FILE];
+        double cMEGSA_p5_0_Analog_Voltage[SHK_INTEGRATIONS_PER_FILE];
+        double cMEGSA_m5_0_Voltage[SHK_INTEGRATIONS_PER_FILE];
+        double cMEGSA_p5_0_Digital_Voltage[SHK_INTEGRATIONS_PER_FILE];
+        double cMEGSA_p2_5_Voltage[SHK_INTEGRATIONS_PER_FILE];
+        double cMEGSA_p24_Current[SHK_INTEGRATIONS_PER_FILE];
+        double cMEGSA_p15_Current[SHK_INTEGRATIONS_PER_FILE];
+        double cMEGSA_m15_Current[SHK_INTEGRATIONS_PER_FILE];
+        double cMEGSA_p5_0_Analog_Current[SHK_INTEGRATIONS_PER_FILE];
+        double cMEGsA_m5_0_Current[SHK_INTEGRATIONS_PER_FILE];
+        double cMEGSA_p5_0_Digital_Current[SHK_INTEGRATIONS_PER_FILE];
+        double cMEGSA_p2_5_Current[SHK_INTEGRATIONS_PER_FILE];
+
+        double cMEGSB_CEB_Temperature[SHK_INTEGRATIONS_PER_FILE];
+        double cMEGSB_CPR_Temperature[SHK_INTEGRATIONS_PER_FILE];
+        double cMEGSB_p24_Voltage[SHK_INTEGRATIONS_PER_FILE];
+        double cMEGSB_p15_Voltage[SHK_INTEGRATIONS_PER_FILE];
+        double cMEGSB_m15_Voltage[SHK_INTEGRATIONS_PER_FILE];
+        double cMEGSB_p5_0_Analog_Voltage[SHK_INTEGRATIONS_PER_FILE];
+        double cMEGSB_m5_0_Voltage[SHK_INTEGRATIONS_PER_FILE];
+        double cMEGSB_p5_0_Digital_Voltage[SHK_INTEGRATIONS_PER_FILE];
+        double cMEGSB_p2_5_Voltage[SHK_INTEGRATIONS_PER_FILE];
+        double cMEGSB_p24_Current[SHK_INTEGRATIONS_PER_FILE];
+        double cMEGSB_p15_Current[SHK_INTEGRATIONS_PER_FILE];
+        double cMEGSB_m15_Current[SHK_INTEGRATIONS_PER_FILE];
+        double cMEGSB_p5_0_Analog_Current[SHK_INTEGRATIONS_PER_FILE];
+        double cMEGSB_m5_0_Current[SHK_INTEGRATIONS_PER_FILE];
+        double cMEGSB_p5_0_Digital_Current[SHK_INTEGRATIONS_PER_FILE];
+        double cMEGSB_p2_5_Current[SHK_INTEGRATIONS_PER_FILE];
+
+        double cMEGSA_Thermistor_Diode[SHK_INTEGRATIONS_PER_FILE];
+        double cMEGSA_PRT[SHK_INTEGRATIONS_PER_FILE];
+        double cMEGSB_Thermistor_Diode[SHK_INTEGRATIONS_PER_FILE];
+        double cMEGSB_PRT[SHK_INTEGRATIONS_PER_FILE];
+
+        double cESP_Electrometer_Temperature[SHK_INTEGRATIONS_PER_FILE];
+        double cESP_Detector_Temperature[SHK_INTEGRATIONS_PER_FILE];
+        double cMEGSP_Temperature[SHK_INTEGRATIONS_PER_FILE];
 
     } __attribute__((packed));
 
@@ -865,6 +929,55 @@ int FITSWriter::writeSHKFITSBinaryTable(const std::string& filename, const SHK_P
         row.ESP_Electrometer_Temperature[i] = SHKStructure.ESP_Electrometer_Temperature[i];
         row.ESP_Detector_Temperature[i] = SHKStructure.ESP_Detector_Temperature[i];
         row.MEGSP_Temperature[i] = SHKStructure.MEGSP_Temperature[i];
+
+        row.cFPGA_Board_Temperature[i] = SHKStructure.cFPGA_Board_Temperature[i];
+        row.cFPGA_Board_p5_0_Voltage[i] = SHKStructure.cFPGA_Board_p5_0_Voltage[i];
+        row.cFPGA_Board_p3_3_Voltage[i] = SHKStructure.cFPGA_Board_p3_3_Voltage[i];
+        row.cFPGA_Board_p2_5_Voltage[i] = SHKStructure.cFPGA_Board_p2_5_Voltage[i];
+        row.cFPGA_Board_p1_2_Voltage[i] = SHKStructure.cFPGA_Board_p1_2_Voltage[i];
+
+        row.cMEGSA_CEB_Temperature[i] = SHKStructure.cMEGSA_CEB_Temperature[i];
+        row.cMEGSA_CPR_Temperature[i] = SHKStructure.cMEGSA_CPR_Temperature[i];
+        row.cMEGSA_p24_Voltage[i]          = SHKStructure.cMEGSA_p24_Voltage[i];
+        row.cMEGSA_p15_Voltage[i]          = SHKStructure.cMEGSA_p15_Voltage[i];
+        row.cMEGSA_m15_Voltage[i]          = SHKStructure.cMEGSA_m15_Voltage[i];
+        row.cMEGSA_p5_0_Analog_Voltage[i]  = SHKStructure.cMEGSA_p5_0_Analog_Voltage[i];
+        row.cMEGSA_m5_0_Voltage[i]         = SHKStructure.cMEGSA_m5_0_Voltage[i];
+        row.cMEGSA_p5_0_Digital_Voltage[i] = SHKStructure.cMEGSA_p5_0_Digital_Voltage[i];
+        row.cMEGSA_p2_5_Voltage[i]         = SHKStructure.cMEGSA_p2_5_Voltage[i];
+        row.cMEGSA_p24_Current[i]          = SHKStructure.cMEGSA_p24_Current[i];
+        row.cMEGSA_p15_Current[i]          = SHKStructure.cMEGSA_p15_Current[i];
+        row.cMEGSA_m15_Current[i]          = SHKStructure.cMEGSA_m15_Current[i];
+        row.cMEGSA_p5_0_Analog_Current[i]  = SHKStructure.cMEGSA_p5_0_Analog_Current[i];
+        row.cMEGsA_m5_0_Current[i]         = SHKStructure.cMEGSA_m5_0_Current[i];
+        row.cMEGSA_p5_0_Digital_Current[i] = SHKStructure.cMEGSA_p5_0_Digital_Current[i];
+        row.cMEGSA_p2_5_Current[i]         = SHKStructure.cMEGSA_p2_5_Current[i];
+
+        row.cMEGSB_CEB_Temperature[i] = SHKStructure.cMEGSB_CEB_Temperature[i];
+        row.cMEGSB_CPR_Temperature[i] = SHKStructure.cMEGSB_CPR_Temperature[i];
+        row.cMEGSB_p24_Voltage[i]          = SHKStructure.cMEGSB_p24_Voltage[i];
+        row.cMEGSB_p15_Voltage[i]          = SHKStructure.cMEGSB_p15_Voltage[i];
+        row.cMEGSB_m15_Voltage[i]          = SHKStructure.cMEGSB_m15_Voltage[i];
+        row.cMEGSB_p5_0_Analog_Voltage[i]  = SHKStructure.cMEGSB_p5_0_Analog_Voltage[i];
+        row.cMEGSB_m5_0_Voltage[i]         = SHKStructure.cMEGSB_m5_0_Voltage[i];
+        row.cMEGSB_p5_0_Digital_Voltage[i] = SHKStructure.cMEGSB_p5_0_Digital_Voltage[i];
+        row.cMEGSB_p2_5_Voltage[i]         = SHKStructure.cMEGSB_p2_5_Voltage[i];
+        row.cMEGSB_p24_Current[i]          = SHKStructure.cMEGSB_p24_Current[i];
+        row.cMEGSB_p15_Current[i]          = SHKStructure.cMEGSB_p15_Current[i];
+        row.cMEGSB_m15_Current[i]          = SHKStructure.cMEGSB_m15_Current[i];
+        row.cMEGSB_p5_0_Analog_Current[i]  = SHKStructure.cMEGSB_p5_0_Analog_Current[i];
+        row.cMEGSB_m5_0_Current[i]         = SHKStructure.cMEGSB_m5_0_Current[i];
+        row.cMEGSB_p5_0_Digital_Current[i] = SHKStructure.cMEGSB_p5_0_Digital_Current[i];
+        row.cMEGSB_p2_5_Current[i]         = SHKStructure.cMEGSB_p2_5_Current[i];
+
+        row.cMEGSA_Thermistor_Diode[i] = SHKStructure.cMEGSA_Thermistor_Diode[i];
+        row.cMEGSA_PRT[i] = SHKStructure.cMEGSA_PRT[i];
+        row.cMEGSB_Thermistor_Diode[i] = SHKStructure.cMEGSB_Thermistor_Diode[i];
+        row.cMEGSB_PRT[i] = SHKStructure.cMEGSB_PRT[i];
+
+        row.cESP_Electrometer_Temperature[i] = SHKStructure.cESP_Electrometer_Temperature[i];
+        row.cESP_Detector_Temperature[i] = SHKStructure.cESP_Detector_Temperature[i];
+        row.cMEGSP_Temperature[i] = SHKStructure.cMEGSP_Temperature[i];
 
     }
 
