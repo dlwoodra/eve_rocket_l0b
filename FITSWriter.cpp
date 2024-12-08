@@ -799,8 +799,8 @@ int FITSWriter::writeSHKFITSBinaryTable(const std::string& filename, const SHK_P
     	uint32_t MEGSB_PRT[SHK_INTEGRATIONS_PER_FILE];
     	uint32_t MEGSB_Thermistor_Diode[SHK_INTEGRATIONS_PER_FILE];
 
-    	uint32_t ESP_Detector_Temperature[SHK_INTEGRATIONS_PER_FILE];
     	uint32_t ESP_Electrometer_Temperature[SHK_INTEGRATIONS_PER_FILE];
+    	uint32_t ESP_Detector_Temperature[SHK_INTEGRATIONS_PER_FILE];
     	uint32_t MEGSP_Temperature[SHK_INTEGRATIONS_PER_FILE]; 			// 60
 
         double cFPGA_Board_Temperature[SHK_INTEGRATIONS_PER_FILE];
