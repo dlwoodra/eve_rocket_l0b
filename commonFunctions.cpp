@@ -706,15 +706,16 @@ SHK_CONVERTED_PACKET convertSHKData(SHK_PACKET& rawSHK) {
         shk.MEGSB_p2_5_Current[i]         = -(static_cast<double>(rawSHK.MEGSB_p2_5_Current[i]) - MID_POINT) * CONVERSION_UV_SLOPE; // uA
 
         double NOFF = -30.0f; // Toms doc says add +10 for SURF cables
-        shk.MEGSA_PRT[i] = -159.899f + NOFF + (0.063084f * static_cast<double>(rawSHK.MEGSA_PRT[i])); // using SURF cable offset of +10
+        shk.MEGSA_PRT[i] = -159.899f + NOFF + (0.063084f * static_cast<double>(rawSHK.MEGSA_PRT[i])); 
+        shk.MEGSB_PRT[i] = -159.899f + NOFF + (0.063084f * static_cast<double>(rawSHK.MEGSB_PRT[i])); 
 
+        // The MEGS-A and B Thermistor Diodes are disconnected for SURF.
         NOFF = 10.0f;
         shk.MEGSA_Thermistor_Diode[i] = 211.5647 + NOFF - (0.0821814f * static_cast<double>(rawSHK.MEGSA_Thermistor_Diode[i]));
-        shk.MEGSB_PRT[i] = -159.899f + NOFF + (0.063084f * static_cast<double>(rawSHK.MEGSB_PRT[i])); // using SURF cable offset of +10
         shk.MEGSB_Thermistor_Diode[i] = 211.5647f + NOFF - (0.0821814f * static_cast<double>(rawSHK.MEGSB_Thermistor_Diode[i]));
 
         const static std::array<double, 4> polycoeffs = {107.67103, -0.074409605, 2.3621067e-5, -3.450586e-9};
-        shk.ESP_Detector_Temperature[i]     = apply_cubic_conversion(rawSHK.ESP_Detector_Temperature[i],     polycoeffs[0], polycoeffs[1], polycoeffs[2], polycoeffs[3]);
+        shk.ESP_Detector_Temperature[i]     = apply_cubic_conversion(rawSHK.ESP_Detector_Temperature[i],     polycoeffs[0]+ 14.3, polycoeffs[1], polycoeffs[2], polycoeffs[3]);
         shk.ESP_Electrometer_Temperature[i] = apply_cubic_conversion(rawSHK.ESP_Electrometer_Temperature[i], polycoeffs[0], polycoeffs[1], polycoeffs[2], polycoeffs[3]);
         shk.MEGSP_Temperature[i]            = apply_cubic_conversion(rawSHK.MEGSP_Temperature[i],            polycoeffs[0], polycoeffs[1], polycoeffs[2], polycoeffs[3]);
 
@@ -865,6 +866,7 @@ void processHKPacket(std::vector<uint8_t> payload,
         // additional 4 spares at the end
 
         mtx.lock();
+        globalState.shk.mode[index] = oneSHKStructure.mode[index];
         globalState.shk.FPGA_Board_Temperature[index] = oneSHKStructure.FPGA_Board_Temperature[index];
         globalState.shk.FPGA_Board_p5_0_Voltage[index] = oneSHKStructure.FPGA_Board_p5_0_Voltage[index];
         globalState.shk.FPGA_Board_p3_3_Voltage[index] = oneSHKStructure.FPGA_Board_p3_3_Voltage[index];
@@ -918,6 +920,10 @@ void processHKPacket(std::vector<uint8_t> payload,
         globalState.shk.MEGSA_PRT[index] = oneSHKStructure.MEGSA_PRT[index];
         globalState.shk.MEGSB_Thermistor_Diode[index] = oneSHKStructure.MEGSB_Thermistor_Diode[index];
         globalState.shk.MEGSB_PRT[index] = oneSHKStructure.MEGSB_PRT[index];
+        globalState.shk.ESP_Electrometer_Temperature[index] = oneSHKStructure.ESP_Electrometer_Temperature[index];
+        globalState.shk.ESP_Detector_Temperature[index] = oneSHKStructure.ESP_Detector_Temperature[index];
+        globalState.shk.MEGSP_Temperature[index] = oneSHKStructure.MEGSP_Temperature[index];
+
         mtx.unlock();
 
     }
