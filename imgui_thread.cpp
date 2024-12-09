@@ -1392,14 +1392,70 @@ void updateSHKWindow()
     ImGui::Begin("SHK Data");
 
     mtx.lock();
-    bool isTreeNodeOpen = ImGui::TreeNodeEx("SHK FPGA Status", ImGuiTreeNodeFlags_DefaultOpen);
-    if (isTreeNodeOpen)
+    bool isFPGATreeNodeOpen = ImGui::TreeNodeEx("SHK FPGA Status"); //, ImGuiTreeNodeFlags_DefaultOpen);
+    if (isFPGATreeNodeOpen)
     {
         renderInputTextWithColor("FPGA Board Temp", globalState.shkConv.FPGA_Board_Temperature[0], 12, false, 0.0, 0.9);
         renderInputTextWithColor("FPGA Board +5V", globalState.shkConv.FPGA_Board_p5_0_Voltage[0], 12, false, 0.0, 0.9);
         renderInputTextWithColor("FPGA Board +3.3V", globalState.shkConv.FPGA_Board_p3_3_Voltage[0], 12, false, 0.0, 0.9);
         renderInputTextWithColor("FPGA Board +2.5V", globalState.shkConv.FPGA_Board_p2_5_Voltage[0], 12, false, 0.0, 0.9);
         renderInputTextWithColor("FPGA Board +1.2V", globalState.shkConv.FPGA_Board_p1_2_Voltage[0], 12, false, 0.0, 0.9);
+        ImGui::TreePop();
+    }
+    // MEGS-A
+    if (ImGui::TreeNode("SHK MEGS-A Status"))
+    {
+        renderInputTextWithColor("MEGSA CEB Temp", globalState.shkConv.MEGSA_CEB_Temperature[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSA CPR Temp", globalState.shkConv.MEGSA_CPR_Temperature[0], 12, false, 0.0, 0.9);    
+        renderInputTextWithColor("MEGSA +24V", globalState.shkConv.MEGSA_p24_Voltage[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSA +15V", globalState.shkConv.MEGSA_p15_Voltage[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSA -15V", globalState.shkConv.MEGSA_m15_Voltage[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSA +5V analog", globalState.shkConv.MEGSA_p5_0_Analog_Voltage[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSA -5V", globalState.shkConv.MEGSA_m5_0_Voltage[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSA +5V digital", globalState.shkConv.MEGSA_p5_0_Digital_Voltage[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSA +2.5V", globalState.shkConv.MEGSA_p2_5_Voltage[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSA +24V current", globalState.shkConv.MEGSA_p24_Current[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSA +15V current", globalState.shkConv.MEGSA_p15_Current[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSA -15V current", globalState.shkConv.MEGSA_m15_Current[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSA +5V analog current", globalState.shkConv.MEGSA_p5_0_Analog_Current[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSA -5V current", globalState.shkConv.MEGSA_m5_0_Current[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSA +5V digital current", globalState.shkConv.MEGSA_p5_0_Digital_Current[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSA +2.5V current", globalState.shkConv.MEGSA_p2_5_Current[0], 12, false, 0.0, 0.9);
+        ImGui::TreePop();
+    }
+    // MEGSB
+        if (ImGui::TreeNode("SHK MEGS-B Status"))
+    {
+        renderInputTextWithColor("MEGSB CEB Temp", globalState.shkConv.MEGSB_CEB_Temperature[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSB CPR Temp", globalState.shkConv.MEGSB_CPR_Temperature[0], 12, false, 0.0, 0.9);    
+        renderInputTextWithColor("MEGSB +24V", globalState.shkConv.MEGSB_p24_Voltage[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSB +15V", globalState.shkConv.MEGSB_p15_Voltage[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSB -15V", globalState.shkConv.MEGSB_m15_Voltage[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSB +5V analog", globalState.shkConv.MEGSB_p5_0_Analog_Voltage[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSB -5V", globalState.shkConv.MEGSB_m5_0_Voltage[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSB +5V digital", globalState.shkConv.MEGSB_p5_0_Digital_Voltage[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSB +2.5V", globalState.shkConv.MEGSB_p2_5_Voltage[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSB +24V current", globalState.shkConv.MEGSB_p24_Current[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSB +15V current", globalState.shkConv.MEGSB_p15_Current[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSB -15V current", globalState.shkConv.MEGSB_m15_Current[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSB +5V analog current", globalState.shkConv.MEGSB_p5_0_Analog_Current[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSB -5V current", globalState.shkConv.MEGSB_m5_0_Current[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSB +5V digital current", globalState.shkConv.MEGSB_p5_0_Digital_Current[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSB +2.5V current", globalState.shkConv.MEGSB_p2_5_Current[0], 12, false, 0.0, 0.9);
+        ImGui::TreePop();
+    }
+
+    // Component Temperatures
+    if (ImGui::TreeNode("SHK Component Temperatures"))
+    {
+        // Thermistor_Diodes are disconnected for SURF
+        //renderInputTextWithColor("MEGSA Thermistor Diode", globalState.shkConv.MEGSA_Thermistor_Diode[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSA PRT Temp", globalState.shkConv.MEGSA_PRT[0], 12, false, 0.0, 0.9);
+        //renderInputTextWithColor("MEGSB Thermistor Diode", globalState.shkConv.MEGSB_Thermistor_Diode[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSB PRT Temp", globalState.shkConv.MEGSB_PRT[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("ESP Electrometer Temp", globalState.shkConv.ESP_Electrometer_Temperature[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("ESP_Detector Temp", globalState.shkConv.ESP_Detector_Temperature[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSP_Temperature", globalState.shkConv.MEGSP_Temperature[0], 12, false, 0.0, 0.9);
         ImGui::TreePop();
     }
 
