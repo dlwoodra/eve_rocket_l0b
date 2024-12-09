@@ -331,16 +331,17 @@ int FITSWriter::writeMegsFITSBinaryTable(
 ) {
     std::vector<std::string> columnNames = {
         "YYYYDOY", "SOD", "TAI_TIME_SECONDS", "TAI_TIME_SUBSECONDS",
-        "REC_TAI_SECONDS", "REC_TAI_SUBSECONDS", "VCDU_COUNT"
+        "REC_TAI_SECONDS", "REC_TAI_SUBSECONDS", "VCDU_COUNT",
+        "FPGA_BOARD_TEMPERATURE", "CEB_TEMPERATURE", "CPR_TEMPERATURE", "PRT_TEMPERATURE"
     };
 
-    std::vector<std::string> columnTypes = {"V", "V", "V", "V", "V", "V", "U"};
-    std::vector<int> columnLengths = {1,1,1,1,1,1,1};
+    std::vector<std::string> columnTypes = {"V", "V", "V", "V", "V", "V", "U", "E", "E", "E", "E"};
+    std::vector<int> columnLengths = {1,1,1,1,1,1,1,1,1,1,1};
     std::string combinedColumnTypes;    
     for (const auto& type : columnTypes) {
         combinedColumnTypes += type;  // Concatenate each string in columnTypes
     }
-    std::vector<std::string> columnUnits = {"DATE", "s", "s", "s", "s", "s", "count"};
+    std::vector<std::string> columnUnits = {"DATE", "s", "s", "s", "s", "s", "count", "degC", "degC", "degC", "degC"};
 
     //copy data
     struct DataRow {
@@ -351,12 +352,18 @@ int FITSWriter::writeMegsFITSBinaryTable(
         uint32_t rec_tai_seconds;
         uint32_t rec_tai_subseconds;
         uint16_t vcdu_count;
+        float FPGA_Board_Temperature;
+        float CEB_Temperature;
+        float CPR_Temperature;
+        float PRT_Temperature;
     } __attribute__((packed));
 
     DataRow row = {
         megsStructure.yyyydoy, megsStructure.sod, megsStructure.tai_time_seconds,
         megsStructure.tai_time_subseconds, megsStructure.rec_tai_seconds,
-        megsStructure.rec_tai_subseconds, megsStructure.vcdu_count
+        megsStructure.rec_tai_subseconds, megsStructure.vcdu_count,
+        megsStructure.FPGA_Board_Temperature, megsStructure.CEB_Temperature,
+        megsStructure.CPR_Temperature, megsStructure.PRT_Temperature
     };
 
     std::vector<uint8_t> data(sizeof(DataRow));
@@ -438,19 +445,21 @@ int FITSWriter::writeMegsPFITSBinaryTable(const std::string& filename, const MEG
     std::vector<std::string> columnNames = {
         "YYYYDOY", "SOD", "TAI_TIME_SECONDS", "TAI_TIME_SUBSECONDS",
         "REC_TAI_SECONDS", "REC_TAI_SUBSECONDS", 
+        "FPGA_BOARD_TEMPERATURE", "MEGSP_Temperature",
         "MP_lya", "MP_dark" 
     };
 
     std::vector<std::string> columnTypes = {"V", "V", "V", "V", 
         "V", "V", 
+        "E", "E",
         "U", "U"};
     std::string combinedColumnTypes;    
     for (const auto& type : columnTypes) {
         combinedColumnTypes += type;  // Concatenate each string in columnTypes
     }
-    std::vector<std::string> columnUnits = {"DATE", "s", "s", "s", "s", "s", "count","count"};
+    std::vector<std::string> columnUnits = {"DATE", "s", "s", "s", "s", "s", "C", "C", "count","count"};
 
-    std::vector<int> columnLengths = {1,1,1,1,1,1,MEGSP_INTEGRATIONS_PER_FILE, MEGSP_INTEGRATIONS_PER_FILE};
+    std::vector<int> columnLengths = {1,1,1,1,1,1,1,1,MEGSP_INTEGRATIONS_PER_FILE, MEGSP_INTEGRATIONS_PER_FILE};
 
     //copy data
     struct DataRow {
@@ -460,6 +469,8 @@ int FITSWriter::writeMegsPFITSBinaryTable(const std::string& filename, const MEG
         uint32_t tai_time_subseconds;
         uint32_t rec_tai_seconds;
         uint32_t rec_tai_subseconds;
+        float FPGA_Board_Temperature;
+        float MEGSP_Temperature;
         uint16_t MP_lya[MEGSP_INTEGRATIONS_PER_FILE];
         uint16_t MP_dark[MEGSP_INTEGRATIONS_PER_FILE];
     } __attribute__((packed));
@@ -468,7 +479,8 @@ int FITSWriter::writeMegsPFITSBinaryTable(const std::string& filename, const MEG
     DataRow row = {
         megsPStructure.yyyydoy, megsPStructure.sod, 
         megsPStructure.tai_time_seconds, megsPStructure.tai_time_subseconds, 
-        megsPStructure.rec_tai_seconds, megsPStructure.rec_tai_subseconds
+        megsPStructure.rec_tai_seconds, megsPStructure.rec_tai_subseconds,
+        megsPStructure.FPGA_Board_Temperature, megsPStructure.MEGSP_Temperature
     };
     // populate the arrays
     for (size_t i = 0; i < MEGSP_INTEGRATIONS_PER_FILE; ++i) {
@@ -527,19 +539,21 @@ int FITSWriter::writeESPFITSBinaryTable(const std::string& filename, const ESP_P
     std::vector<std::string> columnNames = {
         "YYYYDOY", "SOD", "TAI_TIME_SECONDS", "TAI_TIME_SUBSECONDS",
         "REC_TAI_SECONDS", "REC_TAI_SUBSECONDS", 
+        "FPGA_BOARD_TEMPERATURE", "ESP_Electrometer_Temperature", "ESP_Detector_Temperature",
         "ESP_xfer_cnt","ESP_q0", "ESP_q1", "ESP_q2", "ESP_q3", "ESP_171", "ESP_257", "ESP_304", "ESP_366", "ESP_dark" 
     };
 
     std::vector<std::string> columnTypes = {"V", "V", "V", "V", 
         "V", "V", 
+        "E", "E", "E",
         "U", "U", "U", "U", "U", "U", "U", "U", "U", "U"};
     std::string combinedColumnTypes;    
     for (const auto& type : columnTypes) {
         combinedColumnTypes += type;  // Concatenate each string in columnTypes
     }
-    std::vector<std::string> columnUnits = {"DATE", "s", "s", "s", "s", "s", "", "count","count","count", "count","count","count", "count","count","count"};
+    std::vector<std::string> columnUnits = {"DATE", "s", "s", "s", "s", "s", "C", "C", "C", "", "count","count","count", "count","count","count", "count","count","count"};
 
-    std::vector<int> columnLengths = {1,1,1,1,1,1,ESP_INTEGRATIONS_PER_FILE, 
+    std::vector<int> columnLengths = {1,1,1,1,1,1,1,1,1,ESP_INTEGRATIONS_PER_FILE, 
         ESP_INTEGRATIONS_PER_FILE, ESP_INTEGRATIONS_PER_FILE, ESP_INTEGRATIONS_PER_FILE,
         ESP_INTEGRATIONS_PER_FILE, ESP_INTEGRATIONS_PER_FILE, ESP_INTEGRATIONS_PER_FILE,
         ESP_INTEGRATIONS_PER_FILE, ESP_INTEGRATIONS_PER_FILE, ESP_INTEGRATIONS_PER_FILE 
@@ -553,6 +567,9 @@ int FITSWriter::writeESPFITSBinaryTable(const std::string& filename, const ESP_P
         alignas(1) uint32_t tai_time_subseconds;
         alignas(1) uint32_t rec_tai_seconds;
         alignas(1) uint32_t rec_tai_subseconds;
+        alignas(1) float FPGA_Board_Temperature;
+        alignas(1) float ESP_Electrometer_Temperature;
+        alignas(1) float ESP_Detector_Temperature;
         alignas(1) uint16_t ESP_xfer_cnt[ESP_INTEGRATIONS_PER_FILE];
         alignas(1) uint16_t ESP_q0[ESP_INTEGRATIONS_PER_FILE];
         alignas(1) uint16_t ESP_q1[ESP_INTEGRATIONS_PER_FILE];
@@ -569,7 +586,8 @@ int FITSWriter::writeESPFITSBinaryTable(const std::string& filename, const ESP_P
     DataRow row = {
         ESPStructure.yyyydoy, ESPStructure.sod, ESPStructure.tai_time_seconds,
         ESPStructure.tai_time_subseconds, ESPStructure.rec_tai_seconds,
-        ESPStructure.rec_tai_subseconds
+        ESPStructure.rec_tai_subseconds,
+        ESPStructure.FPGA_Board_Temperature, ESPStructure.ESP_Electrometer_Temperature, ESPStructure.ESP_Detector_Temperature
     };
     // populate the arrays
     for (size_t i = 0; i < ESP_INTEGRATIONS_PER_FILE; ++i) {

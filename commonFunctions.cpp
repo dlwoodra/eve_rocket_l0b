@@ -346,6 +346,13 @@ void processMegsAPacket(std::vector<uint8_t> payload,
 
         globalState.megsAImageCount.fetch_add(1, std::memory_order_relaxed);
 
+        mtx.lock();
+        oneMEGSStructure.FPGA_Board_Temperature = globalState.shkConv.FPGA_Board_Temperature[0];
+        oneMEGSStructure.CEB_Temperature = globalState.shkConv.MEGSA_CEB_Temperature[0];
+        oneMEGSStructure.CPR_Temperature = globalState.shkConv.MEGSA_CPR_Temperature[0];
+        oneMEGSStructure.PRT_Temperature = globalState.shkConv.MEGSA_PRT[0];
+        mtx.unlock();
+
         // may need to run this in another thread
 
         // Write packet data to a FITS file if applicable
@@ -466,6 +473,13 @@ void processMegsBPacket(std::vector<uint8_t> payload, uint16_t sourceSequenceCou
 
         globalState.megsBImageCount.fetch_add(1, std::memory_order_relaxed);
 
+        mtx.lock();
+        oneMEGSStructure.FPGA_Board_Temperature = globalState.shkConv.FPGA_Board_Temperature[0];
+        oneMEGSStructure.CEB_Temperature = globalState.shkConv.MEGSB_CEB_Temperature[0];
+        oneMEGSStructure.CPR_Temperature = globalState.shkConv.MEGSB_CPR_Temperature[0];
+        oneMEGSStructure.PRT_Temperature = globalState.shkConv.MEGSB_PRT[0];
+        mtx.unlock();
+
         // may need to run this in another thread
 
         // Write packet data to a FITS file if applicable
@@ -533,6 +547,11 @@ void processMegsPPacket(std::vector<uint8_t> payload,
 
     // ONLY WRITE WHEN STRUCTURE IS FULL
     if ( processedPacketCounter == MEGSP_PACKETS_PER_FILE ) {
+
+        mtx.lock();
+        oneMEGSPStructure.FPGA_Board_Temperature = globalState.shkConv.FPGA_Board_Temperature[0];
+        oneMEGSPStructure.MEGSP_Temperature = globalState.shkConv.MEGSP_Temperature[0];
+        mtx.unlock();
 
         // Write packet data to a FITS file if applicable
         std::unique_ptr<FITSWriter> fitsFileWriter;
@@ -631,6 +650,12 @@ void processESPPacket(std::vector<uint8_t> payload,
 
     // ONLY WRITE WHEN STRUCTURE IS FULL
     if ( processedESPPacketCounter == ESP_PACKETS_PER_FILE ) {
+
+        mtx.lock();
+        oneESPStructure.FPGA_Board_Temperature = globalState.shkConv.FPGA_Board_Temperature[0];
+        oneESPStructure.ESP_Electrometer_Temperature = globalState.shkConv.ESP_Electrometer_Temperature[0];
+        oneESPStructure.ESP_Detector_Temperature = globalState.shkConv.ESP_Detector_Temperature[0];
+        mtx.unlock();
 
         // Write packet data to a FITS file if applicable
         std::unique_ptr<FITSWriter> fitsFileWriter;

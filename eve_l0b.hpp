@@ -377,6 +377,9 @@ struct ESP_PACKET
 	uint32_t tai_time_subseconds;
 	uint32_t rec_tai_seconds;
  	uint32_t rec_tai_subseconds;
+	float FPGA_Board_Temperature;
+	float ESP_Electrometer_Temperature;
+	float ESP_Detector_Temperature;
 	uint16_t ESP_xfer_cnt[ESP_INTEGRATIONS_PER_FILE];
 	uint16_t ESP_q0[ESP_INTEGRATIONS_PER_FILE];
 	uint16_t ESP_q1[ESP_INTEGRATIONS_PER_FILE];
@@ -399,6 +402,8 @@ struct MEGSP_PACKET
   uint32_t tai_time_subseconds;
   uint32_t rec_tai_seconds;
   uint32_t rec_tai_subseconds;
+  float FPGA_Board_Temperature;
+  float MEGSP_Temperature;
   uint16_t MP_lya[MEGSP_INTEGRATIONS_PER_FILE];
   uint16_t MP_dark[MEGSP_INTEGRATIONS_PER_FILE];
 };
@@ -413,6 +418,10 @@ struct MEGS_IMAGE_REC {
   uint32_t rec_tai_seconds;
   uint32_t rec_tai_subseconds;
   uint16_t vcdu_count;
+  float FPGA_Board_Temperature;
+  float CEB_Temperature;
+  float CPR_Temperature;
+  float PRT_Temperature;
   uint16_t image[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH];
 };
 
