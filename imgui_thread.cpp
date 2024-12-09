@@ -344,25 +344,29 @@ void scaleImageToTexture(uint16_t (*megsImage)[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WID
     }
 }
 
-
-void renderInputTextWithColor(const char* label, long value, size_t bufferSize, bool limitCheck,
+template<typename T>
+void renderInputTextWithColor(const char* label, T value, size_t bufferSize, bool limitCheck,
                               float yHiLimit, float rHiLimit, float yLoLimit = -100.0f, float rLoLimit = -200.0f,
-                              const char* format = nullptr, const int itemWidthMultiplier = 4) { // `format` is optional
+                              const char* format = nullptr, const int itemWidthMultiplier = 4) {
+    static_assert(std::is_arithmetic<T>::value, "Value must be a numeric type (integer or floating point)");
+
     LimitState state = NoCheck;
-    
+
     float_t itemWidthValue = ImGui::GetFontSize() * itemWidthMultiplier;
     ImGui::PushItemWidth(itemWidthValue);
 
     char strval[bufferSize];
-    // Use provided format or default to integer if format is nullptr
+    // Use provided format or default to integer/float format
     if (format) {
-        snprintf(strval, bufferSize, format, static_cast<float>(value));
-    } else {
-        snprintf(strval, bufferSize, "%ld", value); // Default to integer format
+        snprintf(strval, bufferSize, format, static_cast<double>(value)); // `double` for compatibility
+    } else if constexpr (std::is_integral<T>::value) {
+        snprintf(strval, bufferSize, "%ld", static_cast<long>(value));
+    } else if constexpr (std::is_floating_point<T>::value) {
+        snprintf(strval, bufferSize, "%.2f", static_cast<float>(value)); // Default to 2 decimal places for floats
     }
 
     if (limitCheck) {
-        const float fvalue = static_cast<float>(value); // `fvalue` is only used for limit checking
+        float fvalue = static_cast<float>(value); // Ensure a common type for comparison
         if (fvalue > rHiLimit) {
             state = Red;
         } else if (fvalue > yHiLimit) {
@@ -385,6 +389,48 @@ void renderInputTextWithColor(const char* label, long value, size_t bufferSize, 
     // Restore default color
     ImGui::PopStyleColor();
 }
+
+
+// void renderInputTextWithColor(const char* label, long value, size_t bufferSize, bool limitCheck,
+//                               float yHiLimit, float rHiLimit, float yLoLimit = -100.0f, float rLoLimit = -200.0f,
+//                               const char* format = nullptr, const int itemWidthMultiplier = 4) { // `format` is optional
+//     LimitState state = NoCheck;
+    
+//     float_t itemWidthValue = ImGui::GetFontSize() * itemWidthMultiplier;
+//     ImGui::PushItemWidth(itemWidthValue);
+
+//     char strval[bufferSize];
+//     // Use provided format or default to integer if format is nullptr
+//     if (format) {
+//         snprintf(strval, bufferSize, format, static_cast<float>(value));
+//     } else {
+//         snprintf(strval, bufferSize, "%ld", value); // Default to integer format
+//     }
+
+//     if (limitCheck) {
+//         const float fvalue = static_cast<float>(value); // `fvalue` is only used for limit checking
+//         if (fvalue > rHiLimit) {
+//             state = Red;
+//         } else if (fvalue > yHiLimit) {
+//             state = Yellow;
+//         } else if (fvalue < rLoLimit) {
+//             state = Red;
+//         } else if (fvalue < yLoLimit) {
+//             state = Yellow;
+//         } else {
+//             state = Green;
+//         }
+//     }
+
+//     // Set color before rendering
+//     ImGui::PushStyleColor(ImGuiCol_FrameBg, getColorForState(state));
+
+//     // Render the InputText with formatted value
+//     ImGui::InputText(label, strval, bufferSize);
+
+//     // Restore default color
+//     ImGui::PopStyleColor();
+// }
 
 void ShowColormapComboBox(const char* label, int& selectedColormapIndex, ImVec2 previewSize) {
     // refer to the enum ImPlotColormap_ for the list of available colormaps
@@ -1341,6 +1387,26 @@ void plotESPTarget(int lastIdx) {
     }
 }
 
+void updateSHKWindow()
+{
+    ImGui::Begin("SHK Data");
+
+    mtx.lock();
+    bool isTreeNodeOpen = ImGui::TreeNodeEx("SHK FPGA Status", ImGuiTreeNodeFlags_DefaultOpen);
+    if (isTreeNodeOpen)
+    {
+        renderInputTextWithColor("FPGA Board Temp", globalState.shkConv.FPGA_Board_Temperature[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("FPGA Board +5V", globalState.shkConv.FPGA_Board_p5_0_Voltage[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("FPGA Board +3.3V", globalState.shkConv.FPGA_Board_p3_3_Voltage[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("FPGA Board +2.5V", globalState.shkConv.FPGA_Board_p2_5_Voltage[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("FPGA Board +1.2V", globalState.shkConv.FPGA_Board_p1_2_Voltage[0], 12, false, 0.0, 0.9);
+        ImGui::TreePop();
+    }
+
+    mtx.unlock();
+    ImGui::End();
+}
+
 void updateESPWindow()
 {
  
@@ -1722,6 +1788,10 @@ int imgui_thread() {
 
             {
                 updateESPWindow();
+            }
+
+            {
+                updateSHKWindow();
             }
 
             {
