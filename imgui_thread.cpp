@@ -1395,6 +1395,17 @@ void updateSHKWindow()
     bool isFPGATreeNodeOpen = ImGui::TreeNodeEx("SHK FPGA Status"); //, ImGuiTreeNodeFlags_DefaultOpen);
     if (isFPGATreeNodeOpen)
     {
+        renderInputTextWithColor("Mode", globalState.shk.mode[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSA_Analog_Mux", globalState.shk.MEGSA_Analog_Mux_Register[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSB_Analog_Mux", globalState.shk.MEGSB_Analog_Mux_Register[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSA_Digital_Status", globalState.shk.MEGSA_Digital_Status_Register[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSB_Digital_Status", globalState.shk.MEGSB_Digital_Status_Register[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSA Integration Time", globalState.shk.MEGSA_Integration_Timer_Register[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSB Integration Time", globalState.shk.MEGSB_Integration_Timer_Register[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSA Command Error Count", globalState.shk.MEGSA_Command_Error_Count_Register[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSB Command Error Count", globalState.shk.MEGSB_Command_Error_Count_Register[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSA CEB FGA Version", globalState.shk.MEGSA_CEB_FPGA_Version_Register[0], 12, false, 0.0, 0.9);
+        renderInputTextWithColor("MEGSB CEB FGA Version", globalState.shk.MEGSB_CEB_FPGA_Version_Register[0], 12, false, 0.0, 0.9);
         renderInputTextWithColor("FPGA Board Temp", globalState.shkConv.FPGA_Board_Temperature[0], 12, false, 0.0, 0.9);
         renderInputTextWithColor("FPGA Board +5V", globalState.shkConv.FPGA_Board_p5_0_Voltage[0], 12, false, 0.0, 0.9);
         renderInputTextWithColor("FPGA Board +3.3V", globalState.shkConv.FPGA_Board_p3_3_Voltage[0], 12, false, 0.0, 0.9);
