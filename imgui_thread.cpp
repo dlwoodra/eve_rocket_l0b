@@ -1258,14 +1258,8 @@ void updateStatusWindow()
         ImGui::TreePop();
     }
 
-    state = Green;
-    if ((globalState.saturatedPixelsMABottom.load()) || (globalState.saturatedPixelsMATop.load() !=0) ||
-        (globalState.saturatedPixelsMBBottom.load()) || (globalState.saturatedPixelsMBTop.load() !=0)) {
-        state = Red;
-    }
-    bool isTreeNodeSaturatedPixelsOpen = ImGui::TreeNodeEx("Saturated Pixels");
-    addFilledCircleToTreeNode(state);
-    if (isTreeNodeSaturatedPixelsOpen) {
+    // determine saturated pixels
+    {
         uint32_t saturatedPixelsTop, saturatedPixelsBottom;
         bool testPattern;
 
@@ -1279,9 +1273,6 @@ void updateStatusWindow()
         globalState.saturatedPixelsMABottom.store(saturatedPixelsBottom, std::memory_order_relaxed);
         globalState.saturatedPixelsMATop.store(saturatedPixelsTop, std::memory_order_relaxed);
 
-        renderInputTextWithColor("MEGS-A Top Saturated", globalState.saturatedPixelsMATop.load(std::memory_order_relaxed), 12, true, 0.0, 0.9);
-        renderInputTextWithColor("MEGS-A Bottom Saturated", globalState.saturatedPixelsMABottom.load(std::memory_order_relaxed), 12, true, 0.0, 0.9);
-
         testPattern = globalState.isMBTestPattern.load();
         mtx.lock();
         countSaturatedPixels(globalState.megsb.image,
@@ -1291,16 +1282,32 @@ void updateStatusWindow()
         mtx.unlock();
         globalState.saturatedPixelsMBBottom.store(saturatedPixelsBottom, std::memory_order_relaxed);
         globalState.saturatedPixelsMBTop.store(saturatedPixelsTop, std::memory_order_relaxed);
+    }
 
-        renderInputTextWithColor("MEGS-B Top Saturated", globalState.saturatedPixelsMBTop.load(std::memory_order_relaxed), 12, true, 0.0, 0.9);
+    state = Green;
+    if ((globalState.saturatedPixelsMABottom.load()) || (globalState.saturatedPixelsMATop.load() !=0) ||
+        (globalState.saturatedPixelsMBBottom.load()) || (globalState.saturatedPixelsMBTop.load() !=0)) {
+        state = Red;
+    }
+    // display
+    bool isTreeNodeSaturatedPixelsOpen = ImGui::TreeNode("Saturated Pixels");
+    addFilledCircleToTreeNode(state);
+    if (isTreeNodeSaturatedPixelsOpen) { // calculate and display regardless of tree node open or not
+        renderInputTextWithColor("MEGS-A Top Saturated", globalState.saturatedPixelsMATop.load(std::memory_order_relaxed), 12, true, 0.0, 0.9);
+        renderInputTextWithColor("MEGS-A Bottom Saturated", globalState.saturatedPixelsMABottom.load(std::memory_order_relaxed), 12, true, 0.0, 0.9);
+
+         renderInputTextWithColor("MEGS-B Top Saturated", globalState.saturatedPixelsMBTop.load(std::memory_order_relaxed), 12, true, 0.0, 0.9);
         renderInputTextWithColor("MEGS-B Bottom Saturated", globalState.saturatedPixelsMBBottom.load(std::memory_order_relaxed), 12, true, 0.0, 0.9);
         ImGui::TreePop();
     }
     ImGui::End(); // end of Channel Status
 }
 
-void plotESPTarget(int lastIdx) {
+ void plotESPTarget(int lastIdx) {
     constexpr float twoPi = 2.0f * 3.1415926535f;
+    constexpr int maxPoints = 40; // Maximum number of points to store
+
+    static std::deque<std::pair<float, float>> pointXYBuffer; // Circular buffer for rel XY points
 
     float d0 = 32.0f;
     float d1 = 47.0f;
@@ -1317,29 +1324,61 @@ void plotESPTarget(int lastIdx) {
     float qsum = globalState.esp.ESP_q0[lastIdx] + globalState.esp.ESP_q1[lastIdx] + 
                  globalState.esp.ESP_q2[lastIdx] + globalState.esp.ESP_q3[lastIdx] - (d0 + d1 + d2 + d3);
     qsum = std::max(qsum, 1.e-6f); // avoid divide by zero
-	float inv_qsum = 1.f / qsum;
+    float inv_qsum = 1.f / qsum;
     float dq0 = std::max(globalState.esp.ESP_q0[lastIdx] - d0, 0.0f);
     float dq1 = std::max(globalState.esp.ESP_q1[lastIdx] - d1, 0.0f);
     float dq2 = std::max(globalState.esp.ESP_q2[lastIdx] - d2, 0.0f);
     float dq3 = std::max(globalState.esp.ESP_q3[lastIdx] - d3, 0.0f);
 
-	float qX = ((dq1 + dq3) - (dq0 + dq2)) * inv_qsum;
-	float qY = ((dq0 + dq1) - (dq2 + dq3)) * inv_qsum;
-    
+    float qX = ((dq1 + dq3) - (dq0 + dq2)) * inv_qsum;
+ 	float qY = ((dq0 + dq1) - (dq2 + dq3)) * inv_qsum;
+  
     float maxAbsNorm = (abs(qX) > abs(qY)) ? abs(qX) : abs(qY);
 
     int arcsecX = ((int) ((qX - 2.0) * 1000)) + 1000;
-	int arcsecY = ((int) ((qY - 2.0) * 1000)) + 1000;
+ 	int arcsecY = ((int) ((qY - 2.0) * 1000)) + 1000;
     float xanglearcsec = (esp_x_angle_table[arcsecX] / 1000.0);
     float yanglearcsec = (esp_y_angle_table[arcsecY] / 1000.0);
-    //float xangleDeg = xanglearcsec / 3600.0;
-    //float yangleDeg = yanglearcsec / 3600.0;
 
+    float xangleDeg = xanglearcsec / 3600.0;
+    float yangleDeg = yanglearcsec / 3600.0;
+    float xangleArcmin = xangleDeg * 60.0;
+    float yangleArcmin = yangleDeg * 60.0;
+
+    float maxAngleArcSecNorm = (abs(xanglearcsec) > abs(yanglearcsec)) ? abs(xanglearcsec) : abs(yanglearcsec);
+
+    static int selectedValue = 0;
+    ImGui::RadioButton("Rel XY", &selectedValue, 0);
+    ImGui::SameLine();
+    ImGui::RadioButton("ArcSec", &selectedValue, 1);
+    ImGui::SameLine();
+    ImGui::RadioButton("ArcMin", &selectedValue, 2);
+    ImGui::SameLine();
+    ImGui::RadioButton("Degrees", &selectedValue, 3);
+
+    float maxNorm = maxAbsNorm;
+
+    // Add the new point to the circular buffer
+    if (selectedValue == 0) {
+        pointXYBuffer.emplace_back(qX, qY);
+    } else if (selectedValue == 1) {
+        pointXYBuffer.emplace_back(xanglearcsec, yanglearcsec);
+        maxNorm = maxAngleArcSecNorm; // arcsec
+    } else if (selectedValue == 2) {
+        pointXYBuffer.emplace_back(xangleArcmin, yangleArcmin);
+        maxNorm = maxAngleArcSecNorm/60.; // convert to arcmin
+    } else {
+        pointXYBuffer.emplace_back(xangleDeg, yangleDeg);
+        maxNorm = maxAngleArcSecNorm/3600.; // convert to degrees
+    }
+    // Limit the number of points in the buffer
+    if (pointXYBuffer.size() > maxPoints) {
+        pointXYBuffer.pop_front(); // Remove the oldest point
+    }
 
     // Get the available space
     ImVec2 availableSize = ImGui::GetContentRegionAvail();
     // Calculate the side length based on the smaller dimension (for a square plot)
-    //float sideLength = std::min(availableSize.x, availableSize.y);
     float sideLength = availableSize.x;
     // Create a square plot size based on the smallest dimension
     ImVec2 plotSize(sideLength, sideLength);
@@ -1347,9 +1386,11 @@ void plotESPTarget(int lastIdx) {
     // Create a plot with ImPlot
     if (ImPlot::BeginPlot("##ESP Target Plot", plotSize, ImPlotFlags_Equal)) {
         // Set the axis ranges to be from -1 to +1
-        float maxScale = (maxAbsNorm > 1.0) ? maxAbsNorm * 1.5 : 1.0;
+        float maxScale = (maxNorm > 1.0) ? maxNorm * 1.5 : 1.0;
         ImPlot::SetupAxisLimits(ImAxis_X1, -maxScale, maxScale);
         ImPlot::SetupAxisLimits(ImAxis_Y1, -maxScale, maxScale);
+
+        ImPlot::SetAxes(ImAxis_X1, ImAxis_Y1); // default
 
         // Radii for the open circles
         const float radii[] = {0.01f, 0.05f, 0.1f, 0.5f, 1.0f};
@@ -1362,7 +1403,6 @@ void plotESPTarget(int lastIdx) {
             std::vector<float> xData(points);
             std::vector<float> yData(points);
 
-
             for (int i = 0; i < points; ++i) {
                 float angle = twoPi * (float)i / (float)(points - 1);
                 xData[i] = radius * cos(angle);
@@ -1372,11 +1412,20 @@ void plotESPTarget(int lastIdx) {
             ImPlot::PlotLine("##Circle", xData.data(), yData.data(), points);
         }
 
+        // Plot all points in the buffer
+        std::vector<float> xBuffer, yBuffer;
+        for (const auto& point : pointXYBuffer) {
+            xBuffer.push_back(point.first);
+            yBuffer.push_back(point.second);
+        }
+
         // Plot the data point (as an asterisk)
         ImPlot::SetNextMarkerStyle(ImPlotMarker_Asterisk, 8.0f, ImVec4(1, 0, 0, 1), 1.5f);
         
-        ImPlot::PlotScatter("#QuadTarget", &qX, &qY, 1);
- 
+        ImPlot::PlotScatter("##Symbols", xBuffer.data(), yBuffer.data(), xBuffer.size());
+        // add lines
+        ImPlot::PlotLine("##Lines", xBuffer.data(), yBuffer.data(), xBuffer.size());
+
         // Display the angles below the plot
         ImGui::Text("X Angle: %.2f arcsec", xanglearcsec);
         ImGui::Text("Y Angle: %.2f arcsec", yanglearcsec);
