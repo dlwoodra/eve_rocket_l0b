@@ -1427,8 +1427,18 @@ void updateStatusWindow()
         ImPlot::PlotLine("##Lines", xBuffer.data(), yBuffer.data(), xBuffer.size());
 
         // Display the angles below the plot
-        ImGui::Text("X Angle: %.2f arcsec", xanglearcsec);
-        ImGui::Text("Y Angle: %.2f arcsec", yanglearcsec);
+        if (selectedValue == 0) {
+            ImGui::Text("Rel X: %.2f Rel Y: %.2f", qX, qY);
+        } else if (selectedValue == 1) {
+            ImGui::Text("X Angle: %.2f arcsec", xanglearcsec);
+            ImGui::Text("Y Angle: %.2f arcsec", yanglearcsec);
+        } else if (selectedValue == 2) {
+            ImGui::Text("X Angle: %.2f arcmin", xangleArcmin);
+            ImGui::Text("Y Angle: %.2f arcmin", yangleArcmin);
+        } else {
+            ImGui::Text("X Angle: %.2f degrees", xangleDeg);
+            ImGui::Text("Y Angle: %.2f degrees", yangleDeg);
+        }
         renderInputTextWithColor("Qsum-dark:", qsum, 12, true, 100000.f, 200000.f, 500.f, 180.f);
  
         // End the plot
