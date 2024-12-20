@@ -2,12 +2,12 @@
 *  Name: main.cpp
 *  Description: This is the implementation for the minimum processing
 *  capability. Open a connection to the USB via an opal kelly api,
-*  read packets, write packets to a file separated by a 32-bit timestamp.
+*  read packets, write packets to a file.
 *  target is XEM7310-a75.
 *    
 *  Functionality expanded to extract content from packets, assemble images,
 *  aggregate multiple packets together for writing to FITS files as
-*  level 0b data. 
+*  level 0b data. SHK conversions are also performed.
 *
 *  Additional functionality to display some data using imgui with implot is intended.
 *
@@ -20,7 +20,6 @@
 
 #include <csignal> // needed for SIGINT
 #include <optional>
-
 
 // prototypes
 void print_help();
@@ -62,7 +61,7 @@ void handleSigint(int signal) {
     LogFileWriter::getInstance().logInfo("SIGINT received, flushing log and exiting.");
     // Close the log file and compress it
     LogFileWriter::getInstance().close();
-    //spdlog::shutdown(); // shutdown any other loggers if any
+
     std::cout <<  "Log file closed and compressed." << std::endl;
     exit(EXIT_SUCCESS);
     return;
@@ -138,7 +137,6 @@ int main(int argc, char* argv[]) {
 
         //pass usbReader by reference
         usbSource.CGProcRx(usbReader); // receive, does not return until disconnect
-        //usbSource.replaceCGProxRx(usbReader); // receive, does not return until disconnect
         usbReader.close();
 
     }
