@@ -1348,14 +1348,18 @@ void updateStatusWindow()
     float maxAngleArcSecNorm = (abs(xanglearcsec) > abs(yanglearcsec)) ? abs(xanglearcsec) : abs(yanglearcsec);
 
     static int selectedValue = 0;
-    ImGui::RadioButton("Rel XY", &selectedValue, 0);
-    ImGui::SameLine();
-    ImGui::RadioButton("ArcSec", &selectedValue, 1);
-    ImGui::SameLine();
-    ImGui::RadioButton("ArcMin", &selectedValue, 2);
-    ImGui::SameLine();
-    ImGui::RadioButton("Degrees", &selectedValue, 3);
-
+    if (ImGui::TreeNode("Select Units"))
+    {
+        ImGui::RadioButton("Rel XY", &selectedValue, 0);
+        ImGui::SameLine();
+        ImGui::RadioButton("ArcSec", &selectedValue, 1);
+        ImGui::SameLine();
+        ImGui::RadioButton("ArcMin", &selectedValue, 2);
+        ImGui::SameLine();
+        ImGui::RadioButton("Degrees", &selectedValue, 3);
+        ImGui::Text("Double-click in plot to auto scale to fit, scroll to zoom in/out");
+        ImGui::TreePop();
+    }
     float maxNorm = maxAbsNorm;
 
     // Add the new point to the circular buffer
@@ -1428,7 +1432,8 @@ void updateStatusWindow()
 
         // Display the angles below the plot
         if (selectedValue == 0) {
-            ImGui::Text("Rel X: %.2f Rel Y: %.2f", qX, qY);
+            ImGui::Text("Rel X: %.2f", qX);
+            ImGui::Text("Rel Y: %.2f", qY);
         } else if (selectedValue == 1) {
             ImGui::Text("X Angle: %.2f arcsec", xanglearcsec);
             ImGui::Text("Y Angle: %.2f arcsec", yanglearcsec);
