@@ -15,7 +15,7 @@ IMGUI_DIR = ./imgui
 IMGUI_BACKEND_DIR = $(IMGUI_DIR)/backends
 
 INCLUDE_PATH = -I/usr/local/include -I$(IMGUI_DIR) -I$(IMGUI_BACKEND_DIR)
-CXXFLAGS = -std=c++17 -fopenmp -march=native
+CXXFLAGS = -std=c++17 -fopenmp -march=native -ftree-vectorize
 #`pkg-config --cflags glfw3`
 
 # Check if SKIPPARITY is defined during compilation
@@ -27,9 +27,9 @@ CXXFLAGS += -DENABLEGUI
 
 PCH_FLAGS = -include spdlog_pch.hpp
 
-FAST_FLAGS =  -Wall -O1 -g #-O2
-TEST_FLAGS = -Wall  -g # -O1 is considered safe for valgrind
-DEBUG_FLAGS = -g -Wall
+FAST_FLAGS =  -Wall -O2 # there is a jump betwen 01 and 02, but little is gained by going to 03
+TEST_FLAGS = -Wall -g -Og # -O1 is considered safe for valgrind, -Og is better for debugging
+DEBUG_FLAGS = -Wall -g -Og
 
 LFLAGS = -lcfitsio -lm -lspdlog -lfmt -lokFrontPanel -fopenmp -lGL -lz
 LINKED_LIBS = -L/usr/local/lib -Wl,-rpath=/usr/local/lib
@@ -88,6 +88,7 @@ clean:
 	rm -f $(COM_OBJS) $(TEST_OBJS) $(MAIN_OBJS) $(IMGUI_OBJS)
 	find . -name "record*.rtlm" -size 0 -delete
 	find . -name "log*.log" -size 0 -delete
+	find data -name "*.lock*" -delete
 
 removebinaries:
 	rm -f rl0b_main_gui rl0b_test rl0b_main_debug
