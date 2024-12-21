@@ -8,6 +8,7 @@
 // There is only one programState structure, and it is defined in main.cpp as a global to pass info to the imgui instance.
 struct ProgramState {
 	struct Args {
+		std::atomic<bool> fullScreen{false};
 		std::atomic<bool> fileSpecified{false};
 		std::string filename;
 		std::atomic<bool> skipESP{false};

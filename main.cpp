@@ -158,6 +158,9 @@ void parseCommandLineArgs(int argc, char* argv[]) {
             globalState.args.fileSpecified.store(true);
             globalState.args.filename = arg;
             LogFileWriter::getInstance().logInfo("Received filename arg: {}", arg);
+        } else if (arg == "--fullScreen" || arg == "-fullScreen") {
+            globalState.args.fullScreen.store(true);
+            LogFileWriter::getInstance().logInfo("Received : {}", arg);
         } else if (arg == "--skipESP" || arg == "-skipESP") {
             globalState.args.skipESP.store(true);
             LogFileWriter::getInstance().logInfo("Received : {}", arg);
@@ -198,6 +201,7 @@ void print_help() {
   std::cout << " ./rl0b_main_gui [tlmfilename] [options]" << std::endl;
   std::cout << " " << std::endl;
   std::cout << "Options: " << std::endl;
+  std::cout << " -fulLScreen sets the graphics window fill the PrimaryMonitor" << std::endl;
   std::cout << " -help runs print_help to display this message and exit" << std::endl;
   std::cout << " -skipESP will ignore ESP packets (apid 605)" << std::endl;
   std::cout << " -skipMP will ignore MEGS-P packets (apid 604)" << std::endl;

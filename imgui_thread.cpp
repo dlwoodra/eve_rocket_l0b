@@ -1812,8 +1812,18 @@ int imgui_thread() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
 #endif
 
+    int screenWidth = 1200;
+    int screenHeight = 800;
+
+    if (globalState.args.fullScreen.load()) {
+        // determine screen resolution
+        const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+        screenWidth = mode->width;
+        screenHeight = mode->height;
+    }
+
     // Create window with graphics context
-    GLFWwindow* window = glfwCreateWindow(1200, 800, "SDO-EVE Rocket L0b - Dear ImGui GLFW+OpenGL3", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(screenWidth, screenHeight, "SDO-EVE Rocket L0b - Dear ImGui GLFW+OpenGL3", nullptr, nullptr);
     if (window == nullptr)
         return 1;
     glfwMakeContextCurrent(window);
