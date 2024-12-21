@@ -420,7 +420,7 @@ bool FITSWriter::writeMegsFITS(const MEGS_IMAGE_REC& megsStructure, uint16_t api
     fits_close_file(fptr, &status);
     checkFitsStatus(status);
 
-    std::cout << "FITSWriter::writeMegsFITS successfully wrote " << filename << std::endl;
+    std::cout << "FITSWriter::writeMegsFITS _successfully wrote " << filename << std::endl;
     LogFileWriter::getInstance().logInfo("FITSWriter::writeMegsFITS successfully wrote {}", filename);
 
     FileCompressor compressor;
@@ -640,7 +640,7 @@ bool FITSWriter::writeESPFITS( const ESP_PACKET& ESPStructure) {
         return false;
     }
 
-    std::cout << "FITSWriter::writeESPFITS successfully wrote " << filename << std::endl;
+    std::cout << "FITSWriter::writeESPFITS __successfully wrote " << filename << std::endl;
     LogFileWriter::getInstance().logInfo("FITSWriter::writeESPFITS successfully wrote {}", filename);
 
     FileCompressor compressor;
@@ -1026,7 +1026,7 @@ bool FITSWriter::writeSHKFITS( const SHK_PACKET& SHKStructure) {
 
     // this is where to write the converted SHK data into a second HDU
 
-    std::cout << "FITSWriter::writeSHKFITS successfully wrote " << filename << std::endl;
+    std::cout << "FITSWriter::writeSHKFITS __successfully wrote " << filename << std::endl;
     LogFileWriter::getInstance().logInfo("FITSWriter::writeSHKFITS successfully wrote {}", filename);
 
     FileCompressor compressor;
