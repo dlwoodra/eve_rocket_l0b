@@ -25,9 +25,23 @@
 extern ProgramState globalState;
 extern std::mutex mtx;
 
-int Image_Display_Scale_MA = 0;
-int Image_Display_Scale_MB = 0;
 const char* Image_Display_Scale_Items[] = { "Mod 256", "Full Scale", "HistEqual" };
+
+struct GlobalGUI
+{
+    int Image_Display_Scale_MA = 0;
+    int Image_Display_Scale_MB = 0;
+    float mazoom = 0.2f;
+    float mbzoom = 0.2f;         // Zoom level (1.0 = full resolution)
+    uint16_t MADark[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH] = {0};
+    uint16_t MBDark[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH] = {0};
+    uint16_t displayableMAImage[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH] = {0};
+    uint16_t displayableMBImage[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH] = {0};
+    bool removeMADark = false;
+    bool removeMBDark = false;
+};
+
+static GlobalGUI globalGUI;
 
 ImPlotColormap selectedMAColormap = ImPlotColormap_Jet;
 ImPlotColormap selectedMBColormap = ImPlotColormap_Jet;
@@ -65,8 +79,18 @@ ImVec4 getColorForState(LimitState state) {
     }
 }
 
-float mazoom = 0.2f;         // Zoom level (1.0 = full resolution)
-float mbzoom = 0.2f;         // Zoom level (1.0 = full resolution)
+void differenceAndClip(const uint16_t measurement[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH],
+                       const uint16_t background[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH],
+                       uint16_t result[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH]) {
+    //#pragma omp parallel for
+    for (size_t i = 0; i < MEGS_IMAGE_HEIGHT; ++i) {
+        //#pragma omp simd
+        for (size_t j = 0; j < MEGS_IMAGE_WIDTH; ++j) {
+            int diff = measurement[i][j] - background[i][j];
+            result[i][j] = diff > 0 ? diff : 0;
+        }
+    }
+}
 
 void addFilledCircleToTreeNode(LimitState state) {
     // Position elements on the same line
@@ -325,6 +349,7 @@ void scaleImageToTexture(uint16_t (*megsImage)[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WID
         #pragma omp parallel for
         for (uint32_t y = 0; y < MEGS_IMAGE_HEIGHT; ++y) {
             uint32_t rowIndex = y * MEGS_IMAGE_WIDTH; // Precompute row start index for 1D array
+            #pragma omp simd
             for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; ++x) {
                 textureData[rowIndex + x] = static_cast<uint8_t>(((*megsImage)[y][x] & 0x3FFF) >> 6);
             }
@@ -337,6 +362,7 @@ void scaleImageToTexture(uint16_t (*megsImage)[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WID
         #pragma omp parallel for
         for (uint32_t y = 0; y < MEGS_IMAGE_HEIGHT; ++y) {
             uint32_t rowIndex = y * MEGS_IMAGE_WIDTH; // Precompute row start index for 1D array
+            #pragma omp simd
             for (uint32_t x = 0; x < MEGS_IMAGE_WIDTH; ++x) {
                 textureData[rowIndex + x] = static_cast<uint8_t>((*megsImage)[y][x] & 0xFF);
             }
@@ -389,48 +415,6 @@ void renderInputTextWithColor(const char* label, T value, size_t bufferSize, boo
     // Restore default color
     ImGui::PopStyleColor();
 }
-
-
-// void renderInputTextWithColor(const char* label, long value, size_t bufferSize, bool limitCheck,
-//                               float yHiLimit, float rHiLimit, float yLoLimit = -100.0f, float rLoLimit = -200.0f,
-//                               const char* format = nullptr, const int itemWidthMultiplier = 4) { // `format` is optional
-//     LimitState state = NoCheck;
-    
-//     float_t itemWidthValue = ImGui::GetFontSize() * itemWidthMultiplier;
-//     ImGui::PushItemWidth(itemWidthValue);
-
-//     char strval[bufferSize];
-//     // Use provided format or default to integer if format is nullptr
-//     if (format) {
-//         snprintf(strval, bufferSize, format, static_cast<float>(value));
-//     } else {
-//         snprintf(strval, bufferSize, "%ld", value); // Default to integer format
-//     }
-
-//     if (limitCheck) {
-//         const float fvalue = static_cast<float>(value); // `fvalue` is only used for limit checking
-//         if (fvalue > rHiLimit) {
-//             state = Red;
-//         } else if (fvalue > yHiLimit) {
-//             state = Yellow;
-//         } else if (fvalue < rLoLimit) {
-//             state = Red;
-//         } else if (fvalue < yLoLimit) {
-//             state = Yellow;
-//         } else {
-//             state = Green;
-//         }
-//     }
-
-//     // Set color before rendering
-//     ImGui::PushStyleColor(ImGuiCol_FrameBg, getColorForState(state));
-
-//     // Render the InputText with formatted value
-//     ImGui::InputText(label, strval, bufferSize);
-
-//     // Restore default color
-//     ImGui::PopStyleColor();
-// }
 
 void ShowColormapComboBox(const char* label, int& selectedColormapIndex, ImVec2 previewSize) {
     // refer to the enum ImPlotColormap_ for the list of available colormaps
@@ -524,6 +508,19 @@ void GenerateColorizedTexture(const std::vector<unsigned char>& intensityData,
 GLuint createProperTextureFromMEGSImage(uint16_t (*data)[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH], int Image_Display_Scale, bool isMA) {
     std::vector<uint8_t> textureData(MEGS_TOTAL_PIXELS); // 8-bit data for display
 
+    // uint16_t tmpdata[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH];
+
+    // // remove background if box is checked
+    // if ((isMA) && (globalGUI.removeMADark)) {
+    //     std::memcpy(tmpdata, data, MEGS_IMAGE_HEIGHT * MEGS_IMAGE_WIDTH * sizeof(uint16_t));
+    //     differenceAndClip(tmpdata, globalGUI.MADark, *data);
+    //     std::cout<<"MA dark removed "<<tmpdata[0][0]<<" "<<globalGUI.MADark[0][0]<<" "<< *data[0][0] << std::endl;
+    // } else if ((!isMA) && (globalGUI.removeMBDark)) {
+    //     std::memcpy(tmpdata, data, MEGS_IMAGE_HEIGHT * MEGS_IMAGE_WIDTH * sizeof(uint16_t));
+    //     differenceAndClip(tmpdata, globalGUI.MBDark, *data);
+    //     std::cout<<"MB dark removed "<<tmpdata[0][0]<<" "<<globalGUI.MBDark[0][0]<<" "<< *data[0][0] << std::endl;
+    // }
+
     scaleImageToTexture(data, textureData, Image_Display_Scale);
 
     GenerateColorizedTexture(textureData, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, textureData, isMA ? selectedMAColormap : selectedMBColormap);
@@ -558,19 +555,23 @@ void renderUpdatedTextureFromMEGSAImage(GLuint textureID)
     int height=MEGS_IMAGE_HEIGHT;
     std::vector<uint8_t> textureData(width * height);
 
-    scaleImageToTexture(&globalState.megsa.image, textureData, Image_Display_Scale_MA);
+    // remove background if box is checked
+    std::memcpy(globalGUI.displayableMAImage, globalState.megsa.image, MEGS_IMAGE_HEIGHT * MEGS_IMAGE_WIDTH * sizeof(uint16_t));
+    if (globalGUI.removeMADark) {
+        differenceAndClip(globalState.megsa.image, globalGUI.MADark, globalGUI.displayableMAImage); // switch order
+        //std::cout<<"MA dark removed "<<globalGUI.displayableMAImage[0][0]<<" "<<globalGUI.MADark[0][0]<<" "<< globalState.megsa.image[0][0] << std::endl;
+    }
+
+    scaleImageToTexture(&globalGUI.displayableMAImage, textureData, globalGUI.Image_Display_Scale_MA);
+    //scaleImageToTexture(&globalState.megsa.image, textureData, globalGUI.Image_Display_Scale_MA);
+
     SetRainbowCustomColormap(true);
-    //ImPlotColormap ColormapSelectedCustom = ImPlot::GetColormapIndex("RainbowCustom");
-    //const char* colormapName = GetColormapNameByIndex(selectedMAColormap);
-    //ImPlotColormap ColormapSelectedCustom = ImPlot::GetColormapIndex(colormapName);
     std::vector<uint8_t> colorTextureData( width * height * 3); //r,g,b
     GenerateColorizedTexture(textureData, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, colorTextureData, selectedMAColormap); //ColormapSelectedCustom);
 
     glBindTexture(GL_TEXTURE_2D, textureID);
-
-    //glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, textureData.data());
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, colorTextureData.data());
-    glBindTexture(GL_TEXTURE_2D, textureID);
+
     ImPlot::PopColormap();
 }
 
@@ -580,17 +581,24 @@ void renderUpdatedTextureFromMEGSBImage(GLuint megsBTextureID)
     int height=MEGS_IMAGE_HEIGHT;
     std::vector<uint8_t> textureData(width * height);
 
-    scaleImageToTexture(&globalState.megsb.image, textureData, Image_Display_Scale_MB);
+    // remove background if box is checked
+    std::memcpy(globalGUI.displayableMBImage, globalState.megsb.image, MEGS_IMAGE_HEIGHT * MEGS_IMAGE_WIDTH * sizeof(uint16_t));
+    if (globalGUI.removeMBDark) {
+        differenceAndClip(globalState.megsb.image, globalGUI.MBDark, globalGUI.displayableMBImage); // switch order
+        //std::cout<<"MB dark removed "<<globalGUI.displayableMBImage[0][0]<<" "<<globalGUI.MBDark[0][0]<<" "<< globalState.megsb.image[0][0] << std::endl;
+    }
+
+    scaleImageToTexture(&globalGUI.displayableMBImage, textureData, globalGUI.Image_Display_Scale_MB);
+    //scaleImageToTexture(&globalState.megsb.image, textureData, globalGUI.Image_Display_Scale_MB);
     SetRainbowCustomColormap(false);
 
     std::vector<uint8_t> colorTextureData( width * height * 3); //r,g,b
     GenerateColorizedTexture(textureData, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, colorTextureData, selectedMBColormap);
 
-    glBindTexture(GL_TEXTURE_2D, megsBTextureID);
-    // to just use red color, use the next line and comment the line after
-    //glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, GL_RED, GL_UNSIGNED_BYTE, textureData.data());
+    glBindTexture(GL_TEXTURE_2D, megsBTextureID); // need to bin before glTexImage2D
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, MEGS_IMAGE_WIDTH, MEGS_IMAGE_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, colorTextureData.data());
-    glBindTexture(GL_TEXTURE_2D, megsBTextureID);
+
+    ImPlot::PopColormap();
 }
 
 
@@ -648,17 +656,27 @@ void displayMAImageWithControls(GLuint megsATextureID)
     
     // Zoom slider
     ImGui::SetNextItemWidth(120);
-    ImGui::InputFloat("MA Zoom", &mazoom, 0.2f, 0.2f, "%.2f");
+    ImGui::InputFloat("MA Zoom", &globalGUI.mazoom, 0.2f, 0.2f, "%.2f");
     ImGui::SameLine();
     ImGui::SetNextItemWidth(100);
-    ImGui::Combo("Scaletype", &Image_Display_Scale_MA, Image_Display_Scale_Items, IM_ARRAYSIZE(Image_Display_Scale_Items));
+    ImGui::Combo("Scaletype", &globalGUI.Image_Display_Scale_MA, Image_Display_Scale_Items, IM_ARRAYSIZE(Image_Display_Scale_Items));
     ImGui::SameLine();
     ImGui::SetNextItemWidth(70);
     ShowColormapSelector(true); // false for MEGS-B
+
+    if (ImGui::Button("Collect MA Dark")) {
+        mtx.lock();
+        std::memcpy(globalGUI.MADark, globalState.megsa.image, sizeof(globalGUI.MADark));
+        mtx.unlock();
+        std::cout<<"MA Dark collected and stored"<<std::endl;
+    }
+    ImGui::SameLine();
+    ImGui::Checkbox("Remove MA Dark", &globalGUI.removeMADark);
+
     ImGui::NewLine();
 
     ImPlot::PopColormap();
-
+    
     mtx.lock();
     std::string tmpiISO8601sss = tai_to_iso8601_with_milliseconds(globalState.megsa.tai_time_seconds, globalState.megsa.tai_time_subseconds); 
     mtx.unlock();
@@ -671,26 +689,26 @@ void displayMAImageWithControls(GLuint megsATextureID)
     ImGui::BeginGroup();
     {
         ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.0f, 1.0f, 0.0f, 0.5f)); // Green
-        ImGui::VSliderInt("##MAY1", ImVec2(30,MEGS_IMAGE_HEIGHT*mazoom*0.5), &yPosHi, 512, 1023);
+        ImGui::VSliderInt("##MAY1", ImVec2(30,MEGS_IMAGE_HEIGHT*globalGUI.mazoom*0.5), &yPosHi, 512, 1023);
         ImGui::PopStyleColor();
         // remove spacing between sliders
         ImGui::SetCursorPosY(ImGui::GetCursorPosY() - ImGui::GetStyle().ItemSpacing.y);
         // Set the color for the second slider
         ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.0f, 0.0f, 1.0f, 1.0f)); // Blue
-        ImGui::VSliderInt("##MAY2", ImVec2(30,MEGS_IMAGE_HEIGHT*(mazoom)*0.5), &yPosLo, 0, 511);
+        ImGui::VSliderInt("##MAY2", ImVec2(30,MEGS_IMAGE_HEIGHT*(globalGUI.mazoom)*0.5), &yPosLo, 0, 511);
         ImGui::PopStyleColor();
     }
     ImGui::EndGroup();
     ImGui::SameLine();
 
     float value = 1.0f; // changing this will crop the image
-    ImGui::Image((void*)(intptr_t)megsATextureID, ImVec2(MEGS_IMAGE_WIDTH*mazoom,MEGS_IMAGE_HEIGHT*mazoom), ImVec2(0.0f,0.0f), ImVec2(value,value));
+    ImGui::Image((void*)(intptr_t)megsATextureID, ImVec2(MEGS_IMAGE_WIDTH*globalGUI.mazoom,MEGS_IMAGE_HEIGHT*globalGUI.mazoom), ImVec2(0.0f,0.0f), ImVec2(value,value));
 
     ImGui::SameLine();
     // Add a color bar
 
     SetRainbowCustomColormap(true);
-    ImPlot::ColormapScale("MA Colorbar", 0.0f, 255.0f, ImVec2(100, MEGS_IMAGE_HEIGHT*mazoom), "%g", 0, selectedMAColormap); // Adjust size as needed
+    ImPlot::ColormapScale("MA Colorbar", 0.0f, 255.0f, ImVec2(100, MEGS_IMAGE_HEIGHT*globalGUI.mazoom), "%g", 0, selectedMAColormap); // Adjust size as needed
     ImPlot::PopColormap();
 
     // dislpay the value of one pixel from each half
@@ -820,13 +838,23 @@ void displayMBImageWithControls(GLuint megsBTextureID)
     ImGui::Begin("MEGS-B Image Viewer");
 
     ImGui::SetNextItemWidth(120);
-    ImGui::InputFloat("MB Zoom", &mbzoom, 0.2f, 0.2f, "%.2f");
+    ImGui::InputFloat("MB Zoom", &globalGUI.mbzoom, 0.2f, 0.2f, "%.2f");
     ImGui::SameLine();
     ImGui::SetNextItemWidth(100);
-    ImGui::Combo("Scaletype", &Image_Display_Scale_MB, Image_Display_Scale_Items, IM_ARRAYSIZE(Image_Display_Scale_Items));
+    ImGui::Combo("Scaletype", &globalGUI.Image_Display_Scale_MB, Image_Display_Scale_Items, IM_ARRAYSIZE(Image_Display_Scale_Items));
     ImGui::SameLine();
     ImGui::SetNextItemWidth(70);
     ShowColormapSelector(false); // false for MEGS-B
+
+    if (ImGui::Button("Collect MB Dark")) {
+        mtx.lock();
+        std::memcpy(globalGUI.MBDark, globalState.megsb.image, sizeof(globalGUI.MBDark));
+        mtx.unlock();
+        std::cout<<"MB Dark collected and stored"<<std::endl;
+    }
+    ImGui::SameLine();
+    ImGui::Checkbox("Remove MB Dark", &globalGUI.removeMBDark);
+
     ImGui::NewLine();
 
     ImPlot::PopColormap();
@@ -843,26 +871,26 @@ void displayMBImageWithControls(GLuint megsBTextureID)
     ImGui::BeginGroup();
     {
         ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.0f, 1.0f, 0.0f, 0.5f)); // Green
-        ImGui::VSliderInt("##MBY1", ImVec2(30,MEGS_IMAGE_HEIGHT*mbzoom*0.5), &yPosHi, 512, 1023);
+        ImGui::VSliderInt("##MBY1", ImVec2(30,MEGS_IMAGE_HEIGHT*globalGUI.mbzoom*0.5), &yPosHi, 512, 1023);
         ImGui::PopStyleColor();
         // remove spacing between sliders
         ImGui::SetCursorPosY(ImGui::GetCursorPosY() - ImGui::GetStyle().ItemSpacing.y);
         // Set the color for the second slider
         ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.0f, 0.0f, 1.0f, 1.0f)); // Blue
-        ImGui::VSliderInt("##MBY2", ImVec2(30,MEGS_IMAGE_HEIGHT*(mbzoom)*0.5), &yPosLo, 0, 511);
+        ImGui::VSliderInt("##MBY2", ImVec2(30,MEGS_IMAGE_HEIGHT*(globalGUI.mbzoom)*0.5), &yPosLo, 0, 511);
         ImGui::PopStyleColor();
     }
     ImGui::EndGroup();
     ImGui::SameLine();
 
     float value = 1.0f; // changing this will crop the image
-    ImGui::Image((void*)(intptr_t)megsBTextureID, ImVec2(MEGS_IMAGE_WIDTH*mbzoom,MEGS_IMAGE_HEIGHT*mbzoom), ImVec2(0.0f,0.0f), ImVec2(value,value));
+    ImGui::Image((void*)(intptr_t)megsBTextureID, ImVec2(MEGS_IMAGE_WIDTH*globalGUI.mbzoom,MEGS_IMAGE_HEIGHT*globalGUI.mbzoom), ImVec2(0.0f,0.0f), ImVec2(value,value));
 
     ImGui::SameLine();
     // Add a color bar
 
     SetRainbowCustomColormap(false);
-    ImPlot::ColormapScale("MB Colorbar", 0.0f, 255.0f, ImVec2(100, MEGS_IMAGE_HEIGHT*mbzoom), "%g", 0, selectedMBColormap); // Adjust size as needed
+    ImPlot::ColormapScale("MB Colorbar", 0.0f, 255.0f, ImVec2(100, MEGS_IMAGE_HEIGHT*globalGUI.mbzoom), "%g", 0, selectedMBColormap); // Adjust size as needed
     ImPlot::PopColormap();
 
     // dislpay the value of one pixel from each half
@@ -1844,8 +1872,8 @@ int imgui_thread() {
     
     //std::lock_guard<std::mutex> lock(mtx); // lock the mutex
     mtx.lock();
-    GLuint megsATextureID = createProperTextureFromMEGSImage(&globalState.megsa.image, Image_Display_Scale_MA, true);
-    GLuint megsBTextureID = createProperTextureFromMEGSImage(&globalState.megsb.image, Image_Display_Scale_MB, false);
+    GLuint megsATextureID = createProperTextureFromMEGSImage(&globalState.megsa.image, globalGUI.Image_Display_Scale_MA, true);
+    GLuint megsBTextureID = createProperTextureFromMEGSImage(&globalState.megsb.image, globalGUI.Image_Display_Scale_MB, false);
     mtx.unlock(); // unlock the mutex
 
     // Test image for verify orientation
