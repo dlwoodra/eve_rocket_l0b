@@ -71,20 +71,25 @@ int32_t assemble_image( uint8_t * vcdu, MEGS_IMAGE_REC * ptr, uint16_t sourceSeq
   // Loop over 875 pixel pairs in packet
   for (int32_t j = 30; j <= 1780; j += 2) 
   {
+    jrel = (j-30)>>1;
+    // jrel is the pixel number offset in the vcdu (0-874)
 
     // The valid range of byte offsets into the VCDU
     // This check is for the last partial packet (#2394) which has 16 bytes.
     if ((src_seq == 2394) && (j >= 46)) // 30+16
     {
+      //continue;
       break;
     }
 
     // 16-bits allocated to each pixel, top msb is parity, second is framestart, lsb 14 bits are twos comp encoded data
-    uint16_t pixval16 = (uint16_t (vcdu[j] << 8) & 0xFF00) | (uint16_t (vcdu[j+1]));
+    //uint16_t pixval16 = (uint16_t (vcdu[j] << 8) & 0xFF00) | (uint16_t (vcdu[j+1]));
+    uint16_t pixval16 = (static_cast<uint16_t>(vcdu[j] << 8) & 0xFF00) | vcdu[j + 1];
 
   // fix the first 2 pixels
   if ( sourceSequenceCounter == 0 && ((j == 30) || (j == 32)) ) {
-    pixval16 = (uint16_t (vcdu[j+4] << 8) & 0xFF00) | (uint16_t (vcdu[j+5]));
+    //pixval16 = (uint16_t (vcdu[j+4] << 8) & 0xFF00) | (uint16_t (vcdu[j+5]));
+    pixval16 = (static_cast<uint16_t>(vcdu[j + 4] << 8) & 0xFF00) | vcdu[j + 5];
   }
 
     // rocket fpga messes up the first 2 pixels, then its OK
@@ -97,8 +102,9 @@ int32_t assemble_image( uint8_t * vcdu, MEGS_IMAGE_REC * ptr, uint16_t sourceSeq
     {
       // for David's new rocketFPGA, do both parity and 2s complement
       // Decode (2's complement) the 14 bit (with sign) pixel value
-      uint16_t tcval = uint16_t (twoscomp_table[pix_val14]);
-      pix_val14 = tcval; 
+      //uint16_t tcval = uint16_t (twoscomp_table[pix_val14]);
+      //pix_val14 = tcval; 
+      pix_val14 = static_cast<uint16_t>(twoscomp_table[pix_val14]);
     }
 
 #ifndef SKIPPARITY
@@ -117,7 +123,7 @@ int32_t assemble_image( uint8_t * vcdu, MEGS_IMAGE_REC * ptr, uint16_t sourceSeq
 
     // assemble regardless of whether the parity check fails
       
-    jrel = ((j - 30)>>1); // the pixel number offset in the vcdu
+    //jrel = ((j - 30)>>1); // the pixel number offset in the vcdu
     // jrel is the pixel number in the VCDU, 0 to 875 with top/bottom interleaved
     // when combined with the src_seq number, a pixel location can be determined
     // jrel is the pixel index 0,1,2... where evens are top and odds are bottom
@@ -125,7 +131,6 @@ int32_t assemble_image( uint8_t * vcdu, MEGS_IMAGE_REC * ptr, uint16_t sourceSeq
     // assign pix_val14 to proper x,y or xpos,ypos location in image
     // find whether the jrel pixel is from the top (even) or bottom (odd) half of the CCD
 
-    jrel = (j-30)>>1;
     kk = src_seq_times_pixels_per_half_vcdu + (jrel>>1);
     ypos = (jrel & 0x1) == 0 ? (kk >> MEGS_IMAGE_WIDTH_SHIFT) : (MEGS_IMAGE_HEIGHT_LESS1) - (kk >> MEGS_IMAGE_WIDTH_SHIFT);
     xpos = ((kk + not_tp2043) & MEGS_IMAGE_WIDTH_LESS1);
@@ -140,5 +145,6 @@ int32_t assemble_image( uint8_t * vcdu, MEGS_IMAGE_REC * ptr, uint16_t sourceSeq
          
   // increment vcdu counter for assembling the image
   ptr->vcdu_count++;
+
   return parityerrors;
 }
