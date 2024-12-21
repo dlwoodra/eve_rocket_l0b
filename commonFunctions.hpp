@@ -3,8 +3,6 @@
 
 #include "eve_l0b.hpp" // absorbed eve_structures.hpp
 #include "CCSDSReader.hpp"
-//#include "eve_megs_twoscomp.h"
-//#include "eve_megs_pixel_parity.h"
 #include "FITSWriter.hpp"
 #include "FileInputSource.hpp"
 #include "InputSource.hpp"
@@ -12,9 +10,9 @@
 #include "RecordFileWriter.hpp"
 #include "USBInputSource.hpp"
 #include "ProgramState.hpp"
-#include <functional>
-#include <array>
-#include <omp.h>
+#include <functional> // for convertSHKData lambda polynomial function
+#include <array> // for std::array
+#include <omp.h> // for OpenMP
 
 //#include <chrono> // included in RecordFileWriter.hpp
 //#include <cstdint> // included in CCSDSReader.hpp
@@ -22,7 +20,6 @@
 //#include <iostream> // included in CCSDSReader.hpp
 #include <algorithm> // needed for std::copy
 #include <string>
-//#include <mutex>
 #include <sys/stat.h> // For mkdir
 #include <sys/types.h> // For mode_t
 #include <errno.h>     // For errno
