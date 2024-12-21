@@ -253,7 +253,7 @@ int FITSWriter::writeBinaryTable(const std::string& filename,
             //colTypeSize = 1;
         } else if (types[i] == 'A') {
             colType = TSTRING; // chars
-            colTypeSize = sizeof("0123456789ABCDEFG"); //16;
+            colTypeSize = sizeof("0123456789ABCDEFG"); //17;
         } else if (types[i] == 'I') {
             colType = TSHORT;  // int16
             colTypeSize = sizeof(uint16_t); //2;
@@ -413,6 +413,7 @@ bool FITSWriter::writeMegsFITS(const MEGS_IMAGE_REC& megsStructure, uint16_t api
     int result = writeMegsFITSBinaryTable(filename, megsStructure, extname, apid);
     if (result != 0) {
         std::cerr << "Failed to write binary table to FITS file: " << filename << std::endl;
+        std::cerr << " Check for .lock.gz files " << std::endl;
         return false;
     }
 
@@ -519,6 +520,7 @@ bool FITSWriter::writeMegsPFITS( const MEGSP_PACKET& megsPStructure) {
     fits_close_file(fptr, &status);
     if (result != 0) {
         std::cerr << "Failed to write binary table to MEGSP FITS file: " << filename << std::endl;
+        std::cerr << " Check for .lock.gz files " << std::endl;
         return false;
     }
 
@@ -606,31 +608,6 @@ int FITSWriter::writeESPFITSBinaryTable(const std::string& filename, const ESP_P
     std::vector<uint8_t> data(sizeof(DataRow));
     memcpy(data.data(), &row, sizeof(DataRow)); // this does not seem to work
 
-    // // SLOWER alternative to memcpy is serialization
-    // std::vector<uint8_t> data;
-    // data.reserve(sizeof(DataRow));
-    // auto append = [&](auto value) {
-    //     uint8_t* ptr = reinterpret_cast<uint8_t*>(&value);
-    //     data.insert(data.end(), ptr, ptr + sizeof(value));
-    // };
-
-    // append(row.yyyydoy);
-    // append(row.sod);
-    // append(row.tai_time_seconds);
-    // append(row.tai_time_subseconds);
-    // append(row.rec_tai_seconds);
-    // append(row.rec_tai_subseconds);
-    // data.insert(data.end(), reinterpret_cast<uint8_t*>(row.ESP_xfer_cnt), reinterpret_cast<uint8_t*>(row.ESP_xfer_cnt) + ESP_INTEGRATIONS_PER_FILE * sizeof(uint16_t));
-    // data.insert(data.end(), reinterpret_cast<uint8_t*>(row.ESP_q0), reinterpret_cast<uint8_t*>(row.ESP_q0) + ESP_INTEGRATIONS_PER_FILE * sizeof(uint16_t));
-    // data.insert(data.end(), reinterpret_cast<uint8_t*>(row.ESP_q1), reinterpret_cast<uint8_t*>(row.ESP_q1) + ESP_INTEGRATIONS_PER_FILE * sizeof(uint16_t));
-    // data.insert(data.end(), reinterpret_cast<uint8_t*>(row.ESP_q2), reinterpret_cast<uint8_t*>(row.ESP_q2) + ESP_INTEGRATIONS_PER_FILE * sizeof(uint16_t));
-    // data.insert(data.end(), reinterpret_cast<uint8_t*>(row.ESP_q3), reinterpret_cast<uint8_t*>(row.ESP_q3) + ESP_INTEGRATIONS_PER_FILE * sizeof(uint16_t));
-    // data.insert(data.end(), reinterpret_cast<uint8_t*>(row.ESP_171), reinterpret_cast<uint8_t*>(row.ESP_171) + ESP_INTEGRATIONS_PER_FILE * sizeof(uint16_t));
-    // data.insert(data.end(), reinterpret_cast<uint8_t*>(row.ESP_257), reinterpret_cast<uint8_t*>(row.ESP_257) + ESP_INTEGRATIONS_PER_FILE * sizeof(uint16_t));
-    // data.insert(data.end(), reinterpret_cast<uint8_t*>(row.ESP_304), reinterpret_cast<uint8_t*>(row.ESP_304) + ESP_INTEGRATIONS_PER_FILE * sizeof(uint16_t));
-    // data.insert(data.end(), reinterpret_cast<uint8_t*>(row.ESP_366), reinterpret_cast<uint8_t*>(row.ESP_366) + ESP_INTEGRATIONS_PER_FILE * sizeof(uint16_t));
-    // data.insert(data.end(), reinterpret_cast<uint8_t*>(row.ESP_dark), reinterpret_cast<uint8_t*>(row.ESP_dark) + ESP_INTEGRATIONS_PER_FILE * sizeof(uint16_t));
-
     return writeBinaryTable(
         filename, data.data(), columnNames.size(), columnNames,
         combinedColumnTypes, columnLengths, columnUnits, true, extname.c_str()
@@ -659,6 +636,7 @@ bool FITSWriter::writeESPFITS( const ESP_PACKET& ESPStructure) {
     fits_close_file(fptr, &status);
     if (result != 0) {
         std::cerr << "Failed to write binary table to ESP FITS file: " << filename << std::endl;
+        std::cerr << " Check for .lock.gz files " << std::endl;
         return false;
     }
 
@@ -700,7 +678,6 @@ int FITSWriter::writeSHKFITSBinaryTable(const std::string& filename, const SHK_P
         "cMEGSB_p24_Current", "cMEGSB_p15_Current", "cMEGSB_m15_Current", "cMEGSB_p5_0_Analog_Current", "cMEGSB_m5_0_Current", "cMEGSB_p5_0_Digital_Current", "cMEGSB_p2_5_Current", // 100
         "cMEGSA_Thermistor_Diode", "cMEGSA_PRT", "cMEGSB_Thermistor_Diode", "cMEGSB_PRT", // 104
         "cESP_Electrometer_Temperature", "cESP_Detector_Temperature", "cMEGSP_Temperature" // 107
-
     };
 
     std::vector<std::string> columnTypes = {"V", "V", "V", "V", 
@@ -1002,6 +979,10 @@ int FITSWriter::writeSHKFITSBinaryTable(const std::string& filename, const SHK_P
     std::vector<uint8_t> data(sizeof(DataRow));
     memcpy(data.data(), &row, sizeof(DataRow));
 
+    // vectors have size=107 elements
+    //std::cout<<"Sizes: "<<sizeof(DataRow)<<" "<<(data.size())<<" "<<(columnNames.size())<<" "<<(combinedColumnTypes.size())<<" "<<(columnLengths.size())<<" "<<(columnUnits.size())<<std::endl;
+    // shows Sizes: 5824 5824 107 107 107 107
+
     return writeBinaryTable(
         filename, data.data(), columnNames.size(), columnNames,
         combinedColumnTypes, columnLengths, columnUnits, true, extname.c_str()
@@ -1031,6 +1012,7 @@ bool FITSWriter::writeSHKFITS( const SHK_PACKET& SHKStructure) {
     int result = writeSHKFITSBinaryTable(filename, SHKStructure);
     if (result != 0) {
         std::cerr << "Failed to write binary table to SHK FITS file: " << filename << std::endl;
+        std::cerr << " Check for .lock.gz files " << std::endl;
         return false;
     }
 
