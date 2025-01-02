@@ -39,6 +39,10 @@ struct GlobalGUI
     uint16_t displayableMBImage[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH] = {0};
     bool removeMADark = false;
     bool removeMBDark = false;
+    bool flipMAVertical = false;
+    bool flipMBVertical = false;
+    bool flipMAHorizontal = false;
+    bool flipMBHorizontal = false;
 };
 
 static GlobalGUI globalGUI;
@@ -107,6 +111,18 @@ void addFilledCircleToTreeNode(LimitState state) {
     ImGui::GetWindowDrawList()->AddCircleFilled(circlePos, 8, ImGui::ColorConvertFloat4ToU32(getColorForState(state))); // colored circle
     ImGui::Dummy(ImVec2(0, 15));  // Move cursor down after circle, if adding more content below
 
+}
+
+void flipVertical(uint16_t image[1024][2048]) {
+    for (int row = 0; row < 1024 / 2; ++row) {
+        std::swap_ranges(image[row], image[row] + 2048, image[1023 - row]);
+    }
+}
+
+void flipHorizontal(uint16_t image[1024][2048]) {
+    for (int row = 0; row < 1024; ++row) {
+        std::reverse(image[row], image[row] + 2048);
+    }
 }
 
 // Function to populate the image with an asymetric pattern, 4 quadrants, lowest quad is a gradian, second is a checkerboard, third is a constant value, fourth is a sinusoidal pattern
@@ -562,6 +578,13 @@ void renderUpdatedTextureFromMEGSAImage(GLuint textureID)
         //std::cout<<"MA dark removed "<<globalGUI.displayableMAImage[0][0]<<" "<<globalGUI.MADark[0][0]<<" "<< globalState.megsa.image[0][0] << std::endl;
     }
 
+    if (globalGUI.flipMAVertical) {
+        flipVertical(globalGUI.displayableMAImage);
+    }
+    if (globalGUI.flipMAHorizontal) {
+        flipHorizontal(globalGUI.displayableMAImage);
+    }
+
     scaleImageToTexture(&globalGUI.displayableMAImage, textureData, globalGUI.Image_Display_Scale_MA);
     //scaleImageToTexture(&globalState.megsa.image, textureData, globalGUI.Image_Display_Scale_MA);
 
@@ -586,6 +609,13 @@ void renderUpdatedTextureFromMEGSBImage(GLuint megsBTextureID)
     if (globalGUI.removeMBDark) {
         differenceAndClip(globalState.megsb.image, globalGUI.MBDark, globalGUI.displayableMBImage); // switch order
         //std::cout<<"MB dark removed "<<globalGUI.displayableMBImage[0][0]<<" "<<globalGUI.MBDark[0][0]<<" "<< globalState.megsb.image[0][0] << std::endl;
+    }
+
+    if (globalGUI.flipMBVertical) {
+        flipVertical(globalGUI.displayableMBImage);
+    }
+    if (globalGUI.flipMBHorizontal) {
+        flipHorizontal(globalGUI.displayableMBImage);
     }
 
     scaleImageToTexture(&globalGUI.displayableMBImage, textureData, globalGUI.Image_Display_Scale_MB);
@@ -672,6 +702,10 @@ void displayMAImageWithControls(GLuint megsATextureID)
     }
     ImGui::SameLine();
     ImGui::Checkbox("Remove MA Dark", &globalGUI.removeMADark);
+    ImGui::SameLine();
+    ImGui::Checkbox("X-Flip MA", &globalGUI.flipMAHorizontal);
+    ImGui::SameLine();
+    ImGui::Checkbox("Y-Flip MA", &globalGUI.flipMAVertical);
 
     ImGui::NewLine();
 
@@ -854,6 +888,10 @@ void displayMBImageWithControls(GLuint megsBTextureID)
     }
     ImGui::SameLine();
     ImGui::Checkbox("Remove MB Dark", &globalGUI.removeMBDark);
+    ImGui::SameLine();
+    ImGui::Checkbox("X-Flip MB", &globalGUI.flipMBHorizontal);
+    ImGui::SameLine();
+    ImGui::Checkbox("Y-Flip MB", &globalGUI.flipMBVertical);
 
     ImGui::NewLine();
 
