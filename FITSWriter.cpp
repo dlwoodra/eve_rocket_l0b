@@ -21,7 +21,7 @@ std::string FITSWriter::createFITSFilename(uint16_t apid, double tai_seconds) {
     int64_t unixtime = tai_seconds - TAI_EPOCH_OFFSET_TO_UNIX;
     if (unixtime > TAI_LEAP_SECONDS) {
         // only apply leap seconds to reasonable times
-        unixtime += TAI_LEAP_SECONDS;
+        unixtime -= TAI_LEAP_SECONDS; // 03/21/25 need to subtract
     }
     std::time_t t = static_cast<std::time_t>(unixtime);
     std::tm* tm = std::gmtime(&t);
