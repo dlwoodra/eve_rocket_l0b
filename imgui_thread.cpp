@@ -808,7 +808,7 @@ void displayMAImageWithControls(GLuint megsATextureID)
 
     ImGui::Begin("MEGS-A Rate Meter");
 
-    if ( ImGui::TreeNode("MA Rate Meter") )
+    if ( ImGui::TreeNodeEx("MA Rate Meter", ImGuiTreeNodeFlags_DefaultOpen) )
     {
         static std::deque<uint16_t> megsARateMeterDN;
         size_t maxRateMeterSize = 10;
@@ -993,7 +993,7 @@ void displayMBImageWithControls(GLuint megsBTextureID)
 
     ImGui::Begin("MEGS-B Rate Meter");
 
-    if ( ImGui::TreeNode("MB Rate Meter") )
+    if ( ImGui::TreeNodeEx("MB Rate Meter", ImGuiTreeNodeFlags_DefaultOpen) )
     {
         static std::deque<uint16_t> megsBRateMeterDN;
         size_t maxRateMeterSize = 10;
