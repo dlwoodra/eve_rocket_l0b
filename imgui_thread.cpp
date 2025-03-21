@@ -39,8 +39,11 @@ struct GlobalGUI
     uint16_t displayableMBImage[MEGS_IMAGE_HEIGHT][MEGS_IMAGE_WIDTH] = {0};
     bool removeMADark = false;
     bool removeMBDark = false;
-    bool flipMAVertical = false;
-    bool flipMBVertical = false;
+    bool flipMAVertical = true; //03/21/25 set default to flip to be consistent with previous displays
+    // display is desired to be flipped vertically
+    // bottom left is slit 2, bottom right is SAM
+    // top is slit 1
+    bool flipMBVertical = true;
     bool flipMAHorizontal = false;
     bool flipMBHorizontal = false;
 };
