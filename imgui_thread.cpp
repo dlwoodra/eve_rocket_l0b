@@ -786,7 +786,8 @@ void displayMAImageWithControls(GLuint megsATextureID)
         }
 
         ImPlot::SetNextAxesToFit();
-        if (ImPlot::BeginPlot("MA Pixel Values", ImVec2(450, 180))) {
+        //if (ImPlot::BeginPlot("MA Pixel Values", ImVec2(450, 180))) {
+        if (ImPlot::BeginPlot("MA Pixel Values", ImVec2(-1, -1))) {
 
             mtx.lock();
             std::memcpy(firstRow, globalState.megsa.image[firstRowIdx], sizeof(firstRow));
@@ -971,7 +972,7 @@ void displayMBImageWithControls(GLuint megsBTextureID)
         }
 
         ImPlot::SetNextAxesToFit();
-        if (ImPlot::BeginPlot("MB Raw Pixel Values", ImVec2(450, 180))) 
+        if (ImPlot::BeginPlot("MB Raw Pixel Values", ImVec2(-1, -1))) 
         {
 
             mtx.lock();
@@ -2023,6 +2024,7 @@ int imgui_thread() {
             isFontLoaded = false;
         }
 
+        //ImGui::ShowMetricsWindow(); // used for debugging
 
         // Rendering
         ImGui::Render();
