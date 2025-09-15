@@ -785,9 +785,13 @@ void displayMAImageWithControls(GLuint megsATextureID)
             ImGui::TreePop();
         }
 
-        ImPlot::SetNextAxesToFit();
+        //ImPlot::SetNextAxesToFit();
+        
+
         //if (ImPlot::BeginPlot("MA Pixel Values", ImVec2(450, 180))) {
         if (ImPlot::BeginPlot("MA Pixel Values", ImVec2(-1, -1))) {
+
+            auto maPixelValuesLimits = ImPlot::GetPlotLimits();  // Store current limits
 
             mtx.lock();
             std::memcpy(firstRow, globalState.megsa.image[firstRowIdx], sizeof(firstRow));
