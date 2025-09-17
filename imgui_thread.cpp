@@ -1882,7 +1882,24 @@ int imgui_thread() {
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // Enable Docking
-    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;       // Enable Multi-Viewport / Platform Windows
+
+    // Viewports could cause mouse misalignment/misregistration issues
+    // if the backend doesn't fully suport them, so we are disabling them for now.
+    // imgui_impl_glfw.cpp and imgui_impl_opengl3.cpp inherently support them, but
+    // imgui_impl_glfw.cpp is missing: window creation, window moving, etc.
+    // We can try enabling them later if we need them.
+    // Multiple monitors create multi-viewports. Some have reported focus problems selecting windows.
+    // With multiple monitors that have different dpi scaling, there are some issues.
+    // See imgui_impl_glfw.cpp for more details.
+
+    // If you have multiple monitors and want to enable them, please refer to the
+    // example in imgui_impl_glfw.cpp
+    // If you enable viewports, please also see the 'Platform Functions' section in imgui_impl_glfw.cpp
+
+    // This was enabled at SURF 2025, disable for WSMR.
+    //io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;       // Enable Multi-Viewport / Platform Windows
+    // This flag is supposed to make Dear ImGui's coordinates same as the OS's coordinates.
+
     //io.ConfigViewportsNoAutoMerge = true;
     //io.ConfigViewportsNoTaskBarIcon = true;
 
